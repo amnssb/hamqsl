@@ -1,0 +1,61 @@
+:root {
+  --qsl-ink: #171717;
+  --qsl-muted: #6f6c66;
+  --qsl-line: #dedbd3;
+  --qsl-paper: #f7f6f2;
+  --qsl-panel: #ffffff;
+  --qsl-navy: #182d3d;
+  --qsl-navy-soft: #223d50;
+  --qsl-orange: #ff6b35;
+  --qsl-yellow: #f3c969;
+  --qsl-green: #2f8f83;
+  --el-color-primary: var(--qsl-orange);
+  --el-color-primary-light-3: #ff9874;
+  --el-color-primary-light-5: #ffb79d;
+  --el-color-primary-light-7: #ffd5c5;
+  --el-color-primary-light-9: #fff0eb;
+  --el-border-radius-base: 2px;
+  --el-border-radius-small: 2px;
+  --el-border-radius-round: 999px;
+  --el-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { min-height: 100%; }
+body {
+  margin: 0;
+  color: var(--qsl-ink);
+  background: var(--qsl-paper);
+  font-family: var(--el-font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+.el-card {
+  border: 1px solid var(--qsl-line);
+  border-radius: 2px;
+  background: var(--qsl-panel);
+  box-shadow: 3px 3px 0 rgba(24, 45, 61, .08);
+}
+.el-card__header { border-bottom: 1px solid var(--qsl-line); }
+.el-button { border-radius: 2px; font-weight: 650; }
+.el-button--primary { color: #fff; border-color: var(--qsl-orange); background: var(--qsl-orange); }
+.el-button--primary:hover { border-color: #e95420; background: #e95420; }
+.el-input__wrapper, .el-textarea__inner, .el-select__wrapper {
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--qsl-line) inset;
+  background: #fff;
+}
+.el-input__wrapper:hover, .el-select__wrapper:hover { box-shadow: 0 0 0 1px #aba69c inset; }
+.el-table { --el-table-border-color: var(--qsl-line); --el-table-header-bg-color: #f1efe9; --el-table-row-hover-bg-color: #fff5f0; }
+.el-table th.el-table__cell { color: var(--qsl-navy); font-weight: 700; }
+.el-tag { border-radius: 999px; font-weight: 650; }
+.el-dialog { border-radius: 2px; }
+
+.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; }
+.page-heading h1 { margin:0; color:var(--qsl-navy); font-size:clamp(25px, 3vw, 36px); letter-spacing:-.04em; }
+.page-heading p { margin:7px 0 0; color:var(--qsl-muted); font-size:14px; }
+
+@media (max-width: 760px) {
+  .page-heading { align-items:flex-start; flex-direction:column; gap:12px; }
+  .el-main { padding: 18px !important; }
+}

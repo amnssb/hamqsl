@@ -1,0 +1,32 @@
+services:
+  qsl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qsl-management:latest
+    container_name: qsl
+    restart: unless-stopped
+    ports:
+      - "3073:8000"          # 宿主 3073 -> 容器 8000；1Panel 反代目标填 http://127.0.0.1:3073
+    environment:
+      - GIN_MODE=release
+      - TZ=Asia/Shanghai
+      # JWT 密钥：留空则首次启动自动生成并持久化到 data/.jwt_secret（随数据卷保存），
+      # 也可自行指定：JWT_SECRET=你的随机长字符串
+      # - JWT_SECRET=
+      # 默认 SQLite，数据落在 ./data；如需 PostgreSQL 再放开下面几行
+      # - DB_DRIVER=postgres
+      # - DB_HOST=qsl-db
+      # - DB_PORT=5432
+      # - DB_USER=qsl
+      # - DB_PASSWORD=change-me
+      # - DB_NAME=qsl
+    volumes:
+      - ./data:/app/data       # SQLite 数据库：备份/迁移拷这个目录
+      - ./uploads:/app/uploads # 上传文件
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

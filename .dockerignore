@@ -1,0 +1,8 @@
+.git
+backend/data
+backend/uploads
+backend/server.exe
+frontend/node_modules
+frontend/dist
+scripts
+*.md
