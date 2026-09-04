@@ -68,7 +68,33 @@ func main() {
 	r.MaxMultipartMemory = 8 << 20
 	r.Static("/uploads", "./uploads")
 
+	// 生产模式托管前端：存在 ./web/dist 时由后端直接提供页面（单容器/单二进制部署无需 Nginx）
+	webDir := "./web/dist"
+	serveWeb := false
+	if _, err := os.Stat(webDir); err == nil {
+		serveWeb = true
+		r.NoRoute(func(c *gin.Context) {
+			// 命中的真实文件直接返回；/api 未注册路由保持 JSON 404；其余回退 index.html（history 路由）
+			p := filepath.Join(webDir, filepath.Clean("/"+c.Request.URL.Path))
+			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
+				c.File(p)
+				return
+			}
+			if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[:5] == "/api/" {
+				c.JSON(404, gin.H{"code": "QSL-404", "message": "接口不存在"})
+				return
+			}
+			c.File(filepath.Join(webDir, "index.html"))
+		})
+		log.Printf("前端静态目录: %s（单进程托管）", webDir)
+	}
+
 	r.GET("/", func(c *gin.Context) {
+		if serveWeb {
+			// 托管前端时根路径返回门户页面，而不是 API 说明
+			c.File(filepath.Join(webDir, "index.html"))
+			return
+		}
 		c.JSON(200, gin.H{"message": "QSL 卡片管理系统 API", "version": "1.0.0", "db": cfg.DBDriver})
 	})
 
@@ -182,25 +208,6 @@ func main() {
 	log.Printf("数据库: %s", cfg.DBDriver)
 	if cfg.DBDriver == "sqlite" {
 		log.Printf("SQLite 文件: %s", cfg.DBPath)
-	}
-
-	// 生产模式托管前端：存在 ./web/dist 时由后端直接提供页面（单容器/单二进制部署无需 Nginx）
-	webDir := "./web/dist"
-	if _, err := os.Stat(webDir); err == nil {
-		r.NoRoute(func(c *gin.Context) {
-			// 命中的真实文件直接返回；/api 未注册路由保持 JSON 404；其余回退 index.html（history 路由）
-			p := filepath.Join(webDir, filepath.Clean("/"+c.Request.URL.Path))
-			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
-				c.File(p)
-				return
-			}
-			if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[:5] == "/api/" {
-				c.JSON(404, gin.H{"code": "QSL-404", "message": "接口不存在"})
-				return
-			}
-			c.File(filepath.Join(webDir, "index.html"))
-		})
-		log.Printf("前端静态目录: %s（单进程托管）", webDir)
 	}
 
 	r.Run(":" + cfg.ServerPort)

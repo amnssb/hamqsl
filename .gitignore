@@ -24,3 +24,6 @@ Thumbs.db
 # E2E 运行时文件
 scripts/img_b64.txt
 scripts/test_adif.adi
+
+# 本地验证用（镜像内由前端阶段构建）
+backend/web/dist/
