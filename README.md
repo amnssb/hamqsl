@@ -142,7 +142,7 @@ npm run dev
 镜像默认使用 GitHub Actions 自动构建的预构建镜像 `ghcr.io/amnssb/hamqsl:latest`（push 到 main 即发布，部署机免编译）；拉不动时可解开 `docker-compose.yml` 中 `build:` 注释改为本地构建。
 
 ```bash
-git clone https://github.com/<你>/qsl.git /opt/qsl
+git clone https://github.com/amnssb/hamqsl.git /opt/qsl
 cd /opt/qsl
 bash deploy.sh          # 拉预构建镜像 → 启动 → 健康检查（拉取失败自动回退本地构建）
 ```

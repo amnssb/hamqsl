@@ -198,7 +198,7 @@ cd ../frontend && npm ci && npm run build && sudo cp -r dist/* /var/www/qsl/
 
 ### 方式 A：1Panel 编排（推荐，拉取编排 → 安装）
 
-1. **拉取项目**：服务器上 `git clone https://github.com/<你>/qsl.git /opt/qsl`，或 1Panel → 文件 上传解压
+1. **拉取项目**：服务器上 `git clone https://github.com/amnssb/hamqsl.git /opt/qsl`，或 1Panel → 文件 上传解压
 2. **创建编排**：1Panel → 容器 → 编排 → 创建编排
    - 编排内容：粘贴项目根目录 `docker-compose.yml` 的全部内容（或选择从路径导入）
    - **工作目录：必须选项目根目录 `/opt/qsl`**——数据卷 `./data`、`./uploads` 相对它创建
