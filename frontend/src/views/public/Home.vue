@@ -1,8 +1,8 @@
 <template>
   <div class="portal-page">
     <header class="portal-header">
-      <div class="portal-brand"><span class="brand-mark">Q</span><div><strong>{{ siteName }}</strong><small>业余无线电卡片管理</small></div></div>
-      <el-button class="admin-link" text @click="$router.push('/login')">管理后台 <el-icon><ArrowRight /></el-icon></el-button>
+      <div class="portal-brand"><span class="brand-mark">Q</span><div><strong>{{ siteName }}</strong><small>{{ t('home.brandSubtitle') }}</small></div></div>
+      <el-button class="admin-link" text @click="$router.push('/login')">{{ t('home.adminLink') }} <el-icon><ArrowRight /></el-icon></el-button>
     </header>
 
     <main class="portal-main">
@@ -10,7 +10,7 @@
       <section v-if="siteNotice" class="site-notice">
         <span class="notice-badge"><BellFilled /></span>
         <div class="notice-body">
-          <b>公告</b>
+          <b>{{ t('home.noticeBadge') }}</b>
           <pre>{{ siteNotice }}</pre>
         </div>
       </section>
@@ -19,23 +19,23 @@
       <section class="hero">
         <div class="hero-copy">
           <span class="eyebrow">PUBLIC QSL PORTAL</span>
-          <h1>让每一次通联，<br><em>都有一张卡片抵达。</em></h1>
-          <p>申请换卡、查询进度、追踪挂号信——所有公开服务，一页直达。</p>
+          <h1>{{ t('home.heroTitle1') }}<br><em>{{ t('home.heroTitle2') }}</em></h1>
+          <p>{{ t('home.heroDesc') }}</p>
           <div class="hero-actions">
-            <el-button type="primary" size="large" @click="$router.push('/apply')">申请换卡 <el-icon><ArrowRight /></el-icon></el-button>
-            <el-button size="large" @click="$router.push('/status')">查询申请进度</el-button>
+            <el-button type="primary" size="large" @click="$router.push('/apply')">{{ t('home.btnApply') }} <el-icon><ArrowRight /></el-icon></el-button>
+            <el-button size="large" @click="$router.push('/status')">{{ t('home.btnStatus') }}</el-button>
           </div>
         </div>
 
         <!-- 系统实时数据（公开聚合统计） -->
         <div v-if="statsLoaded" class="stats-panel">
-          <div class="stats-head"><span class="stats-dot"></span>系统实时数据</div>
+          <div class="stats-head"><span class="stats-dot"></span>{{ t('home.statsTitle') }}</div>
           <div class="stats-grid">
-            <div class="stat-item"><b>{{ stats.cards_sent }}</b><span>已寄出卡片</span></div>
-            <div class="stat-item"><b>{{ stats.cards_signed }}</b><span>完成签收</span></div>
-            <div class="stat-item"><b>{{ stats.pending_requests }}</b><span>待处理申请</span></div>
+            <div class="stat-item"><b>{{ stats.cards_sent }}</b><span>{{ t('home.statsSent') }}</span></div>
+            <div class="stat-item"><b>{{ stats.cards_signed }}</b><span>{{ t('home.statsSigned') }}</span></div>
+            <div class="stat-item"><b>{{ stats.pending_requests }}</b><span>{{ t('home.statsPending') }}</span></div>
           </div>
-          <p class="stats-note">每打开一次页面即时统计</p>
+          <p class="stats-note">{{ t('home.statsNote') }}</p>
         </div>
       </section>
 
@@ -43,29 +43,30 @@
       <section class="services">
         <button class="service-card" @click="$router.push('/apply')">
           <span class="service-icon orange"><Promotion /></span>
-          <span class="service-text"><b>申请换卡</b><small>提交你的呼号与收件信息</small></span>
+          <span class="service-text"><b>{{ t('home.svcApply') }}</b><small>{{ t('home.svcApplyDesc') }}</small></span>
           <el-icon class="service-arrow"><ArrowRight /></el-icon>
         </button>
         <button class="service-card" @click="$router.push('/status')">
           <span class="service-icon blue"><Search /></span>
-          <span class="service-text"><b>申请进度</b><small>实时查看审核与邮寄进度</small></span>
+          <span class="service-text"><b>{{ t('home.svcStatus') }}</b><small>{{ t('home.svcStatusDesc') }}</small></span>
           <el-icon class="service-arrow"><ArrowRight /></el-icon>
         </button>
         <button class="service-card" @click="$router.push('/track')">
           <span class="service-icon green"><Van /></span>
-          <span class="service-text"><b>快递追踪</b><small>查询挂号信运输进度</small></span>
+          <span class="service-text"><b>{{ t('home.svcTrack') }}</b><small>{{ t('home.svcTrackDesc') }}</small></span>
           <el-icon class="service-arrow"><ArrowRight /></el-icon>
         </button>
       </section>
     </main>
 
-    <footer>{{ siteName }} · 连接电波与远方</footer>
+    <footer>{{ siteName }} · {{ t('home.footerTagline') }}</footer>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import api from '../../api'
+import { t } from '../../i18n'
 
 const siteName = ref('QSL / HUB')
 const siteNotice = ref('')

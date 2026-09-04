@@ -20,3 +20,7 @@ HANDOFF.md
 *.log
 .DS_Store
 Thumbs.db
+
+# E2E 运行时文件
+scripts/img_b64.txt
+scripts/test_adif.adi

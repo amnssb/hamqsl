@@ -5,8 +5,8 @@
         <div class="logo-section">
           <div class="logo-icon">QSL</div>
           <div>
-            <h1>快递追踪</h1>
-            <p class="subtitle">查询挂号信物流状态</p>
+            <h1>{{ t('track.title') }}</h1>
+            <p class="subtitle">{{ t('track.subtitle') }}</p>
           </div>
         </div>
       </header>
@@ -14,21 +14,21 @@
       <main class="public-main">
         <div class="card modern-card">
           <div class="card-header">
-            <h2>输入单号</h2>
+            <h2>{{ t('track.formTitle') }}</h2>
           </div>
 
           <el-form :model="form" label-position="top" class="modern-form" @submit.prevent>
-            <el-form-item label="挂号信 / 快递单号">
+            <el-form-item :label="t('track.numberLabel')">
               <el-input
                 v-model="form.tracking_number"
-                placeholder="例如: RR123456789CN"
+                :placeholder="t('track.numberPlaceholder')"
                 size="large"
                 clearable
                 @keyup.enter="handleTrack"
               />
             </el-form-item>
 
-            <p class="carrier-tip">点击查询将直接跳转到快递100 官网查询实时物流，单号自动识别承运商（中国邮政 / EMS / 顺丰 / 圆通 / 中通 / 申通 / 韵达 / 京东等）。</p>
+            <p class="carrier-tip">{{ t('track.carrierTip') }}</p>
 
             <div class="form-actions">
               <el-button
@@ -39,21 +39,21 @@
                 class="submit-btn"
               >
                 <el-icon><Search /></el-icon>
-                查询物流
+                {{ t('track.submit') }}
               </el-button>
             </div>
           </el-form>
         </div>
 
         <div class="card modern-card tip-card">
-          <b>没有单号？</b>
-          <p>挂号信号码会随寄出邮件发送到您的邮箱；也可以在申请进度页查看物流信息。</p>
-          <el-button link type="primary" @click="$router.push('/status')">前往申请进度查询</el-button>
+          <b>{{ t('track.noNumberTitle') }}</b>
+          <p>{{ t('track.noNumberDesc') }}</p>
+          <el-button link type="primary" @click="$router.push('/status')">{{ t('track.goStatus') }}</el-button>
         </div>
       </main>
 
       <footer class="public-footer">
-        <p>QSL 卡片管理系统 · 业余无线电</p>
+        <p>{{ t('common.footer') }}</p>
       </footer>
     </div>
   </div>
@@ -63,6 +63,7 @@
 import { reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { t } from '../../i18n'
 
 const route = useRoute()
 
@@ -74,7 +75,7 @@ const form = reactive({
 function handleTrack() {
   const nu = (form.tracking_number || '').trim()
   if (!nu) {
-    ElMessage.warning('请输入单号')
+    ElMessage.warning(t('track.emptyNumber'))
     return
   }
   window.open('https://www.kuaidi100.com/chaxun?nu=' + encodeURIComponent(nu), '_blank')

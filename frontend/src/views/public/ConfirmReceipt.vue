@@ -5,8 +5,8 @@
         <div class="logo-section">
           <div class="logo-icon">QSL</div>
           <div>
-            <h1>确认收卡</h1>
-            <p class="subtitle">扫码或输入卡片编号，确认您已收到 QSL 卡片</p>
+            <h1>{{ t('confirm.title') }}</h1>
+            <p class="subtitle">{{ t('confirm.subtitle') }}</p>
           </div>
         </div>
       </header>
@@ -15,13 +15,13 @@
         <!-- 手动输入（URL 无编号时） -->
         <div v-if="!cardInfo && !loading && !error" class="card modern-card">
           <div class="card-header">
-            <h2>输入卡片编号</h2>
+            <h2>{{ t('confirm.manualTitle') }}</h2>
           </div>
           <el-form label-position="top" class="modern-form">
-            <el-form-item label="卡片编号">
+            <el-form-item :label="t('confirm.codeLabel')">
               <el-input
                 v-model="manualCode"
-                placeholder="例如: C0001"
+                :placeholder="t('confirm.codePlaceholder')"
                 size="large"
                 prefix-icon="Ticket"
                 @keyup.enter="lookupCard"
@@ -29,7 +29,7 @@
             </el-form-item>
             <div class="form-actions">
               <el-button type="primary" size="large" :loading="loading" @click="lookupCard" class="submit-btn">
-                <el-icon><Search /></el-icon> 查询卡片
+                <el-icon><Search /></el-icon> {{ t('confirm.lookup') }}
               </el-button>
             </div>
           </el-form>
@@ -38,42 +38,42 @@
         <!-- 加载中 -->
         <div v-if="loading" class="card modern-card" style="text-align:center;padding:60px;">
           <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-          <p style="margin-top:12px;color:#666;">正在查询卡片信息...</p>
+          <p style="margin-top:12px;color:#666;">{{ t('confirm.loading') }}</p>
         </div>
 
         <!-- 查询失败 -->
         <div v-if="error" class="card modern-card" style="text-align:center;padding:40px;">
           <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
-          <h2 style="color:#f56c6c;margin:16px 0 8px;">查询失败</h2>
+          <h2 style="color:#f56c6c;margin:16px 0 8px;">{{ t('confirm.notFound') }}</h2>
           <p style="color:#666;">{{ error }}</p>
-          <el-button type="primary" size="large" @click="resetAll" style="margin-top:20px;">重新输入</el-button>
+          <el-button type="primary" size="large" @click="resetAll" style="margin-top:20px;">{{ t('confirm.retry') }}</el-button>
         </div>
 
         <!-- 卡片信息 + 确认表单 -->
         <div v-if="cardInfo && !viewConfirmed" class="card modern-card">
           <div class="card-header">
-            <h2>卡片信息</h2>
+            <h2>{{ t('confirm.infoTitle') }}</h2>
           </div>
 
           <div class="card-details">
             <div class="detail-row">
-              <span class="label">卡片编号</span>
+              <span class="label">{{ t('confirm.labelCode') }}</span>
               <span class="value highlight">{{ cardInfo.card_code }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">对方呼号</span>
+              <span class="label">{{ t('confirm.labelCall') }}</span>
               <span class="value">{{ cardInfo.call_sign }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">卡片版本</span>
+              <span class="label">{{ t('confirm.labelVersion') }}</span>
               <span class="value">{{ cardInfo.card_version || '—' }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">卡片类型</span>
+              <span class="label">{{ t('confirm.labelType') }}</span>
               <span class="value">{{ cardInfo.card_type || '—' }}</span>
             </div>
             <div class="detail-row">
-              <span class="label">当前状态</span>
+              <span class="label">{{ t('confirm.labelStatus') }}</span>
               <span class="value">
                 <el-tag :type="statusTagType(cardInfo.flow_status)" size="small">{{ statusText(cardInfo.flow_status) }}</el-tag>
               </span>
@@ -81,31 +81,31 @@
           </div>
 
           <el-alert v-if="!cardInfo.card_sent" type="warning" :closable="false" style="margin-bottom:16px;">
-            此卡片尚未寄出，暂无法确认收卡。
+            {{ t('confirm.notSent') }}
           </el-alert>
           <el-alert v-if="cardInfo.receipt_confirmed" type="success" :closable="false" style="margin-bottom:16px;">
-            此卡片已确认签收，无需重复操作。
+            {{ t('confirm.alreadySigned') }}
           </el-alert>
 
-          <el-divider>确认收卡</el-divider>
+          <el-divider>{{ t('confirm.dividerConfirm') }}</el-divider>
 
           <el-form :model="confirmForm" label-position="top">
-            <el-form-item label="收卡日期">
+            <el-form-item :label="t('confirm.receivedDateLabel')">
               <el-date-picker
                 v-model="confirmForm.received_date"
                 type="date"
                 value-format="YYYY-MM-DD"
-                placeholder="选择收卡日期"
+                :placeholder="t('confirm.receivedDatePlaceholder')"
                 size="large"
                 style="width:100%"
               />
             </el-form-item>
-            <el-form-item label="备注（选填）">
+            <el-form-item :label="t('confirm.remarksLabel')">
               <el-input
                 v-model="confirmForm.remarks"
                 type="textarea"
                 :rows="2"
-                placeholder="可选备注"
+                :placeholder="t('confirm.remarksPlaceholder')"
               />
             </el-form-item>
             <div class="form-actions">
@@ -117,7 +117,7 @@
                 @click="handleConfirm"
                 class="submit-btn"
               >
-                <el-icon><Check /></el-icon> 确认收卡
+                <el-icon><Check /></el-icon> {{ t('confirm.btnConfirm') }}
               </el-button>
             </div>
           </el-form>
@@ -129,20 +129,20 @@
             <div class="success-icon">
               <el-icon :size="80" color="#10b981"><CircleCheck /></el-icon>
             </div>
-            <h2>收卡已确认</h2>
-            <p>卡片 <strong>{{ cardInfo?.card_code }}</strong> 的收卡已确认</p>
-            <p v-if="confirmed" class="success-time">确认时间: {{ new Date().toLocaleString('zh-CN') }}</p>
+            <h2>{{ t('confirm.successTitle') }}</h2>
+            <p>{{ t('confirm.successPrefix') }} <strong>{{ cardInfo?.card_code }}</strong> {{ t('confirm.successSuffix') }}</p>
+            <p v-if="confirmed" class="success-time">{{ t('confirm.confirmTime') }} {{ new Date().toLocaleString('zh-CN') }}</p>
             <div class="success-details">
               <div class="detail-item">
-                <span>卡片编号</span>
+                <span>{{ t('confirm.successLabelCode') }}</span>
                 <strong>{{ cardInfo?.card_code }}</strong>
               </div>
               <div class="detail-item">
-                <span>对方呼号</span>
+                <span>{{ t('confirm.successLabelCall') }}</span>
                 <strong>{{ cardInfo?.call_sign }}</strong>
               </div>
               <div v-if="confirmed" class="detail-item">
-                <span>收卡日期</span>
+                <span>{{ t('confirm.successLabelDate') }}</span>
                 <strong>{{ confirmForm.received_date }}</strong>
               </div>
             </div>
@@ -150,46 +150,46 @@
             <!-- 回寄引导：仅后台为本卡开通后显示；获取本台地址 → 登记回寄 -->
             <div v-if="cardInfo?.return_mail_enabled || returnDone" class="return-box">
               <template v-if="returnDone">
-                <h3>回寄已登记</h3>
+                <h3>{{ t('confirm.returnDoneTitle') }}</h3>
                 <p class="return-done-line">
-                  {{ cardInfo?.return_mail_type === 'REGISTERED' ? '挂号信' : '平信' }}
-                  <template v-if="cardInfo?.return_tracking"> · 单号 <strong>{{ cardInfo.return_tracking }}</strong></template>
+                  {{ cardInfo?.return_mail_type === 'REGISTERED' ? t('confirm.registered') : t('confirm.ordinary') }}
+                  <template v-if="cardInfo?.return_tracking"> · {{ t('confirm.trackingLabel') }} <strong>{{ cardInfo.return_tracking }}</strong></template>
                   <template v-if="cardInfo?.return_mailed_at"> · {{ cardInfo.return_mailed_at }}</template>
                 </p>
-                <p class="return-tip">请及时把您的卡片寄出；如单号有误可重新提交覆盖。</p>
+                <p class="return-tip">{{ t('confirm.returnDoneTip') }}</p>
                 <el-form label-position="top" style="max-width:420px;margin:0 auto;text-align:left;">
-                  <el-form-item label="更正邮寄方式">
+                  <el-form-item :label="t('confirm.fixTypeLabel')">
                     <el-radio-group v-model="returnForm.mail_type">
-                      <el-radio value="REGISTERED">挂号信</el-radio>
-                      <el-radio value="ORDINARY">平信</el-radio>
+                      <el-radio value="REGISTERED">{{ t('confirm.registered') }}</el-radio>
+                      <el-radio value="ORDINARY">{{ t('confirm.ordinary') }}</el-radio>
                     </el-radio-group>
                   </el-form-item>
-                  <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" label="更正单号">
-                    <el-input v-model="returnForm.tracking_number" placeholder="回寄挂号信号码" clearable />
+                  <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" :label="t('confirm.fixTrackingLabel')">
+                    <el-input v-model="returnForm.tracking_number" :placeholder="t('confirm.trackingPlaceholder')" clearable />
                   </el-form-item>
-                  <el-button type="primary" :loading="returnSubmitting" @click="submitReturn" style="width:100%;">更新回寄信息</el-button>
+                  <el-button type="primary" :loading="returnSubmitting" @click="submitReturn" style="width:100%;">{{ t('confirm.btnUpdateReturn') }}</el-button>
                 </el-form>
               </template>
               <template v-else>
-                <h3>回寄您的卡片</h3>
-                <p class="return-tip">请把您的 QSL 卡片寄至以下地址，完成双方互寄：</p>
+                <h3>{{ t('confirm.returnTitle') }}</h3>
+                <p class="return-tip">{{ t('confirm.returnIntro') }}</p>
                 <div v-if="stationAddress" class="station-address"><pre>{{ stationAddress }}</pre></div>
                 <el-alert v-else type="info" :closable="false" style="text-align:left;">
-                  本台地址尚未配置，请联系台站管理员获取回寄地址。
+                  {{ t('confirm.noStationAddress') }}
                 </el-alert>
                 <el-form label-position="top" style="max-width:420px;margin:16px auto 0;text-align:left;">
-                  <el-form-item label="您的邮寄方式">
+                  <el-form-item :label="t('confirm.yourMailType')">
                     <el-radio-group v-model="returnForm.mail_type">
-                      <el-radio value="REGISTERED">挂号信</el-radio>
-                      <el-radio value="ORDINARY">平信</el-radio>
+                      <el-radio value="REGISTERED">{{ t('confirm.registered') }}</el-radio>
+                      <el-radio value="ORDINARY">{{ t('confirm.ordinary') }}</el-radio>
                     </el-radio-group>
                   </el-form-item>
-                  <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" label="挂号信号码" required>
-                    <el-input v-model="returnForm.tracking_number" placeholder="例如: XB12345678901" clearable />
+                  <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" :label="t('confirm.trackingNumberLabel')" required>
+                    <el-input v-model="returnForm.tracking_number" :placeholder="t('confirm.trackingPlaceholder')" clearable />
                   </el-form-item>
-                  <el-button type="success" :loading="returnSubmitting" @click="submitReturn" style="width:100%;">确认寄出，登记回寄</el-button>
+                  <el-button type="success" :loading="returnSubmitting" @click="submitReturn" style="width:100%;">{{ t('confirm.btnRegisterReturn') }}</el-button>
                 </el-form>
-                <p class="return-tip" style="margin-top:10px;">登记后台站会收到提醒，方便对收确认。</p>
+                <p class="return-tip" style="margin-top:10px;">{{ t('confirm.returnRegisterTip') }}</p>
               </template>
             </div>
           </div>
@@ -197,7 +197,7 @@
       </main>
 
       <footer class="public-footer">
-        <p>QSL 卡片管理系统 · 业余无线电</p>
+        <p>{{ t('common.footer') }}</p>
       </footer>
     </div>
   </div>
@@ -208,6 +208,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { ElMessage } from 'element-plus'
+import { t, locale } from '../../i18n'
 
 const route = useRoute()
 const router = useRouter()
@@ -235,11 +236,11 @@ const stationAddress = computed(() => {
   const s = station.value
   if (!s || (!s.address && !s.address_en)) return ''
   const lines = []
-  if (s.call_sign) lines.push('呼号：' + s.call_sign)
-  if (s.name) lines.push('姓名：' + s.name)
-  if (s.postal_code) lines.push('邮编：' + s.postal_code)
-  if (s.address) lines.push('地址：' + s.address)
-  if (s.address_en) lines.push('英文地址：' + s.address_en)
+  if (s.call_sign) lines.push(t('confirm.addrCall') + s.call_sign)
+  if (s.name) lines.push(t('confirm.addrName') + s.name)
+  if (s.postal_code) lines.push(t('confirm.addrPostcode') + s.postal_code)
+  if (s.address) lines.push(t('confirm.addrAddress') + s.address)
+  if (s.address_en) lines.push(t('confirm.addrAddressEn') + s.address_en)
   return lines.join('\n')
 })
 async function loadStation() {
@@ -247,7 +248,7 @@ async function loadStation() {
 }
 async function submitReturn() {
   if (returnForm.mail_type === 'REGISTERED' && !returnForm.tracking_number.trim()) {
-    ElMessage.warning('挂号信请填写单号')
+    ElMessage.warning(t('confirm.warnRegisteredNeedNumber'))
     return
   }
   returnSubmitting.value = true
@@ -258,19 +259,23 @@ async function submitReturn() {
       tracking_number: returnForm.tracking_number.trim()
     })
     cardInfo.value = { ...cardInfo.value, return_mail_type: res.return_mail_type, return_tracking: res.return_tracking, return_mailed_at: res.return_mailed_at }
-    ElMessage.success('回寄登记成功，请及时寄出您的卡片')
+    ElMessage.success(t('confirm.returnSuccessMsg'))
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '登记失败，请稍后重试')
+    ElMessage.error(e.response?.data?.message || t('confirm.returnFailMsg'))
   } finally {
     returnSubmitting.value = false
   }
 }
 
-const statusMap = {
+const statusMapZh = {
   PENDING_ISSUE: '待制卡', ISSUED: '已制卡', PACKED: '已打包',
   SENT: '已发卡', RECEIVED: '已收卡', SIGNED: '已签收', ERROR: '异常'
 }
-const statusText = s => statusMap[s] || s || '—'
+const statusMapEn = {
+  PENDING_ISSUE: 'Awaiting print', ISSUED: 'Printed', PACKED: 'Packed',
+  SENT: 'Shipped', RECEIVED: 'Delivered', SIGNED: 'Signed for', ERROR: 'Error'
+}
+const statusText = s => (locale.current === 'en' ? statusMapEn[s] : statusMapZh[s]) || s || '—'
 const statusTagType = s => ({
   PENDING_ISSUE: 'info', ISSUED: 'success', PACKED: 'warning',
   SENT: 'warning', RECEIVED: '', SIGNED: 'success', ERROR: 'danger'
@@ -285,7 +290,7 @@ async function loadCard(code) {
     cardInfo.value = res
     if (res && res.receipt_confirmed) loadStation()
   } catch (e) {
-    error.value = e.response?.data?.message || '卡片不存在或编号错误'
+    error.value = e.response?.data?.message || t('confirm.loadFail')
   } finally {
     loading.value = false
   }
@@ -293,7 +298,7 @@ async function loadCard(code) {
 
 function lookupCard() {
   if (!manualCode.value) {
-    ElMessage.warning('请输入卡片编号')
+    ElMessage.warning(t('confirm.warnPickCode'))
     return
   }
   loadCard(manualCode.value.toUpperCase())
@@ -301,7 +306,7 @@ function lookupCard() {
 
 async function handleConfirm() {
   if (!confirmForm.received_date) {
-    ElMessage.warning('请选择收卡日期')
+    ElMessage.warning(t('confirm.warnPickDate'))
     return
   }
   confirming.value = true
@@ -313,9 +318,9 @@ async function handleConfirm() {
     })
     confirmed.value = true
     loadStation()
-    ElMessage.success('收卡确认成功')
+    ElMessage.success(t('confirm.successMsg'))
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '确认失败')
+    ElMessage.error(e.response?.data?.message || t('confirm.failMsg'))
   } finally {
     confirming.value = false
   }

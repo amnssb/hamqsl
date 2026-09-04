@@ -5,8 +5,8 @@
         <div class="logo-section">
           <div class="logo-icon">QSL</div>
           <div>
-            <h1>申请进度查询</h1>
-            <p class="subtitle" v-if="!info">输入申请编号，查看审核、制卡、邮寄与签收状态</p>
+            <h1>{{ t('status.title') }}</h1>
+            <p class="subtitle" v-if="!info">{{ t('status.subtitle') }}</p>
           </div>
         </div>
       </header>
@@ -15,12 +15,12 @@
         <!-- 手动输入（URL 无编号时） -->
         <div v-if="!info && !loading && !error" class="card modern-card">
           <el-form label-position="top" @submit.prevent>
-            <el-form-item label="申请编号">
-              <el-input v-model="manualCode" placeholder="例如: EXAB23CD9" size="large" @keyup.enter="lookup" />
+            <el-form-item :label="t('status.requestCode')">
+              <el-input v-model="manualCode" :placeholder="t('status.requestCodePlaceholder')" size="large" @keyup.enter="lookup" />
             </el-form-item>
             <div class="form-actions">
               <el-button type="primary" size="large" :loading="loading" @click="lookup" class="submit-btn">
-                <el-icon><Search /></el-icon> 查询进度
+                <el-icon><Search /></el-icon> {{ t('status.lookupBtn') }}
               </el-button>
             </div>
           </el-form>
@@ -29,30 +29,30 @@
         <!-- 加载中 -->
         <div v-if="loading && !info" class="card modern-card" style="text-align:center;padding:60px;">
           <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-          <p style="margin-top:12px;color:#666;">正在查询申请进度...</p>
+          <p style="margin-top:12px;color:#666;">{{ t('status.loading') }}</p>
         </div>
 
         <!-- 查询失败 -->
         <div v-if="error" class="card modern-card" style="text-align:center;padding:40px;">
           <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
-          <h2 style="color:#f56c6c;margin:16px 0 8px;">查询失败</h2>
+          <h2 style="color:#f56c6c;margin:16px 0 8px;">{{ t('status.failedTitle') }}</h2>
           <p style="color:#666;">{{ error }}</p>
-          <el-button @click="reset" style="margin-top:16px;">重新输入</el-button>
+          <el-button @click="reset" style="margin-top:16px;">{{ t('status.reenter') }}</el-button>
         </div>
 
         <!-- 进度详情 -->
         <div v-if="info" class="card modern-card">
           <!-- 站点公告（管理员在设置中配置，留空不显示） -->
           <div v-if="siteNotice" class="notice-block">
-            <div class="notice-head"><el-icon><BellFilled /></el-icon><b>公告</b></div>
+            <div class="notice-head"><el-icon><BellFilled /></el-icon><b>{{ t('status.notice') }}</b></div>
             <pre class="notice-text">{{ siteNotice }}</pre>
           </div>
 
           <el-descriptions :column="2" border style="margin-bottom:28px;">
-            <el-descriptions-item label="申请编号">{{ info.request_code }}</el-descriptions-item>
-            <el-descriptions-item label="呼号">{{ info.call_sign }}</el-descriptions-item>
-            <el-descriptions-item label="申请场景">{{ sceneText(info.scene_type) }}</el-descriptions-item>
-            <el-descriptions-item label="申请时间">{{ fmtTime(info.created_at) }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.requestCode')">{{ info.request_code }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.callSign')">{{ info.call_sign }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.scene')">{{ sceneText(info.scene_type) }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.requestTime')">{{ fmtTime(info.created_at) }}</el-descriptions-item>
           </el-descriptions>
 
           <el-steps :active="activeStep" align-center :process-status="rejected ? 'error' : 'process'" finish-status="success">
@@ -60,74 +60,74 @@
           </el-steps>
 
           <el-alert v-if="rejected" type="error" :closable="false" style="margin-top:28px;">
-            申请未通过：{{ info.review_reason || '未填写原因' }}
+            {{ t('status.rejectedPrefix') }}{{ info.review_reason || t('status.noReason') }}
           </el-alert>
           <div v-else-if="info.tracking_number && info.flow_status !== 'SIGNED'" class="mail-block">
             <div class="mail-head">
-              <b>物流查询</b>
+              <b>{{ t('status.mailTracking') }}</b>
               <el-tag size="small" style="font-family:monospace;">{{ info.tracking_number }}</el-tag>
             </div>
-            <p class="mail-tip">复制下方单号，到快递100 官网即可查询实时物流：</p>
+            <p class="mail-tip">{{ t('status.kuaidiTip') }}</p>
             <div class="mail-actions">
-              <el-button type="primary" @click="openKuaidi100">在快递100 查询物流</el-button>
-              <el-button @click="copyTracking">复制单号</el-button>
+              <el-button type="primary" @click="openKuaidi100">{{ t('status.openKuaidi') }}</el-button>
+              <el-button @click="copyTracking">{{ t('status.copyTracking') }}</el-button>
             </div>
           </div>
 
           <!-- SWL 反寄：回寄地址（管理员发送后展示） -->
           <div v-if="info.return_address_text && !info.return_mailed_at" class="mail-block">
-            <div class="mail-head"><b>请将您的卡片寄至以下地址</b></div>
+            <div class="mail-head"><b>{{ t('status.sendToAddress') }}</b></div>
             <pre class="addr-text">{{ info.return_address_text }}</pre>
           </div>
 
           <!-- SWL 反寄：对方寄出后登记单号/平信 -->
           <div v-if="info.scene_type === 'SWL' && info.review_status === 'APPROVED'" class="mail-block">
             <template v-if="!info.return_mailed_at">
-              <div class="mail-head"><b>登记您的寄出信息</b></div>
-              <p class="mail-tip">您寄出收听卡后在此登记，我们会收到记录并尽快处理回寄。</p>
+              <div class="mail-head"><b>{{ t('status.registerMailHead') }}</b></div>
+              <p class="mail-tip">{{ t('status.registerMailTip') }}</p>
               <el-form label-position="top" style="margin-top:8px;">
-                <el-form-item label="邮寄方式">
+                <el-form-item :label="t('status.mailType')">
                   <el-radio-group v-model="returnForm.mail_type">
-                    <el-radio value="REGISTERED">挂号信</el-radio>
-                    <el-radio value="ORDINARY">平信</el-radio>
+                    <el-radio value="REGISTERED">{{ t('status.registeredMail') }}</el-radio>
+                    <el-radio value="ORDINARY">{{ t('status.ordinaryMail') }}</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" label="单号">
-                  <el-input v-model="returnForm.tracking_number" placeholder="您的挂号信/快递单号" />
+                <el-form-item v-if="returnForm.mail_type === 'REGISTERED'" :label="t('status.trackingNo')">
+                  <el-input v-model="returnForm.tracking_number" :placeholder="t('status.trackingPlaceholder')" />
                 </el-form-item>
-                <el-button type="primary" :loading="returnSaving" @click="submitReturnMail">提交登记</el-button>
+                <el-button type="primary" :loading="returnSaving" @click="submitReturnMail">{{ t('status.submitRegister') }}</el-button>
               </el-form>
             </template>
             <template v-else>
               <div class="mail-head">
-                <b>您的寄出登记</b>
-                <el-tag size="small" :type="info.return_mail_type === 'REGISTERED' ? '' : 'info'">{{ info.return_mail_type === 'REGISTERED' ? '挂号信' : '平信' }}</el-tag>
+                <b>{{ t('status.registeredHead') }}</b>
+                <el-tag size="small" :type="info.return_mail_type === 'REGISTERED' ? '' : 'info'">{{ info.return_mail_type === 'REGISTERED' ? t('status.registeredMail') : t('status.ordinaryMail') }}</el-tag>
               </div>
-              <p v-if="info.return_tracking" class="mail-tip">单号：<span style="font-family:monospace;">{{ info.return_tracking }}</span></p>
-              <p class="mail-tip">登记时间：{{ fmtTime(info.return_mailed_at) }}</p>
-              <el-button v-if="info.return_tracking" size="small" @click="openReturnTracking">在快递100 查询</el-button>
+              <p v-if="info.return_tracking" class="mail-tip">{{ t('status.trackingPrefix') }}<span style="font-family:monospace;">{{ info.return_tracking }}</span></p>
+              <p class="mail-tip">{{ t('status.registeredAtPrefix') }}{{ fmtTime(info.return_mailed_at) }}</p>
+              <el-button v-if="info.return_tracking" size="small" @click="openReturnTracking">{{ t('status.openKuaidiShort') }}</el-button>
             </template>
           </div>
 
           <!-- 邮件未收到引导：申请通过后各节点均有邮件提醒，教对方查垃圾箱+加白名单 -->
           <div v-if="info && info.review_status === 'APPROVED' && senderEmail" class="mail-block">
-            <div class="mail-head"><b>邮件未收到？</b></div>
+            <div class="mail-head"><b>{{ t('status.mailNotReceived') }}</b></div>
             <p class="mail-tip">
-              审核通过、收卡、回寄卡片寄出等节点都会向您的邮箱发送提醒。若未收到，请检查垃圾邮件箱（Spam），并将发件邮箱
+              {{ t('status.whitelistTipBefore') }}
               <span class="sender-mail">{{ senderEmail }}</span>
-              添加到白名单，以便后续通知正常送达。
+              {{ t('status.whitelistTipAfter') }}
             </p>
             <div class="mail-actions">
-              <el-button size="small" @click="copySenderEmail">复制发件邮箱</el-button>
+              <el-button size="small" @click="copySenderEmail">{{ t('status.copySender') }}</el-button>
             </div>
           </div>
 
-          <p class="refresh-note">卡片编号：{{ info.card_code || '尚未生成' }}<el-button link type="primary" size="small" style="margin-left:8px;" @click="refresh">手动刷新</el-button></p>
+          <p class="refresh-note">{{ t('status.cardCodePrefix') }}{{ info.card_code || t('status.cardNotGenerated') }}<el-button link type="primary" size="small" style="margin-left:8px;" @click="refresh">{{ t('status.manualRefresh') }}</el-button></p>
         </div>
       </main>
 
       <footer class="public-footer">
-        <p>QSL 卡片管理系统 · 业余无线电</p>
+        <p>{{ t('common.footer') }}</p>
       </footer>
     </div>
   </div>
@@ -138,6 +138,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { ElMessage } from 'element-plus'
+import { t } from '../../i18n'
 
 const route = useRoute()
 const router = useRouter()
@@ -163,14 +164,14 @@ async function copySenderEmail() {
   if (!senderEmail.value) return
   try {
     await navigator.clipboard.writeText(senderEmail.value)
-    ElMessage.success('发件邮箱已复制：' + senderEmail.value)
-  } catch (e) { ElMessage.error('复制失败，请手动选择邮箱复制') }
+    ElMessage.success(t('status.senderCopied') + senderEmail.value)
+  } catch (e) { ElMessage.error(t('status.copySenderFailed')) }
 }
 
 async function submitReturnMail() {
   if (!info.value?.request_code) return
   if (returnForm.mail_type === 'REGISTERED' && !returnForm.tracking_number) {
-    ElMessage.warning('挂号信请填写单号')
+    ElMessage.warning(t('status.trackingRequired'))
     return
   }
   returnSaving.value = true
@@ -180,7 +181,7 @@ async function submitReturnMail() {
       mail_type: returnForm.mail_type,
       tracking_number: returnForm.tracking_number
     })
-    ElMessage.success('登记成功，我们已收到您的寄出记录')
+    ElMessage.success(t('status.registerSuccess'))
     await refresh()
   } catch (e) { /* 拦截器已提示 */ } finally { returnSaving.value = false }
 }
@@ -215,38 +216,38 @@ const activeStep = computed(() => {
 const reviewDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  if (i.review_status === 'PENDING') return '审核中'
-  if (i.review_status === 'APPROVED') return '已通过'
-  if (i.review_status === 'REJECTED') return '未通过'
+  if (i.review_status === 'PENDING') return t('status.reviewPending')
+  if (i.review_status === 'APPROVED') return t('status.reviewApproved')
+  if (i.review_status === 'REJECTED') return t('status.reviewRejected')
   return ''
 })
 const cardDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  return i.card_created ? ('已建卡 ' + (i.card_code || '')) : '等待建卡'
+  return i.card_created ? (t('status.cardCreatedPrefix') + (i.card_code || '')) : t('status.cardWaiting')
 })
 const mailDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  if (['SENT', 'RECEIVED', 'SIGNED'].includes(i.flow_status)) return '已寄出'
-  if (i.card_created) return '准备中'
-  return '等待'
+  if (['SENT', 'RECEIVED', 'SIGNED'].includes(i.flow_status)) return t('status.mailed')
+  if (i.card_created) return t('status.preparing')
+  return t('status.waitingMail')
 })
-const signedDesc = computed(() => info.value && info.value.flow_status === 'SIGNED' ? '对方已签收' : '等待签收')
+const signedDesc = computed(() => info.value && info.value.flow_status === 'SIGNED' ? t('status.signed') : t('status.waitingSign'))
 
 // SWL 反寄：第三步为"您寄出卡"，其后才是我方制卡回寄
 const swlSentDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  if (i.return_mailed_at) return '已寄出 ' + fmtTime(i.return_mailed_at)
-  if (i.address_sent_at) return '地址已发送，请尽快寄出'
-  return '等待回寄地址'
+  if (i.return_mailed_at) return t('status.sentAtPrefix') + fmtTime(i.return_mailed_at)
+  if (i.address_sent_at) return t('status.addressSent')
+  return t('status.waitingAddress')
 })
 const swlReceivedDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  if (i.return_received_at) return '已收到 ' + fmtTime(i.return_received_at)
-  if (i.return_mailed_at) return '等待寄达'
+  if (i.return_received_at) return t('status.receivedAtPrefix') + fmtTime(i.return_received_at)
+  if (i.return_mailed_at) return t('status.waitingArrival')
   return '—'
 })
 
@@ -254,12 +255,12 @@ const swlReceivedDesc = computed(() => {
 const eyeballDeliverDesc = computed(() => {
   const i = info.value
   if (!i) return ''
-  if (i.flow_status === 'SIGNED') return '已交付'
-  if (['SENT', 'RECEIVED'].includes(i.flow_status)) return '已寄出'
-  if (i.card_created) return '见面交付或邮寄'
-  return '等待制卡'
+  if (i.flow_status === 'SIGNED') return t('status.delivered')
+  if (['SENT', 'RECEIVED'].includes(i.flow_status)) return t('status.mailed')
+  if (i.card_created) return t('status.eyeballDeliverMethods')
+  return t('status.waitingCard')
 })
-const eyeballDoneDesc = computed(() => info.value && info.value.flow_status === 'SIGNED' ? '已完成' : '待确认')
+const eyeballDoneDesc = computed(() => info.value && info.value.flow_status === 'SIGNED' ? t('status.completed') : t('status.pendingConfirm'))
 
 // 按场景生成时间线步骤
 const stepsData = computed(() => {
@@ -267,37 +268,37 @@ const stepsData = computed(() => {
   if (!i) return []
   if (i.scene_type === 'SWL') {
     return [
-      { title: '提交申请', desc: fmtTime(i.created_at) },
-      { title: '审核', desc: reviewDesc.value },
-      { title: '您寄出卡', desc: swlSentDesc.value },
-      { title: '我方收卡', desc: swlReceivedDesc.value },
-      { title: '制卡回寄', desc: cardDesc.value },
-      { title: '签收', desc: signedDesc.value },
+      { title: t('status.stepSubmit'), desc: fmtTime(i.created_at) },
+      { title: t('status.stepReview'), desc: reviewDesc.value },
+      { title: t('status.stepSwlYouSend'), desc: swlSentDesc.value },
+      { title: t('status.stepSwlWeReceive'), desc: swlReceivedDesc.value },
+      { title: t('status.stepSwlMakeReturn'), desc: cardDesc.value },
+      { title: t('status.stepSign'), desc: signedDesc.value },
     ]
   }
   if (i.scene_type === 'EYEBALL') {
     return [
-      { title: '提交申请', desc: fmtTime(i.created_at) },
-      { title: '审核', desc: reviewDesc.value },
-      { title: '制卡', desc: cardDesc.value },
-      { title: '交付', desc: eyeballDeliverDesc.value },
-      { title: '完成', desc: eyeballDoneDesc.value },
+      { title: t('status.stepSubmit'), desc: fmtTime(i.created_at) },
+      { title: t('status.stepReview'), desc: reviewDesc.value },
+      { title: t('status.stepMakeCard'), desc: cardDesc.value },
+      { title: t('status.stepDeliver'), desc: eyeballDeliverDesc.value },
+      { title: t('status.stepDone'), desc: eyeballDoneDesc.value },
     ]
   }
   return [
-    { title: '提交申请', desc: fmtTime(i.created_at) },
-    { title: '审核', desc: reviewDesc.value },
-    { title: '制卡', desc: cardDesc.value },
-    { title: '邮寄', desc: mailDesc.value },
-    { title: '签收', desc: signedDesc.value },
+    { title: t('status.stepSubmit'), desc: fmtTime(i.created_at) },
+    { title: t('status.stepReview'), desc: reviewDesc.value },
+    { title: t('status.stepMakeCard'), desc: cardDesc.value },
+    { title: t('status.stepMail'), desc: mailDesc.value },
+    { title: t('status.stepSign'), desc: signedDesc.value },
   ]
 })
 
-const sceneText = (t) => {
+const sceneText = (type) => {
   const i = info.value
-  const base = ({ QSO: 'QSO 通联', SWL: 'SWL 收听', EYEBALL: 'EYEBALL 见面' }[t] || t || '—')
-  if (t === 'EYEBALL' && i && i.eyeball_type === 'ONLINE') return base + '（网络EYE）'
-  if (t === 'EYEBALL' && i && i.eyeball_type === 'OFFLINE') return base + '（线下补换）'
+  const base = ({ QSO: t('status.sceneQso'), SWL: t('status.sceneSwl'), EYEBALL: t('status.sceneEyeball') }[type] || type || '—')
+  if (type === 'EYEBALL' && i && i.eyeball_type === 'ONLINE') return base + t('status.eyeballOnline')
+  if (type === 'EYEBALL' && i && i.eyeball_type === 'OFFLINE') return base + t('status.eyeballOffline')
   return base
 }
 
@@ -307,21 +308,21 @@ function openKuaidi100() {
 async function copyTracking() {
   try {
     await navigator.clipboard.writeText(info.value.tracking_number)
-    ElMessage.success('单号已复制')
-  } catch (e) { ElMessage.error('复制失败，请手动选择单号复制') }
+    ElMessage.success(t('status.trackingCopied'))
+  } catch (e) { ElMessage.error(t('status.copyTrackingFailed')) }
 }
 const fmtTime = s => {
   if (!s) return '—'
-  const t = String(s)
+  const raw = String(s)
   // 后端时间已存 UTC+8 的直接截取到分钟；RFC3339（含 Z）转本地时区
-  if (t.includes('T')) {
-    const d = new Date(t)
+  if (raw.includes('T')) {
+    const d = new Date(raw)
     if (!isNaN(d.getTime())) {
       const p = n => String(n).padStart(2, '0')
       return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
     }
   }
-  return t.slice(0, 16)
+  return raw.slice(0, 16)
 }
 
 async function load(code) {
@@ -333,7 +334,7 @@ async function load(code) {
     info.value = res
     error.value = ''
   } catch (e) {
-    error.value = e.response?.data?.message || '申请不存在或编号错误'
+    error.value = e.response?.data?.message || t('status.notFound')
   } finally {
     loading.value = false
   }
