@@ -21,15 +21,16 @@ RUN CGO_ENABLED=1 go build -ldflags '-s -w' -o /qsl-server ./cmd/server
 
 # ---------- 运行镜像 ----------
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 1000 qsl
+# su-exec：entrypoint 以 root 修正挂载卷属主后安全降权
+RUN apk add --no-cache ca-certificates tzdata su-exec && adduser -D -u 1000 qsl
 ENV TZ=Asia/Shanghai GIN_MODE=release
 WORKDIR /app
 COPY --from=be /qsl-server ./server
 COPY --from=fe /fe/dist ./web/dist
 RUN mkdir -p data uploads && chown -R qsl:qsl /app
-USER qsl
 EXPOSE 8000
 VOLUME ["/app/data", "/app/uploads"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8000/ >/dev/null 2>&1 || exit 1
-CMD ["./server"]
+# 宿主目录挂载会覆盖镜像内属主（常见 root:root），启动时先修正为 qsl 再降权运行
+ENTRYPOINT ["sh", "-c", "chown -R qsl:qsl /app/data /app/uploads 2>/dev/null; exec su-exec qsl ./server"]
