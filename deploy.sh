@@ -18,8 +18,11 @@ fi
 
 mkdir -p data uploads
 
-echo "[1/3] 拉取基础镜像并构建（首次约 3-5 分钟）..."
-$COMPOSE build --pull
+echo "[1/3] 拉取预构建镜像 ghcr.io/amnssb/hamqsl:latest ..."
+if ! $COMPOSE pull; then
+  echo "[!] 预构建镜像拉取失败（网络受限或包尚未发布），回退为本地构建（首次约 3-5 分钟）..."
+  $COMPOSE build --pull
+fi
 
 echo "[2/3] 启动容器..."
 $COMPOSE up -d

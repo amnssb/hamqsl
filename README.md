@@ -139,16 +139,18 @@ npm run dev
 
 单容器单进程：镜像内构建前端 dist，后端直接托管页面（无需 Nginx），宿主端口 **3073**，数据持久化在 `./data` 与 `./uploads`。
 
+镜像默认使用 GitHub Actions 自动构建的预构建镜像 `ghcr.io/amnssb/hamqsl:latest`（push 到 main 即发布，部署机免编译）；拉不动时可解开 `docker-compose.yml` 中 `build:` 注释改为本地构建。
+
 ```bash
 git clone https://github.com/<你>/qsl.git /opt/qsl
 cd /opt/qsl
-bash deploy.sh          # 自动拉基础镜像 → 构建 → 启动 → 健康检查
+bash deploy.sh          # 拉预构建镜像 → 启动 → 健康检查（拉取失败自动回退本地构建）
 ```
 
 或手动：
 
 ```bash
-docker compose build --pull
+docker compose pull
 docker compose up -d
 ```
 

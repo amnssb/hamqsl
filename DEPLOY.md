@@ -188,6 +188,12 @@ cd ../frontend && npm ci && npm run build && sudo cp -r dist/* /var/www/qsl/
 
 单容器单进程：镜像内先构建前端 dist、再编译后端，运行时**后端直接托管前端页面**（`web/dist` 存在时自动启用，SPA 回退内建），无 Nginx、无 supervisor。宿主端口 **3073**。
 
+**镜像两种来源（默认第一种）：**
+- **GHCR 预构建镜像（推荐）**：push 到 `main` 后 GitHub Actions 自动构建发布 `ghcr.io/amnssb/hamqsl:latest`，部署机 `docker compose pull` 秒级获取，**无需装 Go/Node、不占服务器 CPU**
+- **本地构建兜底**：网络拉不动 ghcr 时，解开 `docker-compose.yml` 里的 `build:` 注释即可在部署机现场构建（compose 会自动找 Dockerfile）
+
+> 首次发布镜像后记得把包设为公开：GitHub 头像 → **Packages → hamqsl → Package settings → Danger Zone → Change visibility → Public**，否则匿名 `docker pull` 会 401。
+
 ## 一键部署
 
 ### 方式 A：1Panel 编排（推荐，拉取编排 → 安装）
@@ -195,11 +201,11 @@ cd ../frontend && npm ci && npm run build && sudo cp -r dist/* /var/www/qsl/
 1. **拉取项目**：服务器上 `git clone https://github.com/<你>/qsl.git /opt/qsl`，或 1Panel → 文件 上传解压
 2. **创建编排**：1Panel → 容器 → 编排 → 创建编排
    - 编排内容：粘贴项目根目录 `docker-compose.yml` 的全部内容（或选择从路径导入）
-   - **工作目录：必须选项目根目录 `/opt/qsl`**——compose 里的 `build: context: .` 要在该目录下找到 Dockerfile 和源码
-3. **安装/启动**：1Panel 会执行 `docker compose up -d`，首次会**自动拉取** node/golang/alpine 基础镜像并构建（3-5 分钟，1Panel 容器日志里能看到进度）
+   - **工作目录：必须选项目根目录 `/opt/qsl`**——数据卷 `./data`、`./uploads` 相对它创建
+3. **安装/启动**：1Panel 会执行 `docker compose up -d`，自动拉取 `ghcr.io/amnssb/hamqsl:latest`（约 60MB，几十秒）
 4. 完成后容器 `qsl` 起来，监听 **3073**；1Panel → 容器 → 日志 可查看
 
-> 编排装好后要更新版本：`git pull`（或上传新代码）→ 1Panel 编排页面点「重建/重新部署」即可（数据在 `./data`，不受影响）。
+> 编排装好后要更新版本：服务器上 `git pull && docker compose pull && docker compose up -d`（或在 1Panel 编排页面点「重新部署」；数据在 `./data`，不受影响）。
 
 ### 方式 B：SSH 命令行（备选）
 
@@ -237,13 +243,13 @@ cd /opt/qsl && bash deploy.sh    # 自动拉基础镜像 → 构建 → 启动 �
 ```bash
 docker logs -f qsl              # 看日志
 docker compose restart          # 重启
-docker compose up -d --build    # 代码更新后重建
+git pull && docker compose pull && docker compose up -d   # 更新到最新预构建镜像
 docker compose down             # 停止（数据在 ./data，不会丢）
 ```
 
 ## 环境变量
 
-- `JWT_SECRET`：登录 token 签名密钥，**生产务必在 compose 里改成随机长字符串**
+- `JWT_SECRET`：留空则首次启动自动生成（推荐，密钥随 `data` 卷持久）；多实例共享数据时才需手动指定同一个值
 - 默认 SQLite（`./data/qsl.db`）；要切 PostgreSQL，放开 compose 里 `DB_*` 注释并加一个 postgres 服务即可（代码已支持）
 
 ## 从本机迁移数据到容器

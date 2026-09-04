@@ -1,9 +1,11 @@
 services:
   qsl:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: qsl-management:latest
+    # 预构建镜像：push 到 main 后由 GitHub Actions 自动构建发布（部署机免编译，秒级拉起）
+    image: ghcr.io/amnssb/hamqsl:latest
+    # 本地构建兜底：网络拉不动 / 改代码自测时，注释掉上面的 image 并解开下面三行
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: qsl
     restart: unless-stopped
     ports:
