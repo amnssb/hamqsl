@@ -1,0 +1,7 @@
+feat: 新增磨砂漩涡 🍥 主题插件（磨砂玻璃拟态 × 蓝粉白）
+
+- 后端注册 theme_glass（kind=theme），插件列表增至 3 主题 + 1 功能插件
+- 前端 registry 新增皮肤：body::before 蓝粉白渐变底 + 四处柔焦光斑（玻璃折射底衬）；body::after repeating-conic-gradient 粉白辐条环纹 + 径向挖空 + blur(26px) 构成右上角 🍥 漩涡切片虚化
+- 玻璃规则：el-card/dialog/popper 半透明白 + backdrop-filter blur/saturate；后台侧栏深蓝玻璃、登录侧板蓝粉渐变玻璃；表格透明行落在玻璃卡上（悬停淡粉、表头微白）；输入控件高透白玻璃
+- 配色：主色樱花粉 #ec5f8f、辅色雾蓝 #5b8ff9、深海军蓝文字/侧栏（保证侧栏浅色文字对比度）、粉白点缀；品牌行右侧 🍥 装饰（收起时隐藏）
+- E2E 主题列表断言更新（3 主题 + feature），116 项全部通过；README/HANDOFF 同步

@@ -433,7 +433,7 @@ $plg = D $r
 $plgItems = @($plg.data.items)
 Check "plugins list 200 + items" ($r.StatusCode -eq 200 -and $plgItems.Count -ge 3)
 $plgNames = ($plgItems | ForEach-Object { $_.name }) -join ','
-Check "plugins list has 2 themes + feature" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*stats_daily*')
+Check "plugins list has 3 themes + feature" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*theme_glass*' -and $plgNames -like '*stats_daily*')
 Check "plugins unauth -> 401" ((Req 'GET' "$Base/api/plugins" $null $null).StatusCode -eq 401)
 $r = Req 'GET' "$Base/api/public/plugins" $null $null
 Check "public plugins default none" ($r.StatusCode -eq 200 -and @((D $r).data.items).Count -eq 0)

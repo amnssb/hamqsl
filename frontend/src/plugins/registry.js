@@ -2,6 +2,111 @@
 // 后端 plugin.Manager 只负责插件元数据与启停状态；两者以插件名（theme_*）关联。
 // 新增主题：后端注册 kind=theme 的插件 + 在 themeRegistry 中补充同名条目即可。
 export const themeRegistry = {
+  theme_glass: {
+    name: 'theme_glass',
+    title: '磨砂漩涡 🍥',
+    version: '1.0.0',
+    swatches: ['#f1f5ff', '#ec5f8f', '#5b8ff9', '#ffd6e5'],
+    vars: {
+      '--qsl-ink': '#35426b',
+      '--qsl-muted': '#7d88ab',
+      '--qsl-line': '#d4def3',
+      '--qsl-paper': '#f1f5ff',
+      '--qsl-panel': 'rgba(255,255,255,.58)',
+      '--qsl-navy': '#273a6b',
+      '--qsl-navy-soft': '#3d5590',
+      '--qsl-orange': '#ec5f8f',
+      '--qsl-yellow': '#ffa7c4',
+      '--qsl-green': '#38b2a3',
+      '--el-color-primary': '#ec5f8f',
+      '--el-color-primary-light-3': '#f183ab',
+      '--el-color-primary-light-5': '#f5a7c4',
+      '--el-color-primary-light-7': '#f9cbdc',
+      '--el-color-primary-light-9': '#fde9f1',
+    },
+    // 磨砂玻璃需要 backdrop-filter 与 theme.css 硬编码浅色规则的覆盖，
+    // 全部走注入样式表（<style id="qsl-plugin-theme-extra">）
+    extraCss: `
+      /* 蓝粉白渐变底 + 柔焦光斑（磨砂玻璃的折射底衬） */
+      body::before {
+        content: '';
+        position: fixed; inset: -20%; z-index: -2; pointer-events: none;
+        background:
+          radial-gradient(42% 38% at 18% 22%, rgba(96,165,250,.50), transparent 70%),
+          radial-gradient(38% 34% at 82% 18%, rgba(244,114,182,.44), transparent 70%),
+          radial-gradient(46% 40% at 78% 82%, rgba(167,139,250,.30), transparent 72%),
+          radial-gradient(40% 36% at 22% 84%, rgba(125,211,252,.40), transparent 70%),
+          linear-gradient(135deg, #eef4ff 0%, #fdf0f6 46%, #ffffff 100%);
+      }
+      /* 🍥 漩涡切片：粉白辐条环纹 + 挖空圆心 + 柔焦，悬浮于右上角 */
+      body::after {
+        content: '';
+        position: fixed; right: -140px; top: -120px;
+        width: 460px; height: 460px; border-radius: 50%;
+        z-index: -1; pointer-events: none;
+        background: repeating-conic-gradient(from 8deg, rgba(255,143,184,.55) 0deg 22deg, rgba(255,255,255,.70) 22deg 45deg);
+        -webkit-mask: radial-gradient(closest-side, transparent 26%, #000 27%);
+        mask: radial-gradient(closest-side, transparent 26%, #000 27%);
+        filter: blur(26px) saturate(135%);
+        opacity: .85;
+      }
+      /* 玻璃卡片 */
+      .el-card {
+        background: rgba(255,255,255,.58) !important;
+        backdrop-filter: blur(20px) saturate(170%);
+        -webkit-backdrop-filter: blur(20px) saturate(170%);
+        border: 1px solid rgba(255,255,255,.75) !important;
+        box-shadow: 0 10px 34px rgba(76,110,245,.14), inset 0 1px 0 rgba(255,255,255,.85) !important;
+      }
+      /* 玻璃弹窗与浮层（保证可读性用较高不透明度） */
+      .el-dialog, .el-message-box {
+        background: rgba(255,255,255,.85) !important;
+        backdrop-filter: blur(24px) saturate(160%);
+        -webkit-backdrop-filter: blur(24px) saturate(160%);
+        border: 1px solid rgba(255,255,255,.8);
+      }
+      .el-popper.is-light { background: rgba(255,255,255,.9) !important; backdrop-filter: blur(16px); }
+      /* 表格：透明行落在玻璃卡片上，表头微白、悬停淡粉 */
+      .el-table {
+        --el-table-header-bg-color: rgba(255,255,255,.72) !important;
+        --el-table-row-hover-bg-color: rgba(255,214,229,.45) !important;
+        --el-bg-color: transparent; --el-table-tr-bg-color: transparent;
+        --el-table-border-color: rgba(190,205,238,.6) !important;
+      }
+      .el-table tr, .el-table td.el-table__cell, .el-table th.el-table__cell.is-leaf { background: transparent !important; }
+      /* 输入控件：高透白玻璃 */
+      .el-input__wrapper, .el-textarea__inner, .el-select__wrapper {
+        background: rgba(255,255,255,.78) !important;
+        box-shadow: 0 0 0 1px rgba(160,180,225,.55) inset !important;
+        backdrop-filter: blur(8px);
+      }
+      /* 后台侧栏：深蓝玻璃 */
+      .layout-aside {
+        background: rgba(38,58,102,.80) !important;
+        backdrop-filter: blur(18px) saturate(140%);
+        -webkit-backdrop-filter: blur(18px) saturate(140%);
+        border-right: 1px solid rgba(255,255,255,.18) !important;
+      }
+      .side-menu.el-menu, .side-menu .el-menu { background: rgba(44,68,120,.55) !important; }
+      /* 登录页侧板：蓝粉渐变玻璃 */
+      .login-aside {
+        background: linear-gradient(160deg, rgba(38,58,102,.90), rgba(154,84,143,.84)) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+      /* 主按钮悬停跟随粉色系 */
+      .el-button--primary:hover { border-color: #d94b80 !important; background: #d94b80 !important; }
+      /* 🍥 品牌装饰：侧栏品牌行右侧（收起时隐藏） */
+      .brand::after {
+        content: '🍥';
+        font-size: 17px;
+        margin-left: auto;
+        opacity: .92;
+        filter: drop-shadow(0 2px 6px rgba(236,95,143,.45));
+      }
+      .brand.collapsed::after { display: none; }
+    `,
+  },
   theme_dark: {
     name: 'theme_dark',
     title: '暗色主题',
