@@ -85,6 +85,7 @@ const routes = [
       { path: 'address', name: 'AddressBook', component: () => import('../views/AddressBook.vue'), meta: { title: '地址管理' } },
       { path: 'bureau', name: 'BureauList', component: () => import('../views/BureauList.vue'), meta: { title: '卡片局' } },
       { path: 'station', name: 'StationConfig', component: () => import('../views/StationConfig.vue'), meta: { title: '卡片版本' } },
+      { path: 'plugins', name: 'Plugins', component: () => import('../views/Plugins.vue'), meta: { title: '插件' } },
       { path: 'settings', name: 'Settings', component: () => import('../views/Settings.vue'), meta: { title: '设置' } },
     ],
   },

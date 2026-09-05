@@ -30,6 +30,7 @@
         <el-menu-item index="/admin/address"><el-icon><Notebook /></el-icon><template #title>我的地址</template></el-menu-item>
         <el-menu-item index="/admin/station"><el-icon><Postcard /></el-icon><template #title>卡片版本</template></el-menu-item>
         <el-menu-item index="/admin/settings"><el-icon><Tools /></el-icon><template #title>设置</template></el-menu-item>
+        <el-menu-item index="/admin/plugins"><el-icon><MagicStick /></el-icon><template #title>插件</template></el-menu-item>
       </el-menu>
 
       <div class="aside-footer" :class="{ collapsed: isCollapse }">

@@ -11,6 +11,9 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.post('/auth/login', { username, password })
     token.value = res.access_token
     localStorage.setItem('token', token.value)
+    if (res.refresh_token) {
+      localStorage.setItem('refresh_token', res.refresh_token)
+    }
     await fetchUser()
     return true
   }
@@ -28,6 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     user.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('refresh_token')
   }
 
   if (token.value) fetchUser()

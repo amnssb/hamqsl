@@ -14,6 +14,10 @@ import (
 	"qsl-management/internal/handler"
 	"qsl-management/internal/middleware"
 	"qsl-management/internal/model"
+	"qsl-management/internal/plugin"
+	pluginstatsdaily "qsl-management/internal/plugins/stats_daily"
+	pluginthemepaper "qsl-management/internal/plugins/theme_paper"
+	pluginthemedark "qsl-management/internal/plugins/theme_dark"
 )
 
 func main() {
@@ -60,8 +64,17 @@ func main() {
 		log.Printf("已创建默认管理员: %s", cfg.AdminUser)
 	}
 
+	// 插件系统：注册 → 初始化已启用插件 → 之后挂载管理端点与功能路由。
+	// 插件默认全部禁用（system_settings 无开关记录即视为禁用），升级零行为变化。
+	pm := plugin.NewManager(db)
+	pm.Register(pluginthemedark.New())
+	pm.Register(pluginthemepaper.New())
+	pm.Register(pluginstatsdaily.New(db))
+	pm.InitEnabled()
+
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.SecurityHeadersMiddleware())
 
 	// 图片上传目录与静态访问
 	os.MkdirAll("uploads", 0755)
@@ -98,10 +111,10 @@ func main() {
 		c.JSON(200, gin.H{"message": "QSL 卡片管理系统 API", "version": "1.0.0", "db": cfg.DBDriver})
 	})
 
-	api := r.Group("/api")
+	api := r.Group("/api", middleware.APIRateLimitMiddleware())
 
-	// 公开接口（无需登录）
-	pub := api.Group("/public")
+	// 公开接口（无需登录，应用速率限制）
+	pub := api.Group("/public", middleware.APIRateLimitMiddleware())
 	pubH := handler.NewPublicHandler(db)
 	pub.GET("/site-info", pubH.SiteInfo)
 	pub.GET("/stats", pubH.PublicStats)
@@ -116,10 +129,12 @@ func main() {
 	pub.GET("/cards/:card_code", pubH.GetCardByCode)       // 按编号查卡片（公开）
 	pub.GET("/tracking", pubH.QueryTracking)               // 快递追踪
 	pub.GET("/tracking/:tracking_number", pubH.QueryTracking)
+	pub.GET("/plugins", pm.HandlePublicThemes)             // 已启用主题插件（公开页应用皮肤）
 
-	// 认证
+	// 认证（登录/刷新接口应用严格速率限制）
 	authH := handler.NewAuthHandler(db)
-	api.POST("/auth/login", authH.Login)
+	api.POST("/auth/login", middleware.LoginRateLimitMiddleware(), authH.Login)
+	api.POST("/auth/refresh", middleware.LoginRateLimitMiddleware(), authH.Refresh)
 	api.GET("/auth/me", middleware.AuthRequired(), authH.Me)
 	api.POST("/auth/change-password", middleware.AuthRequired(), authH.ChangePassword)
 
@@ -203,6 +218,9 @@ func main() {
 	auth.POST("/settings/tracking", setH.SaveTracking)
 	auth.GET("/settings/site", setH.GetSite)
 	auth.POST("/settings/site", setH.SaveSite)
+
+	// 插件系统端点与功能插件路由：/api/plugins（列表/开关）、/api/ext/<name>/...
+	pm.Mount(api)
 
 	log.Printf("QSL 管理系统启动 http://localhost:%s", cfg.ServerPort)
 	log.Printf("数据库: %s", cfg.DBDriver)

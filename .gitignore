@@ -4,6 +4,7 @@ backend/uploads/
 backend/server
 backend/server.exe
 *.exe
+*.exe~
 
 # 前端
 frontend/node_modules/

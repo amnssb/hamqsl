@@ -6,13 +6,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElConfigProvider } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import { locale } from './i18n'
 import LangSwitch from './components/LangSwitch.vue'
+import api from './api'
+import { applyEnabledThemes } from './plugins/registry'
 
 const route = useRoute()
 
@@ -27,6 +29,14 @@ const elLocale = computed(() => {
 const isPublicPage = computed(() => {
   const p = route.path || ''
   return !(p.startsWith('/admin') || p.startsWith('/login'))
+})
+
+// 应用已启用的主题插件（公开端点，无需登录；失败静默不影响功能）
+onMounted(async () => {
+  try {
+    const res = await api.get('/public/plugins')
+    applyEnabledThemes((res?.items || []).map(i => i.name))
+  } catch { /* 主题应用失败时保持默认外观 */ }
 })
 </script>
 
