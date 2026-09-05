@@ -413,6 +413,20 @@ $impD = $impRaw | ConvertFrom-Json
 Check "admin import 200 + restored rows" ($r.StatusCode -eq 200 -and $impD.data.restored -and $impD.data.restored.qso_records -gt 0 -and $impD.data.restored.system_settings -gt 0)
 $r = Req 'GET' "$Base/api/exchange/online/requests?scene_type=SWL&size=1" $null $tok
 Check "data alive after import" ($r.StatusCode -eq 200 -and ((D $r).data.total -gt 0))
+
+# ---------- 26. card delete (cascades its receive record) ----------
+$r = Req 'POST' "$Base/api/qso-records" @{ call_sign = 'E2EDEL1'; date = '2025-03-01'; scene_type = 'QSO' } $tok
+$delQsoId = (D $r).data.id
+$r = Req 'POST' "$Base/api/card-records/from-qso" @{ qso_record_id = $delQsoId; card_version = ''; mail_type = 'REGISTERED' } $tok
+$delCard = D $r
+Check "card delete: create via from-qso" ($r.StatusCode -eq 200 -and $delCard.data.id)
+$delCardId = $delCard.data.id; $delCardCode = $delCard.data.card_code
+$r = Req 'DELETE' "$Base/api/card-records/$delCardId" $null $tok
+Check "card delete -> 200" ($r.StatusCode -eq 200)
+Check "card delete: public lookup gone" ((Req 'GET' "$Base/api/public/cards/$delCardCode" $null $null).StatusCode -eq 404)
+Check "card delete: list gone" (((D (Req 'GET' "$Base/api/card-records?call_sign=E2EDEL1" $null $tok)).data.total) -eq 0)
+Check "card delete: missing id -> 404" ((Req 'DELETE' "$Base/api/card-records/99999999" $null $tok).StatusCode -eq 404)
+
 Write-Output ""
 Write-Output ("RESULT: PASS=" + $script:pass + "  FAIL=" + $script:fail)
 

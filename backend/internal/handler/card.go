@@ -150,7 +150,22 @@ func (h *CardHandler) Update(c *gin.Context) {
 }
 
 func (h *CardHandler) Delete(c *gin.Context) {
-	h.db.Delete(&model.CardRecord{}, c.Param("id"))
+	var item model.CardRecord
+	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
+		response.NotFound(c, "卡片不存在")
+		return
+	}
+	// 事务：清理指向该卡片的收卡记录（回寄确认自动生成的那条），再删卡片本身
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("outbound_card_id = ?", item.ID).Delete(&model.ReceiveRecord{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&model.CardRecord{}, item.ID).Error
+	})
+	if err != nil {
+		response.Error(c, "删除失败")
+		return
+	}
 	response.OKMsg(c, "删除成功")
 }
 

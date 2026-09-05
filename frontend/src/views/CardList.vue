@@ -116,6 +116,7 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            <el-button link type="danger" size="small" @click="handleDeleteCard(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -462,6 +463,22 @@ function openTracking(row) {
 function openReturnTracking(row) {
   if (!row.return_tracking) { ElMessage.warning('对方未登记回寄单号'); return }
   window.open('https://www.kuaidi100.com/chaxun?nu=' + encodeURIComponent(row.return_tracking), '_blank')
+}
+
+// 删除卡片：连带清理关联收卡记录，二次确认防误删
+async function handleDeleteCard(row) {
+  try {
+    await ElMessageBox.confirm(
+      '确定删除卡片 ' + row.card_code + '（' + row.call_sign + '）？关联的收卡记录将一并删除，此操作不可恢复。',
+      '删除卡片',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' }
+    )
+  } catch { return }
+  const res = await api.delete('/card-records/' + row.id)
+  if (res) {
+    ElMessage.success('卡片已删除')
+    loadData()
+  }
 }
 
 // ---- 通联换卡：从通联记录直接建卡 ----
