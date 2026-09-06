@@ -105,6 +105,11 @@ export const themeRegistry = {
         filter: drop-shadow(0 2px 6px rgba(236,95,143,.45));
       }
       .brand.collapsed::after { display: none; }
+      /* 手机端：光斑与漩涡切片等比缩小，不占内容区 */
+      @media (max-width:640px){
+        body::after { width:280px; height:280px; right:-95px; top:-85px; opacity:.7; }
+        .el-card { backdrop-filter: blur(14px) saturate(165%); -webkit-backdrop-filter: blur(14px) saturate(165%); }
+      }
     `,
   },
   theme_dark: {

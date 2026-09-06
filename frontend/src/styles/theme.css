@@ -57,5 +57,33 @@ body {
 
 @media (max-width: 760px) {
   .page-heading { align-items:flex-start; flex-direction:column; gap:12px; }
-  .el-main { padding: 18px !important; }
+  .el-main { padding: 16px 12px !important; }
+}
+
+/* ===== 手机端全局适配（后台 + 公开门户通用） ===== */
+@media (max-width: 640px) {
+  /* 弹窗与确认框不再溢出视口（保留桌面 width 声明，由 max-width 收敛） */
+  .el-dialog { max-width: 92vw !important; }
+  .el-message-box { max-width: 90vw !important; }
+  /* 表单改为标签在上（inline 筛选表单保持横排可换行不受影响） */
+  .el-form-item { display: block; }
+  .el-form-item__label {
+    display: block;
+    width: auto !important;
+    text-align: left !important;
+    justify-content: flex-start;
+    padding: 0 0 5px !important;
+    line-height: 1.5;
+    height: auto;
+  }
+  /* 卡片头标题+操作按钮允许换行（行内 flex 未声明 wrap，可由外部规则补充） */
+  .el-card__header > div { flex-wrap: wrap; row-gap: 8px; }
+  .el-card__body { padding: 14px; }
+  /* 分页：换行收窄，隐藏跳页与每页条数选择 */
+  .el-pagination { flex-wrap: wrap; row-gap: 6px; }
+  .el-pagination .el-pagination__jump,
+  .el-pagination .el-pagination__sizes { display: none; }
+  /* 表格与时间线紧凑字号 */
+  .el-table { font-size: 12px; }
+  .el-dialog__header { padding-bottom: 10px; }
 }

@@ -1,16 +1,19 @@
 <template>
   <el-container class="layout-container">
-    <el-aside :width="isCollapse ? '72px' : '248px'" class="layout-aside">
-      <div class="brand" :class="{ collapsed: isCollapse }" @click="isCollapse = !isCollapse">
+    <transition name="nav-fade">
+      <div v-if="isMobile && mobileNav" class="nav-mask" @click="mobileNav = false"></div>
+    </transition>
+    <el-aside :width="asideWidth" class="layout-aside" :class="{ 'is-mobile': isMobile, 'mobile-open': isMobile && mobileNav }">
+      <div class="brand" :class="{ collapsed: !isMobile && isCollapse }" @click="toggleAside">
         <div class="brand-mark">Q</div>
-        <div v-if="!isCollapse" class="brand-copy">
+        <div v-if="!(!isMobile && isCollapse)" class="brand-copy">
           <strong>QSL / HUB</strong>
           <span>卡片工作台</span>
         </div>
       </div>
 
-      <div v-if="!isCollapse" class="nav-caption">工作区</div>
-      <el-menu :default-active="route.path" router :collapse="isCollapse" class="side-menu">
+      <div v-if="!(!isMobile && isCollapse)" class="nav-caption">工作区</div>
+      <el-menu :default-active="route.path" router :collapse="!isMobile && isCollapse" class="side-menu">
         <el-menu-item index="/admin/dashboard"><el-icon><DataBoard /></el-icon><template #title>总览</template></el-menu-item>
         <el-sub-menu index="qsl-biz">
           <template #title><el-icon><Document /></el-icon><span>通联业务</span></template>
@@ -25,28 +28,31 @@
         <el-menu-item index="/admin/receive"><el-icon><Box /></el-icon><template #title>收卡记录</template></el-menu-item>
       </el-menu>
 
-      <div v-if="!isCollapse" class="nav-caption nav-caption-bottom">管理</div>
-      <el-menu :default-active="route.path" router :collapse="isCollapse" class="side-menu">
+      <div v-if="!(!isMobile && isCollapse)" class="nav-caption nav-caption-bottom">管理</div>
+      <el-menu :default-active="route.path" router :collapse="!isMobile && isCollapse" class="side-menu">
         <el-menu-item index="/admin/address"><el-icon><Notebook /></el-icon><template #title>我的地址</template></el-menu-item>
         <el-menu-item index="/admin/station"><el-icon><Postcard /></el-icon><template #title>卡片版本</template></el-menu-item>
         <el-menu-item index="/admin/settings"><el-icon><Tools /></el-icon><template #title>设置</template></el-menu-item>
         <el-menu-item index="/admin/plugins"><el-icon><MagicStick /></el-icon><template #title>插件</template></el-menu-item>
       </el-menu>
 
-      <div class="aside-footer" :class="{ collapsed: isCollapse }">
+      <div class="aside-footer" :class="{ collapsed: !isMobile && isCollapse }">
         <span class="status-dot"></span>
-        <span v-if="!isCollapse">系统运行正常</span>
+        <span v-if="!(!isMobile && isCollapse)">系统运行正常</span>
       </div>
     </el-aside>
 
     <el-container>
       <el-header class="layout-header">
         <div class="header-left">
-          <span class="eyebrow">QSL MANAGEMENT</span>
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/admin/dashboard' }">工作台</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
-          </el-breadcrumb>
+          <el-button v-if="isMobile" class="nav-burger" text @click="mobileNav = true"><el-icon :size="22"><Menu /></el-icon></el-button>
+          <div class="header-title">
+            <span class="eyebrow">QSL MANAGEMENT</span>
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item :to="{ path: '/admin/dashboard' }">工作台</el-breadcrumb-item>
+              <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
         </div>
         <div class="header-right">
           <div class="user-chip"><span class="avatar">{{ (auth.user?.display_name || auth.user?.username || 'A').slice(0, 1).toUpperCase() }}</span><span>{{ auth.user?.display_name || auth.user?.username }}</span></div>
@@ -59,13 +65,32 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isCollapse = ref(false)
+
+// 手机端抽屉导航：≤860px 侧栏变为固定定位抽屉，汉堡按钮唤出，路由跳转后自动收起
+const isMobile = ref(false)
+const mobileNav = ref(false)
+function syncMobile() {
+  isMobile.value = window.innerWidth <= 860
+  if (!isMobile.value) mobileNav.value = false
+}
+onMounted(() => { syncMobile(); window.addEventListener('resize', syncMobile) })
+onBeforeUnmount(() => window.removeEventListener('resize', syncMobile))
+watch(() => route.path, () => { mobileNav.value = false })
+
+const asideWidth = computed(() => (isMobile.value ? '264px' : (isCollapse.value ? '72px' : '248px')))
+// 手机端点品牌区收起抽屉；桌面端保持原折叠逻辑
+function toggleAside() {
+  if (isMobile.value) mobileNav.value = false
+  else isCollapse.value = !isCollapse.value
+}
+
 function handleLogout() { auth.logout(); router.push('/login') }
 </script>
 
@@ -101,7 +126,26 @@ function handleLogout() { auth.logout(); router.push('/login') }
 .logout-btn { color:var(--qsl-muted); }
 .layout-main { padding:32px; background:var(--qsl-paper); }
 .content-shell { max-width:1440px; margin:0 auto; }
-@media (max-width:760px) { .layout-header { padding:0 18px; } .eyebrow { display:none; } .user-chip span:last-child { display:none; } .layout-main { padding:22px 16px; } }
+/* 手机端：抽屉侧栏 + 紧凑 header */
+.nav-burger { margin-right: 8px; color: var(--qsl-navy); }
+.header-title { display:flex; flex-direction:column; gap:7px; }
+.nav-mask { position:fixed; inset:0; z-index:65; background:rgba(12,22,40,.45); }
+.nav-fade-enter-active, .nav-fade-leave-active { transition:opacity .2s ease; }
+.nav-fade-enter-from, .nav-fade-leave-to { opacity:0; }
+@media (max-width:860px) {
+  .layout-aside.is-mobile {
+    position:fixed; top:0; bottom:0; left:0; z-index:70;
+    width:264px !important;
+    transform:translateX(-102%);
+    transition:transform .22s ease;
+  }
+  .layout-aside.is-mobile.mobile-open { transform:translateX(0); box-shadow:8px 0 30px rgba(10,20,40,.35); }
+  .layout-header { height:60px; padding:0 14px !important; }
+  .header-left { flex-direction:row; align-items:center; }
+  .eyebrow { display:none; }
+  .user-chip span:last-child { display:none; }
+  .layout-main { padding:16px 12px !important; }
+}
 </style>
 
 <style>
