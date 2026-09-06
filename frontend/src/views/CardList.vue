@@ -42,7 +42,9 @@
         <el-form-item><el-button type="primary" @click="loadData">查询</el-button></el-form-item>
       </el-form>
 
-      <el-table :data="list" border stripe v-loading="loading">
+      <ResponsiveTable :data="list" row-key="id" :fields="cardFields" v-loading="loading">
+        <template #default>
+      <el-table :data="list" border stripe>
         <el-table-column prop="card_code" label="编号" width="90" />
         <el-table-column prop="call_sign" label="呼号" width="100" />
         <el-table-column prop="owner_name" label="姓名" width="90">
@@ -120,6 +122,42 @@
           </template>
         </el-table-column>
       </el-table>
+        </template>
+        <template #card-flow_status="{ row }">
+          <el-tag :type="statusType(row.flow_status)" size="small">{{ statusText(row.flow_status) }}</el-tag>
+        </template>
+        <template #card-mail_type="{ row }">
+          <el-tag :type="row.mail_type === 'REGISTERED' ? '' : 'info'" size="small">
+            {{ row.mail_type === 'REGISTERED' ? '挂号' : '平信' }}
+          </el-tag>
+        </template>
+        <template #card-return="{ row }">
+          <el-tag v-if="row.return_received_at" type="success" size="small">已收 {{ row.return_record_code }}</el-tag>
+          <el-tag v-else-if="row.return_mailed_at" type="warning" size="small" style="cursor:pointer;" @click="openReturnTracking(row)">已回寄</el-tag>
+          <el-tag v-else-if="row.return_mail_enabled" type="info" size="small" effect="plain">回寄中</el-tag>
+          <span v-else style="color:#c0c4cc;">-</span>
+        </template>
+        <template #actions="{ row }">
+          <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
+          <el-button link type="success" size="small" v-if="!row.card_issued" @click="handleIssue(row)">制卡</el-button>
+          <el-button link type="warning" size="small" v-if="row.card_issued && !row.card_sent" @click="showSentDialog(row)">发信</el-button>
+          <el-button link type="info" size="small" v-if="row.card_sent && !row.card_received" @click="showReceivedDialog(row)">对方收卡</el-button>
+          <el-button link size="small" v-if="row.mail_type === 'REGISTERED' && row.tracking_number" @click="openTracking(row)">快递</el-button>
+          <el-button link type="info" size="small" @click="showQRCode(row)">二维码</el-button>
+          <el-dropdown v-if="row.mail_target_email" trigger="click" @command="(cmd) => handleSendMail(row, cmd)">
+            <el-button link type="info" size="small">邮件<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="created">建卡通知</el-dropdown-item>
+                <el-dropdown-item command="sent">发信通知</el-dropdown-item>
+                <el-dropdown-item command="received">收卡通知</el-dropdown-item>
+                <el-dropdown-item command="tracking">快递更新</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button link type="danger" size="small" @click="handleDeleteCard(row)">删除</el-button>
+        </template>
+      </ResponsiveTable>
 
       <el-pagination style="margin-top:16px;justify-content:flex-end;" v-model:current-page="query.page"
         v-model:page-size="query.size" :total="total" :page-sizes="[20,50,100]" layout="total, sizes, prev, pager, next"
@@ -346,6 +384,7 @@ import { ref, reactive, onMounted } from 'vue'
 import api from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import QRCode from 'qrcode'
+import ResponsiveTable from '../components/ResponsiveTable.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -353,6 +392,18 @@ const list = ref([])
 const total = ref(0)
 const versions = ref([])
 const query = reactive({ call_sign: '', scene_type: '', flow_status: '', mail_type: '', return_status: '', page: 1, size: 20 })
+
+// 手机端卡片流字段（第一个字段作为卡片标题）
+const cardFields = [
+  { prop: 'card_code', label: '编号' },
+  { prop: 'call_sign', label: '呼号' },
+  { prop: 'owner_name', label: '姓名' },
+  { prop: 'scene_type', label: '场景' },
+  { prop: 'flow_status', label: '状态' },
+  { prop: 'mail_type', label: '邮寄' },
+  { prop: 'tracking_number', label: '单号' },
+  { prop: 'return', label: '对方回寄' },
+]
 
 const createDialog = ref(false)
 const createForm = reactive({ call_sign: '', owner_name: '', card_type: 'QSO', scene_type: 'QSO', card_version: '', business_remarks: '', mail_type: 'REGISTERED', mail_target_email: '' })

@@ -86,4 +86,16 @@ body {
   /* 表格与时间线紧凑字号 */
   .el-table { font-size: 12px; }
   .el-dialog__header { padding-bottom: 10px; }
+  /* inline 筛选栏：每项独占一行，控件占满宽度，规整不挤 */
+  .el-form--inline .el-form-item { display: flex; width: 100%; margin-right: 0 !important; }
+  .el-form--inline .el-form-item__label { width: auto !important; padding-right: 12px !important; }
+  .el-form--inline .el-form-item .el-select,
+  .el-form--inline .el-form-item .el-input,
+  .el-form--inline .el-form-item .el-date-editor { width: 100% !important; flex: 1; }
+  .el-form--inline .el-form-item .el-input { width: 100% !important; }
+  /* 侧栏菜单：行框高度跟随行高，消除相邻项行框溢出 */
+  .side-menu .el-sub-menu__title span,
+  .side-menu .el-menu-item span { line-height: normal; }
+  /* 悬浮语言切换器：手机端缩小贴边少挡内容 */
+  .lang-switch { transform: scale(.85); transform-origin: bottom right; right: 8px; bottom: 8px; }
 }

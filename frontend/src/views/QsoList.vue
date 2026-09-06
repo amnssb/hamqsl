@@ -26,7 +26,9 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="list" border stripe v-loading="loading">
+      <ResponsiveTable :data="list" row-key="id" :fields="qsoFields" v-loading="loading">
+        <template #default>
+      <el-table :data="list" border stripe>
         <el-table-column prop="record_code" label="编号" width="120" />
         <el-table-column prop="date" label="日期" width="110" />
         <el-table-column prop="time" label="时间" width="80" />
@@ -53,6 +55,19 @@
           </template>
         </el-table-column>
       </el-table>
+        </template>
+        <template #card-has_card="{ row }">
+          <el-tag :type="row.has_card ? 'success' : 'info'" size="small">{{ row.has_card ? '是' : '否' }}</el-tag>
+        </template>
+        <template #actions="{ row }">
+          <el-button link type="primary" size="small" @click="showEdit(row)">编辑</el-button>
+          <el-popconfirm title="确定删除？" @confirm="handleDelete(row.id)">
+            <template #reference>
+              <el-button link type="danger" size="small" :disabled="row.has_card">删除</el-button>
+            </template>
+          </el-popconfirm>
+        </template>
+      </ResponsiveTable>
 
       <el-pagination style="margin-top:16px;justify-content:flex-end;" v-model:current-page="query.page"
         v-model:page-size="query.size" :total="total" :page-sizes="[20,50,100]" layout="total, sizes, prev, pager, next"
@@ -137,6 +152,18 @@
 import { ref, reactive, onMounted } from 'vue'
 import api from '../api'
 import { ElMessage } from 'element-plus'
+import ResponsiveTable from '../components/ResponsiveTable.vue'
+
+// 手机端卡片流字段（record_code 作为卡片标题）
+const qsoFields = [
+  { prop: 'record_code', label: '编号' },
+  { prop: 'date', label: '日期' },
+  { prop: 'time', label: '时间' },
+  { prop: 'call_sign', label: '对方呼号' },
+  { prop: 'freq', label: '频率' },
+  { prop: 'mode', label: '模式' },
+  { prop: 'has_card', label: '建卡' },
+]
 
 const loading = ref(false)
 const saving = ref(false)
