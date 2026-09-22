@@ -134,9 +134,9 @@ function handleLogout() { auth.logout(); router.push('/login') }
   display: grid;
   place-items: center;
   flex: none;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--el-color-primary, #2563eb);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .brand-glyph {
   color: #ffffff;
@@ -187,8 +187,8 @@ function handleLogout() { auth.logout(); router.push('/login') }
 }
 :deep(.side-menu .el-menu-item.is-active) {
   color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  background: var(--el-color-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   font-weight: 650;
 }
 :deep(.side-menu .el-menu) { background: #070d1f; border-radius: 8px; margin: 2px 8px; padding: 4px 0; }
@@ -214,7 +214,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--qsl-green, #10b981);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
   animation: pulse-dot 2.5s infinite;
 }
@@ -225,7 +225,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
 
 .main-container {
   min-height: 100vh;
-  background: var(--qsl-paper, #f8fafc);
+  background: var(--qsl-paper);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -236,24 +236,22 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--qsl-panel);
+  border-bottom: 1px solid var(--qsl-line);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 .header-left { display: flex; flex-direction: column; gap: 4px; }
 .eyebrow {
-  color: #3b82f6;
+  color: var(--el-color-primary);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.14em;
 }
-:deep(.el-breadcrumb__inner) { color: #64748b; font-size: 13.5px; font-weight: 500; }
-:deep(.el-breadcrumb__inner.is-link:hover) { color: #2563eb; }
-:deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) { color: #0f172a; font-weight: 650; }
+:deep(.el-breadcrumb__inner) { color: var(--qsl-muted); font-size: 13.5px; font-weight: 500; }
+:deep(.el-breadcrumb__inner.is-link:hover) { color: var(--el-color-primary); }
+:deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) { color: var(--qsl-navy); font-weight: 650; }
 
 .header-right { display: flex; align-items: center; gap: 16px; }
 .user-chip {
@@ -261,10 +259,10 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   gap: 10px;
   padding: 4px 10px 4px 4px;
-  background: #f1f5f9;
+  background: var(--qsl-paper);
   border-radius: 9999px;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
+  border: 1px solid var(--qsl-line);
+  color: var(--qsl-ink);
   font-size: 13px;
   font-weight: 600;
 }
@@ -274,13 +272,13 @@ function handleLogout() { auth.logout(); router.push('/login') }
   width: 28px;
   height: 28px;
   color: #fff;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--el-color-primary);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
 }
 .logout-btn {
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 13px;
   padding: 6px 12px;
   border-radius: 8px;

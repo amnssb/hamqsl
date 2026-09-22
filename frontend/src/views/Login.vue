@@ -296,8 +296,8 @@ async function handleLogin() {
   width: 100%;
   max-width: 440px;
   border-radius: 16px;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
   padding: 36px 32px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
@@ -306,7 +306,7 @@ async function handleLogin() {
   margin-bottom: 28px;
 }
 .welcome-badge {
-  color: #2563eb;
+  color: var(--el-color-primary);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -314,20 +314,20 @@ async function handleLogin() {
 }
 .login-header h1 {
   margin: 0 0 6px;
-  color: #0f172a;
+  color: var(--qsl-navy);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 .login-header p {
   margin: 0;
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 13.5px;
   line-height: 1.5;
 }
 
 .login-form :deep(.el-form-item__label) {
-  color: #334155;
+  color: var(--qsl-navy);
   font-weight: 650;
   font-size: 13.5px;
   margin-bottom: 6px;
@@ -352,29 +352,29 @@ async function handleLogin() {
   justify-content: space-between;
   margin-top: 28px;
   padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--qsl-line);
   font-size: 12px;
 }
 .system-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--qsl-muted);
 }
 .status-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--qsl-green, #10b981);
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 .back-home-btn {
-  color: #2563eb;
+  color: var(--el-color-primary);
   font-size: 12px;
   padding: 0;
 }
 .back-home-btn:hover {
-  color: #1d4ed8;
+  color: var(--el-color-primary-hover, var(--el-color-primary));
 }
 
 @media (max-width: 860px) {

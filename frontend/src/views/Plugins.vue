@@ -106,6 +106,6 @@ onMounted(load)
 .chart-row { display: flex; align-items: flex-end; gap: 10px; }
 .chart-day { width: 44px; flex: none; color: var(--qsl-muted); font-size: 11px; text-align: right; }
 .chart-bar-wrap { flex: 1; display: flex; align-items: flex-end; height: 70px; border-bottom: 1px solid var(--qsl-line); }
-.chart-bar { width: 100%; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); border-radius: 4px 4px 0 0; min-height: 2px; }
+.chart-bar { width: 100%; background: var(--el-color-primary); border-radius: 4px 4px 0 0; min-height: 2px; }
 .chart-val { flex: none; width: 170px; color: var(--qsl-muted); font-size: 11.5px; }
 </style>

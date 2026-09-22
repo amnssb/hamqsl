@@ -160,7 +160,7 @@ onMounted(async () => {
   width: 100%;
   margin: 0 auto;
   padding: 0 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--qsl-line);
 }
 
 .portal-brand {
@@ -174,15 +174,15 @@ onMounted(async () => {
   width: 36px;
   height: 36px;
   color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--el-color-primary, #2563eb);
   border-radius: 10px;
   font-size: 18px;
   font-weight: 850;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 .brand-info strong {
   display: block;
-  color: #0f172a;
+  color: var(--qsl-navy);
   font-size: 15px;
   font-weight: 750;
   letter-spacing: 0.06em;
@@ -190,25 +190,25 @@ onMounted(async () => {
 .brand-info small {
   display: block;
   margin-top: 2px;
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 11px;
 }
 
 .admin-link {
-  color: #475569;
+  color: var(--qsl-navy);
   font-size: 13px;
   font-weight: 600;
   padding: 6px 14px;
   border-radius: 9999px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
 }
 .admin-link:hover {
-  color: #2563eb;
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  background: var(--qsl-paper);
 }
 
 .portal-main {
@@ -226,11 +226,11 @@ onMounted(async () => {
   align-items: flex-start;
   margin-bottom: 32px;
   padding: 16px 20px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-left: 4px solid #f59e0b;
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
+  border-left: 4px solid var(--qsl-yellow);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .notice-badge {
   display: grid;
@@ -238,14 +238,14 @@ onMounted(async () => {
   flex: none;
   width: 28px;
   height: 28px;
-  color: #d97706;
-  background: #fef3c7;
+  color: var(--qsl-yellow);
+  background: rgba(245, 158, 11, 0.12);
   border-radius: 8px;
   font-size: 14px;
 }
 .notice-body b {
   display: block;
-  color: #92400e;
+  color: var(--qsl-navy);
   font-size: 13px;
   font-weight: 700;
 }
@@ -256,7 +256,7 @@ onMounted(async () => {
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #78350f;
+  color: var(--qsl-ink);
 }
 
 /* 首屏双栏 */
@@ -268,28 +268,26 @@ onMounted(async () => {
   padding: 24px 0 54px;
 }
 .eyebrow {
-  color: #2563eb;
+  color: var(--el-color-primary);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
 }
 .hero-title {
   margin: 14px 0 18px;
-  color: #0f172a;
+  color: var(--qsl-navy);
   font-size: clamp(30px, 4vw, 44px);
   line-height: 1.15;
   letter-spacing: -0.03em;
   font-weight: 850;
 }
 .hero-title .highlight {
-  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--el-color-primary);
 }
 .hero-desc {
   max-width: 440px;
   margin: 0;
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 15px;
   line-height: 1.75;
 }
@@ -303,20 +301,22 @@ onMounted(async () => {
   padding: 0 24px;
   font-size: 14.5px;
   border-radius: 10px;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 .hero-btn-secondary {
   height: 46px;
   padding: 0 22px;
   font-size: 14.5px;
   border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  color: #334155;
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
+  color: var(--qsl-navy);
 }
 .hero-btn-secondary:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: var(--el-color-primary);
+  background: var(--qsl-paper);
 }
 
 /* 系统实时数据面板 */
@@ -326,8 +326,8 @@ onMounted(async () => {
   max-width: 360px;
   margin: 0 auto;
   padding: 24px;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
   border-radius: 16px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
 }
@@ -341,7 +341,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #0f172a;
+  color: var(--qsl-navy);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -350,19 +350,19 @@ onMounted(async () => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--qsl-green, #10b981);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
   animation: pulse-dot 2s infinite;
 }
 .live-pill {
-  color: #059669;
-  background: #ecfdf5;
+  color: var(--qsl-green, #059669);
+  background: rgba(16, 185, 129, 0.12);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   padding: 2px 8px;
   border-radius: 9999px;
-  border: 1px solid #d1fae5;
+  border: 1px solid var(--qsl-line);
 }
 @keyframes pulse-dot {
   0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
@@ -379,11 +379,11 @@ onMounted(async () => {
   padding: 4px;
 }
 .stat-item + .stat-item {
-  border-left: 1px solid #f1f5f9;
+  border-left: 1px solid var(--qsl-line);
 }
 .stat-item b {
   display: block;
-  color: #0f172a;
+  color: var(--qsl-navy);
   font-size: 28px;
   font-weight: 850;
   line-height: 1.1;
@@ -393,12 +393,12 @@ onMounted(async () => {
 .stat-item span {
   display: block;
   margin-top: 6px;
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 12px;
 }
 .stats-note {
   margin: 18px 0 0;
-  color: #94a3b8;
+  color: var(--qsl-muted);
   font-size: 11px;
   text-align: center;
 }
@@ -409,7 +409,7 @@ onMounted(async () => {
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   padding-top: 36px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--qsl-line);
 }
 .service-card {
   display: flex;
@@ -417,11 +417,11 @@ onMounted(async () => {
   gap: 14px;
   width: 100%;
   padding: 18px 20px;
-  color: #0f172a;
+  color: var(--qsl-navy);
   text-align: left;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--qsl-line);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--qsl-panel);
   cursor: pointer;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
@@ -430,11 +430,11 @@ onMounted(async () => {
 .service-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
-  border-color: #93c5fd;
+  border-color: var(--el-color-primary);
 }
 .service-card:hover .service-arrow {
   transform: translateX(4px);
-  color: #2563eb;
+  color: var(--el-color-primary);
 }
 
 .service-icon {
@@ -446,9 +446,9 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.service-icon.blue { color: #2563eb; background: #eff6ff; }
-.service-icon.indigo { color: #4f46e5; background: #eef2ff; }
-.service-icon.emerald { color: #059669; background: #ecfdf5; }
+.service-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
+.service-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
+.service-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
 
 .service-text {
   flex: 1;
@@ -458,17 +458,17 @@ onMounted(async () => {
   display: block;
   font-size: 14.5px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--qsl-navy);
 }
 .service-text small {
   display: block;
   margin-top: 3px;
-  color: #64748b;
+  color: var(--qsl-muted);
   font-size: 12px;
 }
 .service-arrow {
   flex: none;
-  color: #94a3b8;
+  color: var(--qsl-muted);
   font-size: 15px;
   transition: all 0.2s ease;
 }
@@ -478,13 +478,13 @@ onMounted(async () => {
   width: 100%;
   margin: 0 auto;
   padding: 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--qsl-line);
 }
 .footer-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #94a3b8;
+  color: var(--qsl-muted);
   font-size: 12px;
 }
 .footer-sub {
