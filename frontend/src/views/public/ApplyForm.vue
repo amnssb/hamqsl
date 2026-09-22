@@ -679,16 +679,4 @@ onMounted(() => {
 
 .field-tip { margin: 6px 0 0; font-size: 12px; color: #999; }
 
-/* Kumo visual layer */
-.public-page { background:var(--qsl-paper); color:var(--qsl-ink); }
-.public-header { color:var(--qsl-navy); border-bottom:1px solid var(--qsl-line); text-align:left; padding:34px 0 28px; }
-.logo-section { justify-content:flex-start; }
-.logo-icon { width:42px; height:42px; border-radius:0; color:var(--qsl-navy); background:var(--qsl-yellow); font-size:14px; }
-.public-header h1 { color:var(--qsl-navy); font-size:24px; }
-.subtitle { color:var(--qsl-muted); opacity:1; font-size:13px; }
-.modern-card { border:1px solid var(--qsl-line); border-radius:2px; box-shadow:3px 3px 0 rgba(24,45,61,.07); }
-.card-header { border-bottom-color:#eeeae2; }
-.card-header h2 { color:var(--qsl-navy); }
-.card-header p { color:var(--qsl-muted); }
-.public-footer { color:#9c978d; border-top:1px solid var(--qsl-line); }
 </style>

@@ -381,23 +381,11 @@ onMounted(() => {
   .modern-card { padding: 20px; }
   .success-details { flex-direction: column; gap: 16px; }
 }
-/* Kumo visual layer */
-.public-page { background:var(--qsl-paper); color:var(--qsl-ink); }
-.public-header { color:var(--qsl-navy); border-bottom:1px solid var(--qsl-line); text-align:left; padding:34px 0 28px; }
-.logo-section { justify-content:flex-start; }
-.logo-icon { width:42px; height:42px; border-radius:0; color:var(--qsl-navy); background:var(--qsl-yellow); font-size:14px; }
-.public-header h1 { color:var(--qsl-navy); font-size:24px; }
-.subtitle { color:var(--qsl-muted); opacity:1; font-size:13px; }
-.modern-card { border:1px solid var(--qsl-line); border-radius:2px; box-shadow:3px 3px 0 rgba(24,45,61,.07); }
-.card-header { border-bottom-color:#eeeae2; }
-.card-header h2 { color:var(--qsl-navy); }
-.public-footer { color:#9c978d; border-top:1px solid var(--qsl-line); }
-
 /* 回寄引导 */
-.return-box { margin:24px auto 0; max-width:520px; padding:20px 22px; text-align:center; background:#fdf9ee; border:1px dashed var(--qsl-orange); }
-.return-box h3 { margin:0 0 8px; color:var(--qsl-navy); font-size:16px; }
-.return-tip { margin:6px 0 0; color:var(--qsl-muted); font-size:12.5px; line-height:1.7; }
-.return-done-line { margin:6px 0; color:var(--qsl-ink); font-size:14px; }
-.station-address { margin:10px auto 0; max-width:420px; padding:12px 16px; text-align:left; background:#fff; border:1px solid var(--qsl-line); }
-.station-address pre { margin:0; font-family:inherit; font-size:13.5px; line-height:1.9; white-space:pre-wrap; word-break:break-all; color:var(--qsl-navy); font-weight:600; }
+.return-box { margin:24px auto 0; max-width:520px; padding:20px 24px; text-align:center; background:#eff6ff; border:1px dashed #3b82f6; border-radius:12px; }
+.return-box h3 { margin:0 0 8px; color:#1e293b; font-size:16px; font-weight:700; }
+.return-tip { margin:6px 0 0; color:#64748b; font-size:13px; line-height:1.7; }
+.return-done-line { margin:6px 0; color:#0f172a; font-size:14px; font-weight:600; }
+.station-address { margin:12px auto 0; max-width:420px; padding:14px 18px; text-align:left; background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.station-address pre { margin:0; font-family:inherit; font-size:13.5px; line-height:1.8; white-space:pre-wrap; word-break:break-all; color:#1e293b; font-weight:600; }
 </style>

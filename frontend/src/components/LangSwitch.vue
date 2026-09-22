@@ -10,9 +10,42 @@ import { locale, setLocale } from '../i18n'
 </script>
 
 <style scoped>
-.lang-switch { position: fixed; right: 16px; bottom: 16px; z-index: 3000; display: flex; overflow: hidden; background: #fff; border: 1px solid var(--qsl-line, #e5e0d5); border-radius: 999px; box-shadow: 2px 3px 0 rgba(24,45,61,.12); }
-.lang-switch button { padding: 6px 13px; color: var(--qsl-navy, #182d3d); font-family: inherit; font-size: 12px; border: 0; background: transparent; cursor: pointer; }
-.lang-switch button + button { border-left: 1px solid var(--qsl-line, #e5e0d5); }
-.lang-switch button.active { color: var(--qsl-navy, #182d3d); background: var(--qsl-yellow, #f5c518); font-weight: 800; }
-.lang-switch button:hover:not(.active) { background: #f7f4ec; }
+.lang-switch {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 3000;
+  display: flex;
+  padding: 3px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.lang-switch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+.lang-switch button {
+  padding: 6px 14px;
+  color: #475569;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.lang-switch button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.lang-switch button:hover:not(.active) {
+  color: #0f172a;
+  background: #f1f5f9;
+}
 </style>

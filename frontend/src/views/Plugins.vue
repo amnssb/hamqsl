@@ -100,12 +100,12 @@ onMounted(load)
 .plugin-name { margin-top: 2px; color: var(--qsl-muted); font-size: 11px; letter-spacing: .04em; }
 .plugin-desc { margin: 10px 0 14px; color: var(--qsl-muted); font-size: 13px; line-height: 1.7; min-height: 44px; }
 .plugin-foot { display: flex; align-items: center; gap: 10px; }
-.swatches { display: inline-flex; gap: 4px; }
-.swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,.12); }
-.chart { display: flex; flex-direction: column; gap: 6px; }
+.swatches { display: inline-flex; gap: 6px; }
+.swatch { width: 18px; height: 18px; border-radius: 6px; border: 1px solid rgba(0,0,0,.08); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.chart { display: flex; flex-direction: column; gap: 8px; }
 .chart-row { display: flex; align-items: flex-end; gap: 10px; }
-.chart-day { width: 40px; flex: none; color: var(--qsl-muted); font-size: 11px; text-align: right; }
+.chart-day { width: 44px; flex: none; color: var(--qsl-muted); font-size: 11px; text-align: right; }
 .chart-bar-wrap { flex: 1; display: flex; align-items: flex-end; height: 70px; border-bottom: 1px solid var(--qsl-line); }
-.chart-bar { width: 100%; background: var(--qsl-orange); border-radius: 2px 2px 0 0; opacity: .85; min-height: 2px; }
-.chart-val { flex: none; width: 170px; color: var(--qsl-muted); font-size: 11px; }
+.chart-bar { width: 100%; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); border-radius: 4px 4px 0 0; min-height: 2px; }
+.chart-val { flex: none; width: 170px; color: var(--qsl-muted); font-size: 11.5px; }
 </style>

@@ -384,24 +384,14 @@ onMounted(() => {
 .refresh-note { margin-top: 24px; text-align: center; color: #909399; font-size: 13px; }
 .public-footer { text-align: center; padding: 30px 0; color: rgba(255,255,255,0.7); font-size: 14px; }
 
-.mail-block { margin-top: 28px; padding: 16px 20px; background: #f8f7f2; border: 1px solid #e8e4dc; border-radius: 4px; }
+.mail-block { margin-top: 28px; padding: 18px 22px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
 .mail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.mail-head b { color: var(--qsl-navy, #1a1a1a); }
-.addr-text { margin: 10px 0 0; padding: 12px 14px; background: #fff; border: 1px dashed #d8d2c6; border-radius: 4px; font-family: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: var(--qsl-ink, #333); }
-.sender-mail { font-family: monospace; font-weight: 700; color: var(--qsl-navy, #1a2d3d); background: #fff; border: 1px dashed #d8d2c6; padding: 1px 6px; border-radius: 3px; word-break: break-all; }
-.mail-actions { margin-top: 10px; }
+.mail-head b { color: #0f172a; font-weight: 700; }
+.addr-text { margin: 12px 0 0; padding: 14px 16px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: #1e293b; }
+.sender-mail { font-family: monospace; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; word-break: break-all; }
+.mail-actions { margin-top: 12px; }
 
-.notice-block { margin: -8px 0 24px; padding: 14px 18px; background: #fdf6e8; border: 1px solid #ecd9b0; border-left: 4px solid #f5a623; border-radius: 4px; }
-.notice-head { display: flex; align-items: center; gap: 7px; color: var(--qsl-navy, #1a2d3d); font-size: 14px; margin-bottom: 8px; }
-.notice-text { margin: 0; font-family: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: var(--qsl-ink, #333); }
-
-/* Kumo visual layer */
-.public-page { background:var(--qsl-paper); color:var(--qsl-ink); }
-.public-header { color:var(--qsl-navy); border-bottom:1px solid var(--qsl-line); text-align:left; padding:34px 0 28px; }
-.logo-section { justify-content:flex-start; }
-.logo-icon { width:42px; height:42px; border-radius:0; color:var(--qsl-navy); background:var(--qsl-yellow); font-size:14px; }
-.public-header h1 { color:var(--qsl-navy); font-size:24px; }
-.subtitle { color:var(--qsl-muted); opacity:1; font-size:13px; }
-.modern-card { border:1px solid var(--qsl-line); border-radius:2px; box-shadow:3px 3px 0 rgba(24,45,61,.07); }
-.public-footer { color:#9c978d; border-top:1px solid var(--qsl-line); }
+.notice-block { margin: -8px 0 24px; padding: 16px 20px; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; border-radius: 10px; }
+.notice-head { display: flex; align-items: center; gap: 8px; color: #92400e; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.notice-text { margin: 0; font-family: inherit; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: #78350f; }
 </style>

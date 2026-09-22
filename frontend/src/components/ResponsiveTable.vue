@@ -17,8 +17,10 @@
     </div>
     <el-empty v-if="!data || !data.length" description="暂无数据" :image-size="72" />
   </div>
-  <!-- 桌面端：原 el-table 原样渲染 -->
-  <slot v-else />
+  <!-- 桌面端与平板端：包裹水平平滑滚动容器，避免撑开视口 -->
+  <div v-else class="rtable-desktop-wrap">
+    <slot />
+  </div>
 </template>
 
 <script setup>
@@ -26,13 +28,12 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
-  // 手机卡片展示的字段：[{ prop, label }]；第一个字段同时作为卡片标题
   fields: { type: Array, required: true },
   rowKey: { type: String, default: 'id' },
 })
 
 const isMobile = ref(false)
-const sync = () => { isMobile.value = window.innerWidth <= 640 }
+const sync = () => { isMobile.value = window.innerWidth <= 720 }
 onMounted(() => { sync(); window.addEventListener('resize', sync) })
 onBeforeUnmount(() => window.removeEventListener('resize', sync))
 
@@ -40,27 +41,34 @@ const cardFields = computed(() => props.fields.slice(1))
 </script>
 
 <style scoped>
-.rcard-list { display: flex; flex-direction: column; gap: 10px; }
+.rtable-desktop-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rcard-list { display: flex; flex-direction: column; gap: 12px; }
 .rcard {
-  border: 1px solid var(--qsl-line);
-  background: var(--qsl-panel);
-  border-radius: 4px;
-  padding: 12px 14px;
-  box-shadow: 2px 2px 0 rgba(24, 45, 61, .06);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 .rcard-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding-bottom: 8px; margin-bottom: 6px;
-  border-bottom: 1px solid var(--qsl-line);
-  color: var(--qsl-navy); font-weight: 750; font-size: 14px;
+  padding-bottom: 10px; margin-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a; font-weight: 750; font-size: 14.5px;
   word-break: break-all;
 }
-.rcard-row { display: flex; gap: 10px; padding: 3px 0; font-size: 13px; line-height: 1.55; }
-.rcard-label { flex: none; width: 74px; color: var(--qsl-muted); }
-.rcard-value { flex: 1; min-width: 0; word-break: break-all; color: var(--qsl-ink); }
+.rcard-row { display: flex; gap: 12px; padding: 4px 0; font-size: 13px; line-height: 1.6; }
+.rcard-label { flex: none; width: 78px; color: #64748b; font-weight: 500; }
+.rcard-value { flex: 1; min-width: 0; word-break: break-all; color: #0f172a; }
 .rcard-actions {
-  display: flex; flex-wrap: wrap; gap: 4px 10px;
-  margin-top: 10px; padding-top: 10px;
-  border-top: 1px dashed var(--qsl-line);
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
 }
 </style>

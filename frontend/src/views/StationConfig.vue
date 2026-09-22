@@ -11,7 +11,7 @@
         <el-table-column prop="card_version" label="版本名称" width="150" />
         <el-table-column label="图片" width="70">
           <template #default="{ row }">
-            <el-image v-if="row.image_path" :src="row.image_path" fit="cover" style="width:40px;height:40px;border-radius:4px;" :preview-src-list="[row.image_path]" preview-teleported />
+            <el-image v-if="row.image_path" :src="row.image_path" fit="cover" style="width:40px;height:40px;border-radius:8px;" :preview-src-list="[row.image_path]" preview-teleported />
             <span v-else style="color:#c0c4cc;">-</span>
           </template>
         </el-table-column>
@@ -106,6 +106,6 @@ onMounted(() => { loadCards() })
 
 <style scoped>
 .upload-row { display: flex; align-items: center; gap: 12px; }
-.version-preview { width: 64px; height: 64px; border-radius: 6px; border: 1px solid #e5e1d8; }
+.version-preview { width: 64px; height: 64px; border-radius: 8px; border: 1px solid #e2e8f0; }
 .upload-tip { margin: 6px 0 0; font-size: 12px; color: #999; }
 </style>
