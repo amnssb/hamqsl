@@ -431,9 +431,9 @@ Check "card delete: missing id -> 404" ((Req 'DELETE' "$Base/api/card-records/99
 $r = Req 'GET' "$Base/api/plugins" $null $tok
 $plg = D $r
 $plgItems = @($plg.data.items)
-Check "plugins list 200 + items" ($r.StatusCode -eq 200 -and $plgItems.Count -ge 3)
+Check "plugins list 200 + items" ($r.StatusCode -eq 200 -and $plgItems.Count -ge 5)
 $plgNames = ($plgItems | ForEach-Object { $_.name }) -join ','
-Check "plugins list has 3 themes + feature" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*theme_glass*' -and $plgNames -like '*stats_daily*')
+Check "plugins list has 5 themes + feature" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*theme_glass*' -and $plgNames -like '*theme_ba*' -and $plgNames -like '*theme_rhodes*' -and $plgNames -like '*stats_daily*')
 Check "plugins unauth -> 401" ((Req 'GET' "$Base/api/plugins" $null $null).StatusCode -eq 401)
 $r = Req 'GET' "$Base/api/public/plugins" $null $null
 Check "public plugins default none" ($r.StatusCode -eq 200 -and @((D $r).data.items).Count -eq 0)
@@ -444,13 +444,28 @@ Check "theme_dark enable 200" ($r.StatusCode -eq 200)
 $r = Req 'GET' "$Base/api/public/plugins" $null $null
 $pubNames = @((D $r).data.items | ForEach-Object { $_.name })
 Check "public plugins shows theme_dark" ($pubNames -contains 'theme_dark')
+Req 'POST' "$Base/api/plugins/theme_dark/disable" @{} $tok | Out-Null
+
+$r = Req 'POST' "$Base/api/plugins/theme_ba/enable" @{} $tok
+Check "theme_ba enable 200" ($r.StatusCode -eq 200)
+$r = Req 'GET' "$Base/api/public/plugins" $null $null
+$pubNamesBA = @((D $r).data.items | ForEach-Object { $_.name })
+Check "public plugins shows theme_ba" ($pubNamesBA -contains 'theme_ba')
+Req 'POST' "$Base/api/plugins/theme_ba/disable" @{} $tok | Out-Null
+
+$r = Req 'POST' "$Base/api/plugins/theme_rhodes/enable" @{} $tok
+Check "theme_rhodes enable 200" ($r.StatusCode -eq 200)
+$r = Req 'GET' "$Base/api/public/plugins" $null $null
+$pubNamesRhodes = @((D $r).data.items | ForEach-Object { $_.name })
+Check "public plugins shows theme_rhodes" ($pubNamesRhodes -contains 'theme_rhodes')
+Req 'POST' "$Base/api/plugins/theme_rhodes/disable" @{} $tok | Out-Null
+
 Req 'POST' "$Base/api/plugins/stats_daily/enable" @{} $tok | Out-Null
 $r = Req 'GET' "$Base/api/ext/stats_daily/summary?days=3" $null $tok
 $sd = D $r
 $sdItems = @($sd.data.items)
 Check "stats_daily summary 200 + shape" ($r.StatusCode -eq 200 -and $sd.data.days -eq 3 -and $sdItems.Count -eq 3)
 Check "stats_daily item fields" ($sdItems[0].day -and $null -ne $sdItems[0].created -and $null -ne $sdItems[0].signed)
-Req 'POST' "$Base/api/plugins/theme_dark/disable" @{} $tok | Out-Null
 Req 'POST' "$Base/api/plugins/stats_daily/disable" @{} $tok | Out-Null
 $r = Req 'GET' "$Base/api/public/plugins" $null $null
 Check "plugins disabled back -> public empty" ($r.StatusCode -eq 200 -and @((D $r).data.items).Count -eq 0)

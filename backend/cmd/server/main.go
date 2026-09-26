@@ -19,6 +19,8 @@ import (
 	pluginthemeglass "qsl-management/internal/plugins/theme_glass"
 	pluginthemepaper "qsl-management/internal/plugins/theme_paper"
 	pluginthemedark "qsl-management/internal/plugins/theme_dark"
+	pluginthemeba "qsl-management/internal/plugins/theme_ba"
+	pluginthemerhodes "qsl-management/internal/plugins/theme_rhodes"
 )
 
 func main() {
@@ -71,6 +73,8 @@ func main() {
 	pm.Register(pluginthemedark.New())
 	pm.Register(pluginthemepaper.New())
 	pm.Register(pluginthemeglass.New())
+	pm.Register(pluginthemeba.New())
+	pm.Register(pluginthemerhodes.New())
 	pm.Register(pluginstatsdaily.New(db))
 	pm.InitEnabled()
 
