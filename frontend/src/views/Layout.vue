@@ -105,16 +105,18 @@ function handleLogout() { auth.logout(); router.push('/login') }
 </script>
 
 <style scoped>
-.layout-container { min-height: 100vh; background: var(--qsl-paper, #f8fafc); }
+/* 侧栏/品牌区用的是 --qsl-chrome-*（深色"外壳"），与页面正体的 --qsl-* 分开：
+   这样玻璃/纸墨这类"深色侧栏 + 浅色正文"的主题不需要再硬编码侧栏文字颜色。 */
+.layout-container { min-height: 100vh; background: var(--qsl-bg); }
 .layout-aside {
   position: relative;
   display: flex;
   flex-direction: column;
-  background: #0b132b;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--qsl-chrome-bg);
+  border-right: 1px solid color-mix(in srgb, var(--qsl-chrome-text) 10%, transparent);
   transition: width .25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 2px 0 12px color-mix(in srgb, var(--qsl-chrome-bg) 30%, transparent);
 }
 .brand {
   height: 76px;
@@ -122,24 +124,24 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   gap: 12px;
   padding: 0 20px;
-  color: #fff;
+  color: var(--qsl-chrome-text);
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid color-mix(in srgb, var(--qsl-chrome-text) 8%, transparent);
   transition: background .2s;
 }
-.brand:hover { background: rgba(255, 255, 255, 0.03); }
+.brand:hover { background: color-mix(in srgb, var(--qsl-chrome-text) 5%, transparent); }
 .brand-mark {
   width: 38px;
   height: 38px;
   display: grid;
   place-items: center;
   flex: none;
-  background: var(--el-color-primary, #2563eb);
+  background: var(--qsl-primary);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--qsl-chrome-bg) 40%, transparent);
 }
 .brand-glyph {
-  color: #ffffff;
+  color: var(--qsl-on-primary);
   font-size: 20px;
   font-weight: 850;
   letter-spacing: -0.02em;
@@ -149,18 +151,18 @@ function handleLogout() { auth.logout(); router.push('/login') }
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #f8fafc;
+  color: var(--qsl-chrome-text);
 }
 .brand-title strong {
-  color: #60a5fa;
+  color: var(--qsl-primary);
   font-weight: 850;
   margin-left: 2px;
 }
-.brand-sub { margin-top: 3px; color: #64748b; font-size: 10px; letter-spacing: 0.1em; font-weight: 600; }
+.brand-sub { margin-top: 3px; color: var(--qsl-chrome-muted); font-size: 10px; letter-spacing: 0.1em; font-weight: 600; }
 
 .nav-caption {
   padding: 20px 20px 8px;
-  color: #475569;
+  color: var(--qsl-chrome-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -174,24 +176,29 @@ function handleLogout() { auth.logout(); router.push('/login') }
   height: 42px;
   margin: 3px 10px;
   padding-left: 12px !important;
-  color: #94a3b8;
-  border-radius: 8px;
+  color: var(--qsl-chrome-muted);
+  border-radius: var(--qsl-radius);
   font-size: 13.5px;
   font-weight: 550;
   transition: all 0.18s ease;
 }
 :deep(.side-menu .el-menu-item:hover),
 :deep(.side-menu .el-sub-menu__title:hover) {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.07);
+  color: var(--qsl-chrome-text);
+  background: color-mix(in srgb, var(--qsl-chrome-text) 8%, transparent);
 }
 :deep(.side-menu .el-menu-item.is-active) {
-  color: #ffffff;
-  background: var(--el-color-primary);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  color: var(--qsl-on-primary);
+  background: var(--qsl-primary);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--qsl-chrome-bg) 40%, transparent);
   font-weight: 650;
 }
-:deep(.side-menu .el-menu) { background: #070d1f; border-radius: 8px; margin: 2px 8px; padding: 4px 0; }
+:deep(.side-menu .el-menu) {
+  background: color-mix(in srgb, var(--qsl-chrome-bg) 82%, black);
+  border-radius: var(--qsl-radius);
+  margin: 2px 8px;
+  padding: 4px 0;
+}
 :deep(.side-menu .el-menu .el-menu-item) { margin-left: 16px; height: 38px; }
 :deep(.side-menu .el-icon) { color: inherit; font-size: 16px; margin-right: 8px; }
 
@@ -201,9 +208,9 @@ function handleLogout() { auth.logout(); router.push('/login') }
   gap: 10px;
   margin: auto 16px 18px;
   padding: 12px 14px;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
+  color: var(--qsl-chrome-muted);
+  background: color-mix(in srgb, var(--qsl-chrome-text) 5%, transparent);
+  border-radius: var(--qsl-radius);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -214,18 +221,18 @@ function handleLogout() { auth.logout(); router.push('/login') }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--qsl-green, #10b981);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qsl-green) 25%, transparent);
   animation: pulse-dot 2.5s infinite;
 }
 @keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
-  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1); }
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--qsl-green) 25%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--qsl-green) 10%, transparent); }
 }
 
 .main-container {
   min-height: 100vh;
-  background: var(--qsl-paper);
+  background: var(--qsl-bg);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -236,7 +243,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  background: var(--qsl-panel);
+  background: var(--qsl-card-bg);
   border-bottom: 1px solid var(--qsl-line);
   position: sticky;
   top: 0;
@@ -244,14 +251,14 @@ function handleLogout() { auth.logout(); router.push('/login') }
 }
 .header-left { display: flex; flex-direction: column; gap: 4px; }
 .eyebrow {
-  color: var(--el-color-primary);
+  color: var(--qsl-primary);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.14em;
 }
 :deep(.el-breadcrumb__inner) { color: var(--qsl-muted); font-size: 13.5px; font-weight: 500; }
-:deep(.el-breadcrumb__inner.is-link:hover) { color: var(--el-color-primary); }
-:deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) { color: var(--qsl-navy); font-weight: 650; }
+:deep(.el-breadcrumb__inner.is-link:hover) { color: var(--qsl-primary); }
+:deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) { color: var(--qsl-heading); font-weight: 650; }
 
 .header-right { display: flex; align-items: center; gap: 16px; }
 .user-chip {
@@ -259,7 +266,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   gap: 10px;
   padding: 4px 10px 4px 4px;
-  background: var(--qsl-paper);
+  background: var(--qsl-panel-2);
   border-radius: 9999px;
   border: 1px solid var(--qsl-line);
   color: var(--qsl-ink);
@@ -271,8 +278,8 @@ function handleLogout() { auth.logout(); router.push('/login') }
   place-items: center;
   width: 28px;
   height: 28px;
-  color: #fff;
-  background: var(--el-color-primary);
+  color: var(--qsl-on-primary);
+  background: var(--qsl-primary);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
@@ -281,15 +288,18 @@ function handleLogout() { auth.logout(); router.push('/login') }
   color: var(--qsl-muted);
   font-size: 13px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--qsl-radius);
 }
-.logout-btn:hover { color: #ef4444; background: #fef2f2; }
+.logout-btn:hover {
+  color: var(--qsl-danger);
+  background: color-mix(in srgb, var(--qsl-danger) 10%, transparent);
+}
 .logout-text { margin-left: 4px; }
 
 .layout-main {
   flex: 1;
   padding: 28px 32px;
-  background: var(--qsl-paper, #f8fafc);
+  background: var(--qsl-bg);
   min-width: 0;
   overflow-x: hidden;
   padding-bottom: max(28px, env(safe-area-inset-bottom));
@@ -301,9 +311,13 @@ function handleLogout() { auth.logout(); router.push('/login') }
   min-width: 0;
 }
 
-.nav-burger { margin-right: 8px; color: #0f172a; }
+.nav-burger { margin-right: 8px; color: var(--qsl-ink); }
 .header-title { display: flex; flex-direction: column; gap: 4px; }
-.nav-mask { position: fixed; inset: 0; z-index: 65; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); }
+.nav-mask {
+  position: fixed; inset: 0; z-index: 65;
+  background: color-mix(in srgb, var(--qsl-ink) 50%, transparent);
+  backdrop-filter: blur(4px);
+}
 .nav-fade-enter-active, .nav-fade-leave-active { transition: opacity .2s ease; }
 .nav-fade-enter-from, .nav-fade-leave-to { opacity: 0; }
 

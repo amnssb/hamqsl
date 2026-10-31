@@ -5,6 +5,9 @@
         <h1>插件</h1>
         <p>功能与主题皆以插件形式扩展，开关即时生效，无需重启服务。</p>
       </div>
+      <el-button type="primary" plain @click="$router.push('/admin/theme-lab')">
+        主题巡检
+      </el-button>
     </div>
 
     <el-row :gutter="16">
@@ -47,7 +50,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../api'
-import { themeRegistry, applyEnabledThemes } from '../plugins/registry'
+import { themeRegistry, applyEnabledThemes, reloadThemeCSS } from '../plugins/registry'
 import { ElMessage } from 'element-plus'
 
 const items = ref([])
@@ -57,8 +60,12 @@ const statsRows = ref([])
 async function load() {
   const res = await api.get('/plugins')
   items.value = (res?.items || []).map(p => ({ ...p, _busy: false }))
-  // 主题变化即时应用到当前页面（公开页与下次进入时由 App.vue 统一应用）
-  applyEnabledThemes(items.value.filter(p => p.kind === 'theme' && p.enabled).map(p => p.name))
+  // 先把配色样式表拉新（新启用的主题此前可能没有对应的 [data-theme] 块），
+  // 再把 <html data-theme> 对齐并按需加载装饰层。
+  await reloadThemeCSS()
+  await applyEnabledThemes(
+    items.value.filter(p => p.kind === 'theme' && p.enabled).map(p => p.name)
+  )
 }
 
 function swatchesOf(p) {

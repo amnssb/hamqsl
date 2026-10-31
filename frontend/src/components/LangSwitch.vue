@@ -17,19 +17,19 @@ import { locale, setLocale } from '../i18n'
   z-index: 3000;
   display: flex;
   padding: 3px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--qsl-card-bg);
+  border: 1px solid var(--qsl-line);
   border-radius: 9999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--qsl-shadow-1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .lang-switch:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--qsl-shadow-2);
 }
 .lang-switch button {
   padding: 6px 14px;
-  color: #475569;
+  color: var(--qsl-muted);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -40,12 +40,12 @@ import { locale, setLocale } from '../i18n'
   transition: all 0.18s ease;
 }
 .lang-switch button.active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  color: var(--qsl-on-primary);
+  background: var(--qsl-primary);
+  box-shadow: 0 2px 6px var(--qsl-focus-ring);
 }
 .lang-switch button:hover:not(.active) {
-  color: #0f172a;
-  background: #f1f5f9;
+  color: var(--qsl-ink);
+  background: var(--qsl-panel-2);
 }
 </style>

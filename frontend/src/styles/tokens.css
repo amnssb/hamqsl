@@ -1,0 +1,236 @@
+/* =============================================================================
+   设计 token —— 主题系统的唯一"语义层"
+   =============================================================================
+
+   三层结构（改动只在对应层，别跨层写字面量）：
+
+     Layer 0  原语    --p-*   每个主题一组（~28 个值）。
+                             默认主题写在下面 :root 里；
+                             其它主题由后端下发到 /api/public/theme.css，
+                             以 :root:root[data-theme="..."] 的形式覆盖。
+     Layer 1  语义    --qsl-* 全局唯一一份，从 Layer 0 派生。组件只读这一层。
+     Layer 2  EP 适配 --el-*  全局唯一一份，从 Layer 1 派生。
+                             有了这一层，Element Plus 的 tag / 分页 / 下拉 /
+                             日期选择器 / tooltip / empty 等等会自动跟随主题，
+                             不需要再逐条写 !important 去"蒙版"。
+     Layer 3  皮肤    themes/*.css  每个主题可选的纯装饰（纹理 / SVG / 几何变形）。
+                             不参与调色。
+
+   ⚠️ 新增页面时只准用 --qsl-*；缺语义就回来加一个，不要写 #rrggbb。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Layer 0：默认主题原语（浅色 / 现代）
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  --p-bg: #f8fafc;          /* 页面底色 */
+  --p-surface: #ffffff;     /* 卡片 / 输入框 */
+  --p-surface-2: #f1f5f9;   /* 次级面：表头、斑马纹、代码块 */
+  --p-text: #0f172a;        /* 正文 */
+  --p-text-2: #64748b;      /* 次要文字 */
+  --p-heading: #0f172a;     /* 标题 */
+  --p-line: #e2e8f0;        /* 分隔线 / 描边 */
+  --p-brand: #2563eb;       /* 主色 */
+  --p-brand-2: #1d4ed8;     /* 主色按下 / 深色态 */
+  --p-on-brand: #ffffff;    /* 主色之上的文字 */
+  --p-ok: #10b981;
+  --p-warn: #f59e0b;
+  --p-danger: #ef4444;
+
+  --p-radius: 8px;
+  --p-shadow-1: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --p-shadow-2: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* 玻璃质感：默认不透明、不模糊。
+     主题只要把这两个值改成 rgba(...) / 正数，卡片自动变成磨砂玻璃——
+     不需要再为 .el-card / .stat-card / .rcard 各写一遍 backdrop-filter。 */
+  --p-glass-bg: var(--p-surface);
+  --p-glass-blur: 0px;
+
+  /* 深色侧栏（后台左侧导航） */
+  --p-chrome-bg: #0b132b;
+  --p-chrome-text: #f8fafc;
+  --p-chrome-muted: #94a3b8;
+}
+
+/* ---------------------------------------------------------------------------
+   Layer 1：语义层（组件只读这一层）
+   --------------------------------------------------------------------------- */
+:root {
+  --qsl-bg: var(--p-bg);
+  --qsl-panel: var(--p-surface);
+  --qsl-panel-2: var(--p-surface-2);
+  --qsl-ink: var(--p-text);
+  --qsl-ink-2: var(--p-text-2);
+  --qsl-muted: var(--p-text-2);
+  --qsl-heading: var(--p-heading);
+  --qsl-line: var(--p-line);
+  --qsl-primary: var(--p-brand);
+  --qsl-primary-2: var(--p-brand-2);
+  --qsl-on-primary: var(--p-on-brand);
+  --qsl-green: var(--p-ok);
+  --qsl-yellow: var(--p-warn);
+  --qsl-danger: var(--p-danger);
+
+  /* 旧变量名保留：历史样式与主题里引用过，直接删会静默失效 */
+  --qsl-paper: var(--p-bg);
+  --qsl-navy: var(--p-heading);
+  --qsl-navy-soft: var(--p-text-2);
+  --qsl-orange: var(--p-brand);
+
+  /* 深色侧栏 */
+  --qsl-chrome-bg: var(--p-chrome-bg);
+  --qsl-chrome-text: var(--p-chrome-text);
+  --qsl-chrome-muted: var(--p-chrome-muted);
+
+  /* 形状与质感 */
+  --qsl-radius: var(--p-radius);
+  --qsl-radius-sm: calc(var(--p-radius) - 2px);
+  --qsl-radius-card: calc(var(--p-radius) + 4px);
+  --qsl-radius-dialog: calc(var(--p-radius) + 8px);
+  --qsl-card-bg: var(--p-glass-bg);
+  --qsl-blur: var(--p-glass-blur);
+  --qsl-shadow-1: var(--p-shadow-1);
+  --qsl-shadow-2: var(--p-shadow-2);
+
+  /* 派生态：焦点环 / 悬停底色 / 选中底色，全部由主色算出，
+     不再每个主题手填 5 个十六进制 */
+  --qsl-focus-ring: color-mix(in srgb, var(--qsl-primary) 22%, transparent);
+  --qsl-hover-tint: color-mix(in srgb, var(--qsl-primary) 8%, transparent);
+  --qsl-active-tint: color-mix(in srgb, var(--qsl-primary) 14%, transparent);
+  --qsl-line-soft: color-mix(in srgb, var(--qsl-line) 65%, transparent);
+
+  /* 分类强调色：只定义"色相"，底色由使用方用 color-mix 叠在主题表面之上。
+     放在这里而不是组件里，是为了让 color-no-hex 这类规则能覆盖到组件。 */
+  --qsl-tone-blue: #2563eb;
+  --qsl-tone-indigo: #4f46e5;
+  --qsl-tone-amber: #d97706;
+  --qsl-tone-emerald: #059669;
+
+  /* 深色"海报"面板（登录页左侧品牌板）。
+     它是有意固定的深色视觉标识，不随主题变；但颜色仍然收敛到 token，
+     避免组件里出现裸十六进制（也便于将来整体换色）。 */
+  --qsl-poster-from: #0b132b;
+  --qsl-poster-mid: #1c2541;
+  --qsl-poster-to: #1e3a8a;
+  --qsl-poster-accent: #3b82f6;
+  --qsl-poster-accent-2: #60a5fa;
+  --qsl-poster-line: #93c5fd;
+  --qsl-poster-text: #ffffff;
+  --qsl-poster-text-2: #cbd5e1;
+  --qsl-poster-muted: #64748b;
+
+  /* 二维码必须白底黑码才扫得出来，不跟随主题 */
+  --qsl-qr-bg: #ffffff;
+  --qsl-qr-fg: #1a1a1a;
+}
+
+/* ---------------------------------------------------------------------------
+   Layer 2：Element Plus token 适配
+   ---------------------------------------------------------------------------
+   这一层是"暗色主题盖不全"的根治办法：EP 组件的底色 / 文字色 / 填充色 /
+   边框色 / 遮罩色全部挂在 --el-* 上，以前只赋了 --el-color-primary，
+   于是 tag、分页、下拉、日期面板、tooltip、empty 永远保持浅色。
+   --------------------------------------------------------------------------- */
+:root {
+  /* 主色 + 明暗阶：由 --qsl-primary 与 --qsl-bg 混合得到，
+     浅色主题下越浅越淡，深色主题下自动变成越深越淡。 */
+  --el-color-primary: var(--qsl-primary);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--qsl-primary) 82%, #000);
+  --el-color-primary-light-3: color-mix(in srgb, var(--qsl-primary) 70%, var(--qsl-bg));
+  --el-color-primary-light-5: color-mix(in srgb, var(--qsl-primary) 50%, var(--qsl-bg));
+  --el-color-primary-light-7: color-mix(in srgb, var(--qsl-primary) 30%, var(--qsl-bg));
+  --el-color-primary-light-8: color-mix(in srgb, var(--qsl-primary) 20%, var(--qsl-bg));
+  --el-color-primary-light-9: color-mix(in srgb, var(--qsl-primary) 10%, var(--qsl-bg));
+
+  --el-color-success: var(--qsl-green);
+  --el-color-success-dark-2: color-mix(in srgb, var(--qsl-green) 82%, #000);
+  --el-color-success-light-3: color-mix(in srgb, var(--qsl-green) 70%, var(--qsl-bg));
+  --el-color-success-light-5: color-mix(in srgb, var(--qsl-green) 50%, var(--qsl-bg));
+  --el-color-success-light-7: color-mix(in srgb, var(--qsl-green) 30%, var(--qsl-bg));
+  --el-color-success-light-8: color-mix(in srgb, var(--qsl-green) 20%, var(--qsl-bg));
+  --el-color-success-light-9: color-mix(in srgb, var(--qsl-green) 10%, var(--qsl-bg));
+
+  --el-color-warning: var(--qsl-yellow);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--qsl-yellow) 82%, #000);
+  --el-color-warning-light-3: color-mix(in srgb, var(--qsl-yellow) 70%, var(--qsl-bg));
+  --el-color-warning-light-5: color-mix(in srgb, var(--qsl-yellow) 50%, var(--qsl-bg));
+  --el-color-warning-light-7: color-mix(in srgb, var(--qsl-yellow) 30%, var(--qsl-bg));
+  --el-color-warning-light-8: color-mix(in srgb, var(--qsl-yellow) 20%, var(--qsl-bg));
+  --el-color-warning-light-9: color-mix(in srgb, var(--qsl-yellow) 10%, var(--qsl-bg));
+
+  --el-color-danger: var(--qsl-danger);
+  --el-color-error: var(--qsl-danger);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--qsl-danger) 82%, #000);
+  --el-color-error-dark-2: color-mix(in srgb, var(--qsl-danger) 82%, #000);
+  --el-color-danger-light-3: color-mix(in srgb, var(--qsl-danger) 70%, var(--qsl-bg));
+  --el-color-danger-light-5: color-mix(in srgb, var(--qsl-danger) 50%, var(--qsl-bg));
+  --el-color-danger-light-7: color-mix(in srgb, var(--qsl-danger) 30%, var(--qsl-bg));
+  --el-color-danger-light-8: color-mix(in srgb, var(--qsl-danger) 20%, var(--qsl-bg));
+  --el-color-danger-light-9: color-mix(in srgb, var(--qsl-danger) 10%, var(--qsl-bg));
+  --el-color-error-light-3: var(--el-color-danger-light-3);
+  --el-color-error-light-5: var(--el-color-danger-light-5);
+  --el-color-error-light-7: var(--el-color-danger-light-7);
+  --el-color-error-light-8: var(--el-color-danger-light-8);
+  --el-color-error-light-9: var(--el-color-danger-light-9);
+
+  --el-color-info: var(--qsl-muted);
+  --el-color-info-dark-2: color-mix(in srgb, var(--qsl-muted) 82%, #000);
+  --el-color-info-light-3: color-mix(in srgb, var(--qsl-muted) 70%, var(--qsl-bg));
+  --el-color-info-light-5: color-mix(in srgb, var(--qsl-muted) 50%, var(--qsl-bg));
+  --el-color-info-light-7: color-mix(in srgb, var(--qsl-muted) 30%, var(--qsl-bg));
+  --el-color-info-light-8: color-mix(in srgb, var(--qsl-muted) 20%, var(--qsl-bg));
+  --el-color-info-light-9: color-mix(in srgb, var(--qsl-muted) 10%, var(--qsl-bg));
+
+  /* 背景 / 文字 / 边框 / 填充 —— 暗色主题能不能盖全，主要看这一段 */
+  --el-bg-color: var(--qsl-panel);
+  --el-bg-color-page: var(--qsl-bg);
+  --el-bg-color-overlay: var(--qsl-panel);
+
+  --el-text-color-primary: var(--qsl-ink);
+  --el-text-color-regular: var(--qsl-ink);
+  --el-text-color-secondary: var(--qsl-muted);
+  --el-text-color-placeholder: var(--qsl-muted);
+  --el-text-color-disabled: color-mix(in srgb, var(--qsl-muted) 72%, transparent);
+
+  --el-border-color: var(--qsl-line);
+  --el-border-color-light: var(--qsl-line);
+  --el-border-color-lighter: var(--qsl-line-soft);
+  --el-border-color-extra-light: var(--qsl-line-soft);
+  --el-border-color-dark: color-mix(in srgb, var(--qsl-line) 75%, var(--qsl-ink));
+  --el-border-color-darker: color-mix(in srgb, var(--qsl-line) 55%, var(--qsl-ink));
+  --el-border-color-hover: var(--qsl-muted);
+
+  --el-fill-color: var(--qsl-panel-2);
+  --el-fill-color-light: var(--qsl-panel-2);
+  --el-fill-color-lighter: color-mix(in srgb, var(--qsl-panel-2) 55%, var(--qsl-panel));
+  --el-fill-color-extra-light: color-mix(in srgb, var(--qsl-panel-2) 32%, var(--qsl-panel));
+  --el-fill-color-dark: color-mix(in srgb, var(--qsl-panel-2) 78%, var(--qsl-ink));
+  --el-fill-color-darker: color-mix(in srgb, var(--qsl-panel-2) 62%, var(--qsl-ink));
+  --el-fill-color-blank: var(--qsl-panel);
+
+  --el-mask-color: color-mix(in srgb, var(--qsl-bg) 82%, transparent);
+  --el-mask-color-extra-light: color-mix(in srgb, var(--qsl-bg) 32%, transparent);
+  --el-overlay-color: color-mix(in srgb, var(--qsl-ink) 55%, transparent);
+  --el-overlay-color-light: color-mix(in srgb, var(--qsl-ink) 40%, transparent);
+  --el-overlay-color-lighter: color-mix(in srgb, var(--qsl-ink) 16%, transparent);
+
+  --el-box-shadow: var(--qsl-shadow-2);
+  --el-box-shadow-light: var(--qsl-shadow-1);
+  --el-box-shadow-lighter: var(--qsl-shadow-1);
+  --el-box-shadow-dark: var(--qsl-shadow-2);
+
+  --el-disabled-bg-color: var(--qsl-panel-2);
+  --el-disabled-text-color: var(--qsl-muted);
+  --el-disabled-border-color: var(--qsl-line);
+
+  /* 形状 */
+  --el-border-radius-base: var(--qsl-radius);
+  --el-border-radius-small: var(--qsl-radius-sm);
+  --el-border-radius-round: 9999px;
+
+  --el-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}

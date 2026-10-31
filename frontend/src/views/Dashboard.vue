@@ -85,6 +85,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../api'
+import { icons } from '../plugins/icons'
 
 const summary = ref({
   total_qso: 0,
@@ -99,18 +100,19 @@ const summary = ref({
   total_offline_activities: 0
 })
 
+// icon 直接传组件对象，不再用字符串让 <component :is> 去全局注册表里找
 const statCards = computed(() => [
-  { label: '通联日志', value: summary.value.total_qso, icon: 'Document', tone: 'blue', note: '日志档案' },
-  { label: '卡片总数', value: summary.value.total_cards, icon: 'Postcard', tone: 'indigo', note: '卡片库存' },
-  { label: '已发卡片', value: summary.value.total_sent, icon: 'Promotion', tone: 'amber', note: '已递送' },
-  { label: '已收卡片', value: summary.value.total_received, icon: 'Box', tone: 'emerald', note: '回卡已入库' },
+  { label: '通联日志', value: summary.value.total_qso, icon: icons.Document, tone: 'blue', note: '日志档案' },
+  { label: '卡片总数', value: summary.value.total_cards, icon: icons.Postcard, tone: 'indigo', note: '卡片库存' },
+  { label: '已发卡片', value: summary.value.total_sent, icon: icons.Promotion, tone: 'amber', note: '已递送' },
+  { label: '已收卡片', value: summary.value.total_received, icon: icons.Box, tone: 'emerald', note: '回卡已入库' },
 ])
 
 const pendingItems = computed(() => [
-  { label: '待制卡', hint: '通联已完成，等待制作卡片', value: summary.value.pending_issue, icon: 'Postcard', tone: 'blue' },
-  { label: '待发信', hint: '卡片已制作，等待封装寄出', value: summary.value.pending_sent, icon: 'Promotion', tone: 'amber' },
-  { label: '待收卡', hint: '卡片已寄出，等待对方收件确认', value: summary.value.pending_receive, icon: 'Box', tone: 'indigo' },
-  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: 'Bell', tone: 'emerald' },
+  { label: '待制卡', hint: '通联已完成，等待制作卡片', value: summary.value.pending_issue, icon: icons.Postcard, tone: 'blue' },
+  { label: '待发信', hint: '卡片已制作，等待封装寄出', value: summary.value.pending_sent, icon: icons.Promotion, tone: 'amber' },
+  { label: '待收卡', hint: '卡片已寄出，等待对方收件确认', value: summary.value.pending_receive, icon: icons.Box, tone: 'indigo' },
+  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: icons.Bell, tone: 'emerald' },
 ])
 
 const pendingTotal = computed(() => pendingItems.value.reduce((sum, item) => sum + Number(item.value || 0), 0))
@@ -133,7 +135,14 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 分类强调色只定义"色相"（--qsl-tone-* 在 tokens.css），底色一律用 color-mix
+   叠在主题表面之上，这样暗色主题下不会出现"深色卡片上贴浅色色块"的割裂感。 */
 .dashboard {
+  --tone-blue: var(--qsl-tone-blue);
+  --tone-indigo: var(--qsl-tone-indigo);
+  --tone-amber: var(--qsl-tone-amber);
+  --tone-emerald: var(--qsl-tone-emerald);
+
   animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes enter {
@@ -148,17 +157,17 @@ onMounted(async () => {
 }
 
 .stat-card {
-  border-radius: 14px;
-  background: var(--qsl-panel);
+  border-radius: var(--qsl-radius-card);
+  background: var(--qsl-card-bg);
   border: 1px solid var(--qsl-line);
   padding: 4px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--qsl-shadow-1);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .stat-card:hover {
   transform: translateY(-3px);
-  border-color: var(--el-color-primary);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  border-color: var(--qsl-primary);
+  box-shadow: var(--qsl-shadow-2);
 }
 
 .stat-top {
@@ -180,14 +189,14 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.stat-mark.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.stat-mark.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.stat-mark.amber { color: #d97706; background: rgba(217, 119, 6, 0.12); }
-.stat-mark.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+.stat-mark.blue { color: var(--tone-blue); background: color-mix(in srgb, var(--tone-blue) 12%, transparent); }
+.stat-mark.indigo { color: var(--tone-indigo); background: color-mix(in srgb, var(--tone-indigo) 12%, transparent); }
+.stat-mark.amber { color: var(--tone-amber); background: color-mix(in srgb, var(--tone-amber) 12%, transparent); }
+.stat-mark.emerald { color: var(--tone-emerald); background: color-mix(in srgb, var(--tone-emerald) 12%, transparent); }
 
 .stat-value {
   margin-top: 14px;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -207,10 +216,10 @@ onMounted(async () => {
   padding: 2px 8px;
   border-radius: 9999px;
 }
-.stat-tag.blue { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
-.stat-tag.indigo { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
-.stat-tag.amber { background: rgba(217, 119, 6, 0.1); color: #d97706; }
-.stat-tag.emerald { background: rgba(5, 150, 105, 0.1); color: #059669; }
+.stat-tag.blue { background: color-mix(in srgb, var(--tone-blue) 12%, transparent); color: var(--tone-blue); }
+.stat-tag.indigo { background: color-mix(in srgb, var(--tone-indigo) 12%, transparent); color: var(--tone-indigo); }
+.stat-tag.amber { background: color-mix(in srgb, var(--tone-amber) 12%, transparent); color: var(--tone-amber); }
+.stat-tag.emerald { background: color-mix(in srgb, var(--tone-emerald) 12%, transparent); color: var(--tone-emerald); }
 .stat-hint {
   color: var(--qsl-muted);
   font-size: 11.5px;
@@ -224,10 +233,10 @@ onMounted(async () => {
 }
 
 .workflow-card {
-  border-radius: 14px;
-  background: var(--qsl-panel);
+  border-radius: var(--qsl-radius-card);
+  background: var(--qsl-card-bg);
   border: 1px solid var(--qsl-line);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: var(--qsl-shadow-1);
 }
 
 .section-heading {
@@ -237,7 +246,7 @@ onMounted(async () => {
 }
 .section-heading h2 {
   margin: 0;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -251,8 +260,8 @@ onMounted(async () => {
 .pending-badge {
   font-size: 12px;
   font-weight: 650;
-  color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9, rgba(37, 99, 235, 0.1));
+  color: var(--qsl-primary);
+  background: var(--qsl-active-tint);
   padding: 4px 12px;
   border-radius: 9999px;
   border: 1px solid var(--qsl-line);
@@ -265,8 +274,8 @@ onMounted(async () => {
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.1em;
-  color: var(--qsl-green, #059669);
-  background: rgba(16, 185, 129, 0.12);
+  color: var(--qsl-green);
+  background: color-mix(in srgb, var(--qsl-green) 12%, transparent);
   padding: 3px 10px;
   border-radius: 9999px;
 }
@@ -274,8 +283,8 @@ onMounted(async () => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--qsl-green, #10b981);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--qsl-green) 30%, transparent);
 }
 
 .workflow-list {
@@ -288,7 +297,7 @@ onMounted(async () => {
   align-items: center;
   gap: 14px;
   padding: 14px 12px;
-  border-radius: 10px;
+  border-radius: var(--qsl-radius);
   transition: background 0.18s ease;
   border-bottom: 1px solid var(--qsl-line);
 }
@@ -296,7 +305,7 @@ onMounted(async () => {
   border-bottom: 0;
 }
 .workflow-row:hover {
-  background: var(--qsl-paper);
+  background: var(--qsl-panel-2);
 }
 
 .workflow-icon {
@@ -308,10 +317,10 @@ onMounted(async () => {
   font-size: 17px;
   flex: none;
 }
-.workflow-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.workflow-icon.amber { color: #d97706; background: rgba(217, 119, 6, 0.12); }
-.workflow-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.workflow-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+.workflow-icon.blue { color: var(--tone-blue); background: color-mix(in srgb, var(--tone-blue) 12%, transparent); }
+.workflow-icon.amber { color: var(--tone-amber); background: color-mix(in srgb, var(--tone-amber) 12%, transparent); }
+.workflow-icon.indigo { color: var(--tone-indigo); background: color-mix(in srgb, var(--tone-indigo) 12%, transparent); }
+.workflow-icon.emerald { color: var(--tone-emerald); background: color-mix(in srgb, var(--tone-emerald) 12%, transparent); }
 
 .workflow-copy {
   display: flex;
@@ -321,7 +330,7 @@ onMounted(async () => {
   min-width: 0;
 }
 .workflow-copy strong {
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: 13.5px;
   font-weight: 650;
 }
@@ -339,15 +348,15 @@ onMounted(async () => {
   padding: 2px 8px;
   text-align: center;
   border-radius: 9999px;
-  background: var(--qsl-paper);
+  background: var(--qsl-panel-2);
   color: var(--qsl-muted);
   font-size: 14px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
 .workflow-value.has-val {
-  background: var(--el-color-primary-light-9, rgba(37, 99, 235, 0.12));
-  color: var(--el-color-primary);
+  background: var(--qsl-active-tint);
+  color: var(--qsl-primary);
 }
 
 .metric-list {
@@ -368,7 +377,7 @@ onMounted(async () => {
   font-size: 13.5px;
 }
 .metric-value {
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -379,19 +388,19 @@ onMounted(async () => {
   gap: 12px;
   margin-top: 14px;
   padding: 14px 16px;
-  background: var(--qsl-paper);
+  background: var(--qsl-panel-2);
   border: 1px solid var(--qsl-line);
-  border-radius: 10px;
+  border-radius: var(--qsl-radius);
 }
 .insight-icon {
-  color: var(--qsl-green, #059669);
+  color: var(--qsl-green);
   font-size: 18px;
   flex: none;
   margin-top: 1px;
 }
 .insight-body strong {
   display: block;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: 12.5px;
   font-weight: 700;
 }

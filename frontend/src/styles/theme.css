@@ -1,140 +1,170 @@
-:root {
-  --qsl-ink: #0f172a;
-  --qsl-muted: #64748b;
-  --qsl-line: #e2e8f0;
-  --qsl-paper: #f8fafc;
-  --qsl-panel: #ffffff;
-  --qsl-navy: #0f172a;
-  --qsl-navy-soft: #1e293b;
-  --qsl-orange: #2563eb;
-  --qsl-yellow: #f59e0b;
-  --qsl-green: #10b981;
-  --qsl-primary: #2563eb;
-  --qsl-primary-hover: #1d4ed8;
-  --el-color-primary: #2563eb;
-  --el-color-primary-light-3: #60a5fa;
-  --el-color-primary-light-5: #93c5fd;
-  --el-color-primary-light-7: #bfdbfe;
-  --el-color-primary-light-9: #eff6ff;
-  --el-border-radius-base: 8px;
-  --el-border-radius-small: 6px;
-  --el-border-radius-round: 9999px;
-  --el-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-}
+/* =============================================================================
+   全局基础样式 + Element Plus 组件微调
+   =============================================================================
+
+   ⚠️ 本文件只准出现 var(--qsl-*) / var(--el-*) / var(--p-*) 或透明色。
+   任何 #rrggbb 都会让暗色主题在这里"漏白"，也是过去主题只能靠 !important
+   打补丁的根源。少量确实必须写死的颜色（二维码画布、邮件模板、打印）单独注明。
+
+   依赖：tokens.css 必须先于本文件加载。
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
-html, body, #app {
+
+html,
+body,
+#app {
   min-height: 100%;
 }
+
 body {
   margin: 0;
   color: var(--qsl-ink);
-  background: var(--qsl-paper);
+  background: var(--qsl-bg);
   font-family: var(--el-font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* 现代滚动条 */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* 现代卡片：全面变量化 */
-.el-card {
-  border: 1px solid var(--qsl-line);
-  border-radius: 12px;
-  background: var(--qsl-panel);
-  color: var(--qsl-ink);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-.el-card__header {
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--qsl-muted) 45%, transparent);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--qsl-muted) 70%, transparent);
+}
+
+/* 现代卡片：磨砂/圆角/阴影全部来自 token，主题不需要再覆写。
+   注意：这里刻意不写 backdrop-filter —— 只有真正需要磨砂的主题（glass）才加，
+   由 src/styles/themes/glass.css 统一挂上。否则 blur(0px) 也会让浏览器
+   为每张卡片建立合成层，白白吃移动端 GPU。 */
+.el-card,
+.stat-card,
+.workflow-card,
+.modern-card,
+.service-card,
+.stats-panel,
+.login-card {
+  border: 1px solid var(--qsl-line);
+  border-radius: var(--qsl-radius-card);
+  background: var(--qsl-card-bg);
+  color: var(--qsl-ink);
+  box-shadow: var(--qsl-shadow-1);
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.el-card__header,
+.card-header {
   border-bottom: 1px solid var(--qsl-line);
   padding: 16px 20px;
   font-weight: 650;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
 }
+
 .el-card__body {
   padding: 20px;
 }
 
-/* 现代按钮：跟随主题色 */
+/* 现代按钮 */
 .el-button {
-  border-radius: 8px;
+  border-radius: var(--qsl-radius);
   font-weight: 600;
   font-size: 13px;
   padding: 8px 16px;
   min-height: 34px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .el-button--primary {
-  color: #fff;
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.12);
+  color: var(--qsl-on-primary);
+  border-color: var(--qsl-primary);
+  background: var(--qsl-primary);
+  box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--qsl-ink) 12%, transparent);
 }
 .el-button--primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 4px 8px -1px rgba(0, 0, 0, 0.18);
+  border-color: var(--qsl-primary-2);
+  background: var(--qsl-primary-2);
+  box-shadow: 0 4px 8px -1px color-mix(in srgb, var(--qsl-ink) 18%, transparent);
   transform: translateY(-1px);
 }
 .el-button--primary:active {
   transform: translateY(0);
 }
+
 .el-button--success {
-  color: #fff;
+  color: var(--qsl-on-primary);
   border-color: var(--qsl-green);
   background: var(--qsl-green);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--qsl-ink) 10%, transparent);
 }
 .el-button--success:hover {
-  filter: brightness(1.08);
+  border-color: color-mix(in srgb, var(--qsl-green) 85%, #000);
+  background: color-mix(in srgb, var(--qsl-green) 85%, #000);
   transform: translateY(-1px);
 }
 
-/* 输入控件与选择器：全面变量化 */
-.el-input__wrapper, .el-textarea__inner, .el-select__wrapper {
-  border-radius: 8px;
+/* 输入控件 */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--qsl-radius);
   box-shadow: 0 0 0 1px var(--qsl-line) inset;
   background: var(--qsl-panel);
   color: var(--qsl-ink);
   transition: all 0.15s ease-in-out;
 }
-.el-input__inner, .el-textarea__inner {
+.el-input__inner,
+.el-textarea__inner {
   color: var(--qsl-ink);
 }
-.el-input__wrapper:hover, .el-select__wrapper:hover {
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--qsl-muted);
+}
+.el-input__wrapper:hover,
+.el-select__wrapper:hover {
   box-shadow: 0 0 0 1px var(--qsl-muted) inset;
 }
-.el-input__wrapper.is-focus, .el-select__wrapper.is-focused, .el-textarea__inner:focus {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--qsl-primary) inset, 0 0 0 3px var(--qsl-focus-ring) !important;
 }
 
-/* 表格组件：全面变量化 */
+/* 表格 */
 .el-table {
   --el-table-border-color: var(--qsl-line);
-  --el-table-header-bg-color: var(--qsl-paper);
-  --el-table-row-hover-bg-color: rgba(37, 99, 235, 0.06);
+  --el-table-header-bg-color: var(--qsl-panel-2);
+  --el-table-row-hover-bg-color: var(--qsl-hover-tint);
   --el-table-tr-bg-color: var(--qsl-panel);
   --el-table-bg-color: var(--qsl-panel);
+  --el-table-header-text-color: var(--qsl-heading);
+  --el-table-text-color: var(--qsl-ink);
   background-color: var(--qsl-panel);
   color: var(--qsl-ink);
-  border-radius: 10px;
+  border-radius: var(--qsl-radius);
   overflow: hidden;
   font-size: 13.5px;
   width: 100% !important;
 }
 .el-table th.el-table__cell {
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-weight: 650;
   font-size: 13px;
   letter-spacing: 0.01em;
-  background-color: var(--qsl-paper);
+  background-color: var(--qsl-panel-2);
   border-bottom: 1px solid var(--qsl-line);
 }
 .el-table td.el-table__cell {
@@ -144,28 +174,32 @@ body {
 }
 .el-table--border {
   border: 1px solid var(--qsl-line);
-  border-radius: 10px;
+  border-radius: var(--qsl-radius);
 }
 .el-table__empty-block {
   background-color: var(--qsl-panel);
 }
+.el-table__empty-text {
+  color: var(--qsl-muted);
+}
 
 /* 标签与徽章 */
 .el-tag {
-  border-radius: 6px;
+  border-radius: var(--qsl-radius-sm);
   font-weight: 600;
   padding: 0 9px;
   height: 24px;
   line-height: 22px;
 }
 
-/* 弹窗：全面变量化 */
-.el-dialog, .el-message-box {
-  border-radius: 16px;
+/* 弹窗 */
+.el-dialog,
+.el-message-box {
+  border-radius: var(--qsl-radius-dialog);
   border: 1px solid var(--qsl-line);
   background: var(--qsl-panel);
   color: var(--qsl-ink);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--qsl-shadow-2);
   overflow: hidden;
 }
 .el-dialog__header {
@@ -176,7 +210,7 @@ body {
 .el-dialog__title {
   font-size: 17px;
   font-weight: 700;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
 }
 .el-dialog__body {
   padding: 24px;
@@ -187,7 +221,49 @@ body {
   border-top: 1px solid var(--qsl-line);
 }
 
-/* 页面标题头：全面变量化 */
+/* 浮层 / 下拉 / 日期面板 —— 以前靠每个主题各写一遍，现在跟着 --el-* 走 */
+.el-popper.is-light,
+.el-picker-panel,
+.el-select-dropdown,
+.el-dropdown-menu {
+  background: var(--el-bg-color-overlay);
+  border-color: var(--qsl-line);
+  color: var(--qsl-ink);
+}
+.el-select-dropdown__item.is-hovering,
+.el-select-dropdown__item.is-selected {
+  background: var(--qsl-active-tint);
+  color: var(--qsl-primary);
+}
+.el-dropdown-menu__item:not(.is-disabled):focus,
+.el-dropdown-menu__item:not(.is-disabled):hover {
+  background: var(--qsl-hover-tint);
+  color: var(--qsl-primary);
+}
+
+/* 分页器 / 空状态 / 折叠面板 等零碎组件，以前在暗色下要单独补 */
+.el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-color: var(--qsl-ink);
+  --el-pagination-hover-color: var(--qsl-primary);
+  --el-pagination-button-disabled-bg-color: transparent;
+  --el-pagination-button-disabled-color: var(--qsl-muted);
+  color: var(--qsl-ink);
+}
+.el-empty__description p {
+  color: var(--qsl-muted);
+}
+.el-descriptions {
+  --el-descriptions-item-bordered-label-background: var(--qsl-panel-2);
+}
+.el-divider {
+  --el-border-color: var(--qsl-line);
+}
+.el-tabs {
+  --el-tabs-header-height: 40px;
+}
+
+/* 页面标题头 */
 .page-heading {
   display: flex;
   align-items: flex-end;
@@ -197,7 +273,7 @@ body {
 }
 .page-heading h1 {
   margin: 0;
-  color: var(--qsl-navy);
+  color: var(--qsl-heading);
   font-size: clamp(24px, 2.5vw, 32px);
   font-weight: 750;
   letter-spacing: -0.03em;
@@ -213,22 +289,55 @@ body {
    ========================================================================== */
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .page-heading { gap: 16px; margin-bottom: 20px; }
-  .el-card__body { padding: 16px; }
-  .el-dialog { max-width: 85vw !important; }
-  .el-message-box { max-width: 75vw !important; }
-  .el-table__body-wrapper { -webkit-overflow-scrolling: touch; }
+  .page-heading {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .el-card__body {
+    padding: 16px;
+  }
+  .el-dialog {
+    max-width: 85vw !important;
+  }
+  .el-message-box {
+    max-width: 75vw !important;
+  }
+  .el-table__body-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (max-width: 640px) {
-  .page-heading { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 18px; }
-  .page-heading h1 { font-size: 22px; }
-  .el-dialog { max-width: 94vw !important; border-radius: 14px; }
-  .el-dialog__header { padding: 16px 18px 10px; }
-  .el-dialog__body { padding: 16px 18px; }
-  .el-dialog__footer { padding: 12px 18px 16px; }
-  .el-message-box { max-width: 92vw !important; border-radius: 14px; }
-  .el-form-item { display: block; margin-bottom: 16px; }
+  .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .page-heading h1 {
+    font-size: 22px;
+  }
+  .el-dialog {
+    max-width: 94vw !important;
+    border-radius: var(--qsl-radius-dialog);
+  }
+  .el-dialog__header {
+    padding: 16px 18px 10px;
+  }
+  .el-dialog__body {
+    padding: 16px 18px;
+  }
+  .el-dialog__footer {
+    padding: 12px 18px 16px;
+  }
+  .el-message-box {
+    max-width: 92vw !important;
+    border-radius: var(--qsl-radius-dialog);
+  }
+  .el-form-item {
+    display: block;
+    margin-bottom: 16px;
+  }
   .el-form-item__label {
     display: block;
     width: auto !important;
@@ -239,21 +348,58 @@ body {
     height: auto;
     font-size: 13px;
   }
-  .el-card__header > div { flex-wrap: wrap; row-gap: 10px; }
-  .el-card__body { padding: 14px 12px; }
-  .el-pagination { flex-wrap: wrap; row-gap: 8px; justify-content: center; }
-  .el-pagination .el-pagination__jump, .el-pagination .el-pagination__sizes { display: none !important; }
-  .el-table { font-size: 12.5px; }
-  .el-form--inline .el-form-item { display: flex; width: 100%; margin-right: 0 !important; margin-bottom: 12px; }
-  .el-form--inline .el-form-item__label { width: auto !important; padding-right: 10px !important; }
+  .el-card__header > div {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .el-card__body {
+    padding: 14px 12px;
+  }
+  .el-pagination {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    justify-content: center;
+  }
+  .el-pagination .el-pagination__jump,
+  .el-pagination .el-pagination__sizes {
+    display: none !important;
+  }
+  .el-table {
+    font-size: 12.5px;
+  }
+  .el-form--inline .el-form-item {
+    display: flex;
+    width: 100%;
+    margin-right: 0 !important;
+    margin-bottom: 12px;
+  }
+  .el-form--inline .el-form-item__label {
+    width: auto !important;
+    padding-right: 10px !important;
+  }
   .el-form--inline .el-form-item .el-select,
   .el-form--inline .el-form-item .el-input,
-  .el-form--inline .el-form-item .el-date-editor { width: 100% !important; flex: 1; }
-  .lang-switch { transform: scale(0.88); transform-origin: bottom right; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .el-form--inline .el-form-item .el-date-editor {
+    width: 100% !important;
+    flex: 1;
+  }
+  .lang-switch {
+    transform: scale(0.88);
+    transform-origin: bottom right;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 380px) {
-  .el-dialog { max-width: 96vw !important; }
-  .el-card__body { padding: 10px; }
-  .el-button { padding: 6px 10px; font-size: 12px; }
+  .el-dialog {
+    max-width: 96vw !important;
+  }
+  .el-card__body {
+    padding: 10px;
+  }
+  .el-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }

@@ -110,7 +110,7 @@ type QsoRecord struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	RecordCode string    `gorm:"size:30;uniqueIndex;not null" json:"record_code"`
 	SceneType  string    `gorm:"size:20;default:QSO" json:"scene_type"`
-	Date       string    `gorm:"size:10;not null" json:"date"`
+	Date       string    `gorm:"size:10;not null;index:idx_qso_date" json:"date"`
 	Time       string    `gorm:"size:10" json:"time"`
 	Timezone   string    `gorm:"size:10;default:UTC+8" json:"timezone"`
 	Freq       string    `gorm:"size:30" json:"freq"`
@@ -154,9 +154,11 @@ type CardRecord struct {
 	SentRemarks        string `gorm:"type:text" json:"sent_remarks"`
 	ReceivedRemarks    string `gorm:"type:text" json:"received_remarks"`
 	MailType           string `gorm:"size:20;default:REGISTERED" json:"mail_type"`
-	TrackingNumber     string `gorm:"size:50" json:"tracking_number"`
+	// tracking_number 是公开未鉴权端点（/api/public/tracking）的查询条件，必须走索引，
+	// 否则一次请求就是一次全表扫。
+	TrackingNumber     string `gorm:"size:50;index:idx_card_tracking" json:"tracking_number"`
 	TrackingCarrier    string `gorm:"size:30;default:CHINA_POST" json:"tracking_carrier"`
-	FlowStatus         string `gorm:"size:30;default:PENDING_ISSUE" json:"flow_status"`
+	FlowStatus         string `gorm:"size:30;default:PENDING_ISSUE;index:idx_card_flow" json:"flow_status"`
 	CardIssued         bool   `gorm:"default:false" json:"card_issued"`
 	CardIssuedAt       string `gorm:"size:30" json:"card_issued_at"`
 	EnvelopePrinted    bool   `gorm:"default:false" json:"envelope_printed"`
@@ -216,7 +218,7 @@ type BureauEntry struct {
 type ExchangeRequest struct {
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	RequestCode string `gorm:"size:30;uniqueIndex;not null" json:"request_code"`
-	SceneType   string `gorm:"size:20" json:"scene_type"`
+	SceneType   string `gorm:"size:20;index:idx_ex_scene" json:"scene_type"`
 	CallSign    string `gorm:"size:20;not null;index" json:"call_sign"`
 	CardVersion string `gorm:"size:200" json:"card_version"`
 	UseBureau   bool   `gorm:"default:false" json:"use_bureau"`
@@ -254,13 +256,13 @@ type ExchangeRequest struct {
 	SwlBand string `gorm:"size:20" json:"swl_band"`
 	SwlMode string `gorm:"size:20" json:"swl_mode"`
 
-	ReviewStatus  string `gorm:"size:20;default:PENDING" json:"review_status"`
+	ReviewStatus  string `gorm:"size:20;default:PENDING;index:idx_ex_review" json:"review_status"`
 	ReviewReason  string `gorm:"type:text" json:"review_reason"`
 	ReviewedBy    string `gorm:"size:50" json:"reviewed_by"`
 	ReviewedAt    string `gorm:"size:30" json:"reviewed_at"`
-	CardCreated   bool   `gorm:"default:false" json:"card_created"`
+	CardCreated   bool   `gorm:"default:false;index:idx_ex_card_created" json:"card_created"`
 	CardCreatedAt string `gorm:"size:30" json:"card_created_at"`
-	CreatedCardID *uint  `json:"created_card_id"`
+	CreatedCardID *uint  `gorm:"index:idx_ex_created_card" json:"created_card_id"`
 
 	// SWL 反寄流程：管理员发送的回寄地址 + 对方寄出后登记的单号
 	ReturnAddressText string `gorm:"type:text" json:"return_address_text"`

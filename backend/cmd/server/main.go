@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -45,11 +46,36 @@ func main() {
 		if dir != "." && dir != "" {
 			os.MkdirAll(dir, 0755)
 		}
-		db, err = gorm.Open(sqlite.Open(cfg.DBPath), &gorm.Config{})
+		// SQLite 调优：
+		//   journal_mode(WAL)     读写不再互相阻塞，前端并发拉几个接口时明显顺
+		//   busy_timeout(5000)    拿不到写锁时等 5s 而不是立刻 database is locked
+		//   synchronous(NORMAL)   WAL 下安全，且比 FULL 少一次 fsync
+		//   cache_size(-20000)    约 20MB page cache，减少小库的重复读
+		// 参数用 _pragma 形式，SQLite 驱动会逐条执行。
+		dsn := cfg.DBPath +
+			"?_pragma=journal_mode(WAL)" +
+			"&_pragma=busy_timeout(5000)" +
+			"&_pragma=synchronous(NORMAL)" +
+			"&_pragma=cache_size(-20000)" +
+			"&_pragma=foreign_keys(1)"
+		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	}
 
 	if err != nil {
 		log.Fatal("数据库连接失败:", err)
+	}
+
+	// 连接池：SQLite 单写者模型，读多写少；PG 部署时也能吃到合理上限。
+	if sqlDB, dbErr := db.DB(); dbErr == nil {
+		if cfg.DBDriver == "postgres" {
+			sqlDB.SetMaxOpenConns(25)
+			sqlDB.SetMaxIdleConns(10)
+		} else {
+			// WAL 允许多读，写入串行；这里给读留余量，写由 busy_timeout 排队
+			sqlDB.SetMaxOpenConns(8)
+			sqlDB.SetMaxIdleConns(4)
+		}
+		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
 	// 建表只读一份清单（model.Tables），加新表不用改这里
@@ -60,10 +86,10 @@ func main() {
 	}
 
 	// 历史数据归一化：老版本场景类型 ONLINE_EYEBALL -> EYEBALL
-	db.Model(&model.ExchangeRequest{}).Where("scene_type = ?", "ONLINE_EYEBALL").Update("scene_type", "EYEBALL")
-	db.Model(&model.CardRecord{}).Where("scene_type = ?", "ONLINE_EYEBALL").Update("scene_type", "EYEBALL")
-	db.Model(&model.CardRecord{}).Where("card_type = ?", "ONLINE_EYEBALL").Update("card_type", "EYEBALL")
-	db.Model(&model.ReceiveRecord{}).Where("business_type = ?", "ONLINE_EYEBALL").Update("business_type", "EYEBALL")
+	//
+	// 以前每次启动都无条件跑这 4 条全表 UPDATE，库变大后每次重启都要写一遍 WAL。
+	// 现在先 LIMIT 1 探一下，没有待迁移的行就直接跳过；迁移完成后启动是只读的。
+	normalizeLegacySceneTypes(db)
 
 	bootstrapAdmin(cfg, db)
 	escapeHatch(cfg, db)
@@ -100,15 +126,25 @@ func main() {
 		serveWeb = true
 		r.NoRoute(func(c *gin.Context) {
 			// 命中的真实文件直接返回；/api 未注册路由保持 JSON 404；其余回退 index.html（history 路由）
-			p := filepath.Join(webDir, filepath.Clean("/"+c.Request.URL.Path))
+			reqPath := c.Request.URL.Path
+			p := filepath.Join(webDir, filepath.Clean("/"+reqPath))
 			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
+				// /assets/ 下的文件名带内容 hash → 内容不可变，可以长缓存；
+				// 其余静态文件（favicon 等）给一天。
+				if strings.HasPrefix(reqPath, "/assets/") {
+					c.Header("Cache-Control", "public, max-age=31536000, immutable")
+				} else {
+					c.Header("Cache-Control", "public, max-age=86400")
+				}
 				c.File(p)
 				return
 			}
-			if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[:5] == "/api/" {
+			if len(reqPath) >= 5 && reqPath[:5] == "/api/" {
 				c.JSON(404, gin.H{"code": "QSL-404", "message": "接口不存在"})
 				return
 			}
+			// index.html 绝不能被缓存，否则发版后用户一直拿到旧入口
+			c.Header("Cache-Control", "no-cache")
 			c.File(filepath.Join(webDir, "index.html"))
 		})
 		log.Printf("前端静态目录: %s（单进程托管）", webDir)
@@ -117,16 +153,19 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		if serveWeb {
 			// 托管前端时根路径返回门户页面，而不是 API 说明
+			c.Header("Cache-Control", "no-cache")
 			c.File(filepath.Join(webDir, "index.html"))
 			return
 		}
 		c.JSON(200, gin.H{"message": "QSL 卡片管理系统 API", "version": "1.0.0", "db": cfg.DBDriver})
 	})
 
+	// 统一限流：/api 组已经带了 APIRateLimitMiddleware，
+	// 子组不要再挂一次——否则公开接口每个请求会消耗两次配额。
 	api := r.Group("/api", middleware.APIRateLimitMiddleware())
 
-	// 公开接口（无需登录，应用速率限制）
-	pub := api.Group("/public", middleware.APIRateLimitMiddleware())
+	// 公开接口（无需登录；限流由上面的 /api 组统一承担）
+	pub := api.Group("/public")
 	pubH := handler.NewPublicHandler(db)
 	pub.GET("/site-info", pubH.SiteInfo)
 	pub.GET("/stats", pubH.PublicStats)
@@ -142,6 +181,8 @@ func main() {
 	pub.GET("/tracking", pubH.QueryTracking)                 // 快递追踪
 	pub.GET("/tracking/:tracking_number", pubH.QueryTracking)
 	pub.GET("/plugins", pm.HandlePublicThemes) // 已启用主题插件（公开页应用皮肤）
+	// 主题配色变量：index.html 用 <link> 预置，首帧即命中正确配色（消除 FOUC）
+	pub.GET("/theme.css", pm.HandleThemeCSS)
 
 	// 认证：登录链路全部走严格限速
 	authH := handler.NewAuthHandler(db)
@@ -269,6 +310,36 @@ func main() {
 	}
 
 	r.Run(":" + cfg.ServerPort)
+}
+
+// normalizeLegacySceneTypes 一次性数据迁移：ONLINE_EYEBALL -> EYEBALL。
+//
+// 四条语句各自先探一行，命中才真正 UPDATE。迁移做完之后每次启动都是纯读，
+// 少掉 4 次全表写（SQLite 上会直接产生 WAL 帧）。
+func normalizeLegacySceneTypes(db *gorm.DB) {
+	type job struct {
+		label  string
+		model  interface{}
+		column string
+	}
+	jobs := []job{
+		{"exchange_requests.scene_type", &model.ExchangeRequest{}, "scene_type"},
+		{"card_records.scene_type", &model.CardRecord{}, "scene_type"},
+		{"card_records.card_type", &model.CardRecord{}, "card_type"},
+		{"receive_records.business_type", &model.ReceiveRecord{}, "business_type"},
+	}
+	for _, j := range jobs {
+		var hit int64
+		if err := db.Model(j.model).Where(j.column+" = ?", "ONLINE_EYEBALL").Limit(1).Count(&hit).Error; err != nil || hit == 0 {
+			continue
+		}
+		res := db.Model(j.model).Where(j.column+" = ?", "ONLINE_EYEBALL").Update(j.column, "EYEBALL")
+		if res.Error != nil {
+			log.Printf("[migrate] %s 归一化失败: %v", j.label, res.Error)
+			continue
+		}
+		log.Printf("[migrate] %s: %d 行 ONLINE_EYEBALL -> EYEBALL", j.label, res.RowsAffected)
+	}
 }
 
 // bootstrapAdmin 首次启动时建管理员账号。

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc.json",
+  "rules": {
+    "color-no-hex": true
+  },
+  "overrides": [
+    {
+      "files": ["**/*.vue"],
+      "customSyntax": "postcss-html"
+    },
+    {
+      "files": ["src/styles/**/*.css"],
+      "rules": {
+        "color-no-hex": null
+      }
+    }
+  ],
+  "ignoreFiles": ["dist/**", "node_modules/**"]
+}

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"fmt"
-	"strconv"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
@@ -14,14 +12,12 @@ type QsoHandler struct{ db *gorm.DB }
 func NewQsoHandler(db *gorm.DB) *QsoHandler { return &QsoHandler{db: db} }
 
 func (h *QsoHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
-	if page < 1 { page = 1 }
-	if size < 1 { size = 20 }
+	page, size := pageParams(c)
 
 	q := h.db.Model(&model.QsoRecord{})
 	if cs := c.Query("call_sign"); cs != "" {
-		q = q.Where("call_sign LIKE ?", "%"+cs+"%")
+		// 前缀匹配（不加前置 %），才能吃到 call_sign 上的索引
+		q = q.Where("call_sign LIKE ?", callSignPattern(cs))
 	}
 	if st := c.Query("scene_type"); st != "" {
 		q = q.Where("scene_type = ?", st)
@@ -46,18 +42,10 @@ func (h *QsoHandler) Create(c *gin.Context) {
 	response.OK(c, req)
 }
 
-// nextQsoRecordCode 生成下一个 QSO-XXXXXX 编号；加载已有序列行再更新
-// （Save 新建 struct 会走 INSERT 撞唯一索引静默失败）
+// nextQsoRecordCode 生成下一个 QSO-XXXXXX 编号（走 sequence.go 的统一发号器，
+// 进程内互斥 + 显式 upsert，避免并发建卡时撞号）
 func nextQsoRecordCode(db *gorm.DB) string {
-	var setting model.SystemSetting
-	if err := db.Where("key = ?", "qso_record_sequence").First(&setting).Error; err != nil {
-		setting = model.SystemSetting{Key: "qso_record_sequence", Value: "0"}
-	}
-	seq, _ := strconv.ParseInt(setting.Value, 10, 64)
-	seq++
-	setting.Value = strconv.FormatInt(seq, 10)
-	db.Save(&setting)
-	return fmt.Sprintf("QSO-%06d", seq)
+	return nextSequence(db, "qso_record_sequence", "QSO-", 6, "")
 }
 
 func (h *QsoHandler) Get(c *gin.Context) {

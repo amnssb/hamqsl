@@ -3,8 +3,8 @@ package handler
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
@@ -15,16 +15,13 @@ type ExchangeHandler struct{ db *gorm.DB }
 
 func NewExchangeHandler(db *gorm.DB) *ExchangeHandler { return &ExchangeHandler{db: db} }
 
+// nextCode 取下一个编号（走 sequence.go 的统一发号器）。
+//
+// 原来这里是"读 system_settings → +1 → 写回"，没有事务也没有互斥：
+// 两个人同时提交换卡申请可能拿到同一个编号，唯一索引会挡住重复写入，
+// 但其中一个请求会直接 500。互斥已在发号器里统一处理。
 func (h *ExchangeHandler) nextCode(prefix, seqKey string) string {
-	var setting model.SystemSetting
-	if err := h.db.Where("key = ?", seqKey).First(&setting).Error; err != nil {
-		setting = model.SystemSetting{Key: seqKey, Value: "0"}
-	}
-	seq, _ := strconv.Atoi(setting.Value)
-	seq++
-	setting.Value = strconv.Itoa(seq)
-	h.db.Save(&setting)
-	return fmt.Sprintf("%s%04d", prefix, seq)
+	return nextSequence(h.db, seqKey, prefix, 4, "")
 }
 
 // uniqueCode 序列号自愈：跳过已被占用的编号，避免唯一约束冲突导致静默失败
@@ -42,10 +39,9 @@ func (h *ExchangeHandler) uniqueCode(prefix, seqKey, table, column string) strin
 }
 
 func (h *ExchangeHandler) ListRequests(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page, size := pageParams(c)
 	q := h.db.Model(&model.ExchangeRequest{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", "%"+v+"%") }
+	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
 	if v := c.Query("review_status"); v != "" { q = q.Where("review_status = ?", v) }
 	if v := c.Query("scene_type"); v != "" { q = q.Where("scene_type = ?", v) }
 	var total int64
@@ -302,8 +298,7 @@ func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 }
 
 func (h *ExchangeHandler) ListActivities(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page, size := pageParams(c)
 	var total int64
 	h.db.Model(&model.OfflineActivity{}).Count(&total)
 	var items []model.OfflineActivity
@@ -350,17 +345,9 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&req)
 
-	// 收卡记录编号：与收卡记录页同序列（加载行更新，避免静默失败）
-	var setting model.SystemSetting
-	if err := h.db.Where("key = ?", "receive_record_sequence").First(&setting).Error; err != nil {
-		setting = model.SystemSetting{Key: "receive_record_sequence", Value: "0"}
-	}
-	seq, _ := strconv.Atoi(setting.Value)
-	seq++
-	setting.Value = strconv.Itoa(seq)
-	h.db.Save(&setting)
+	// 收卡记录编号：与收卡记录页共用同一序列（统一发号器，进程内互斥）
 	now := cstNow()
-	code := fmt.Sprintf("R%04d-%s", seq, now.Format("20060102"))
+	code := nextReceiveCode(h.db, now.Format("2006-01-02"))
 
 	record := model.ReceiveRecord{
 		ReceiveCode:  code,

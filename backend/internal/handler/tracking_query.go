@@ -33,12 +33,10 @@ type kuaidi100Resp struct {
 	} `json:"data"`
 }
 
+// getSettingValue 读一个系统设置项。
+// 走内存快照（见 settings_cache.go），不再每个键一次单行 SELECT。
 func getSettingValue(db *gorm.DB, key string) string {
-	var s model.SystemSetting
-	if err := db.Where("key = ?", key).First(&s).Error; err != nil {
-		return ""
-	}
-	return s.Value
+	return settingsSnapshot(db)[key]
 }
 
 // parseTrackingDetail 解析卡片上存储的轨迹 JSON（数组）

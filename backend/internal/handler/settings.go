@@ -11,10 +11,9 @@ type SettingsHandler struct{ db *gorm.DB }
 
 func NewSettingsHandler(db *gorm.DB) *SettingsHandler { return &SettingsHandler{db: db} }
 
+// getSetting 读一个配置项（走内存快照，见 settings_cache.go）
 func (h *SettingsHandler) getSetting(key string) string {
-	var s model.SystemSetting
-	if err := h.db.Where("key = ?", key).First(&s).Error; err != nil { return "" }
-	return s.Value
+	return getSettingValue(h.db, key)
 }
 
 // setSetting 按 key upsert 配置；Save 对 ID=0 的 struct 走 INSERT，
@@ -23,9 +22,11 @@ func (h *SettingsHandler) setSetting(key, val string) {
 	var s model.SystemSetting
 	if err := h.db.Where("key = ?", key).First(&s).Error; err != nil {
 		h.db.Create(&model.SystemSetting{Key: key, Value: val})
-		return
+	} else {
+		h.db.Model(&s).Update("value", val)
 	}
-	h.db.Model(&s).Update("value", val)
+	// 写完立刻让快照失效，后台保存后刷新页面就能看到新值
+	invalidateSettingsCache()
 }
 
 func (h *SettingsHandler) GetSmtp(c *gin.Context) {

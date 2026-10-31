@@ -138,10 +138,10 @@
         支持标准 ADIF（.adi / .adif）文件，5MB 以内；按「呼号 + 日期 + 频率 + 模式」自动去重，重复记录将跳过。
       </el-alert>
       <el-upload drag accept=".adi,.adif,.txt" :show-file-list="false" :http-request="handleImport">
-        <el-icon :size="40" style="color:#c0c4cc;"><UploadFilled /></el-icon>
-        <div style="margin-top:8px;color:#666;">点击或拖拽 ADIF 文件到此处</div>
+        <el-icon :size="40" style="color:var(--qsl-muted);"><UploadFilled /></el-icon>
+        <div style="margin-top:8px;color:var(--qsl-muted);">点击或拖拽 ADIF 文件到此处</div>
       </el-upload>
-      <p v-if="importResult" style="margin-top:12px;color:#666;">
+      <p v-if="importResult" style="margin-top:12px;color:var(--qsl-muted);">
         导入成功 <b>{{ importResult.imported }}</b> 条，跳过 <b>{{ importResult.skipped }}</b> 条（重复或缺少呼号/日期）
       </p>
     </el-dialog>

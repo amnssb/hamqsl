@@ -86,6 +86,8 @@ const routes = [
       { path: 'bureau', name: 'BureauList', component: () => import('../views/BureauList.vue'), meta: { title: '卡片局' } },
       { path: 'station', name: 'StationConfig', component: () => import('../views/StationConfig.vue'), meta: { title: '卡片版本' } },
       { path: 'plugins', name: 'Plugins', component: () => import('../views/Plugins.vue'), meta: { title: '插件' } },
+      // 主题巡检：一页铺满所有组件，用于切换主题后肉眼验收（入口在插件页）
+      { path: 'theme-lab', name: 'ThemeLab', component: () => import('../views/ThemeLab.vue'), meta: { title: '主题巡检' } },
       { path: 'settings', name: 'Settings', component: () => import('../views/Settings.vue'), meta: { title: '设置' } },
     ],
   },

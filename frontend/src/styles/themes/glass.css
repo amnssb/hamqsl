@@ -1,0 +1,116 @@
+/* =============================================================================
+   theme_glass · 鸣门鱼板 🍥 —— Layer 3 皮肤（只放装饰，不放配色）
+   =============================================================================
+
+   所有规则都挂在 html[data-theme="theme_glass"] 下面。这样做的原因：
+
+     1. 装饰层是按需动态加载的，加载后无法从页面里"卸载"（Vite 注入的是
+        <link>/<style>，删掉会连带影响同批次的其它样式）；
+     2. 把选择器限定到主题属性上，切到别的主题时这些规则自然失效，
+        不需要清理，也不会出现"切走之后 🍥 还挂在右上角"。
+
+   玻璃卡片的背景与模糊不在这里，走 token：
+     --p-glass-bg / --p-glass-blur  →  --qsl-card-bg / --qsl-blur
+   由 theme.css 统一消费，所以不必为每个卡片类各写一遍 backdrop-filter。
+   ========================================================================== */
+
+/* 蓝粉白渐变底 + 柔焦光斑（磨砂玻璃的折射底衬） */
+html[data-theme="theme_glass"] body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 38% at 18% 22%, rgba(96, 165, 250, 0.45), transparent 70%),
+    radial-gradient(38% 34% at 82% 18%, rgba(244, 114, 182, 0.4), transparent 70%),
+    radial-gradient(46% 40% at 78% 82%, rgba(167, 139, 250, 0.28), transparent 70%),
+    radial-gradient(40% 36% at 22% 84%, rgba(125, 211, 252, 0.35), transparent 70%),
+    linear-gradient(135deg, #eef4ff 0%, #fdf0f6 46%, #ffffff 100%);
+}
+
+/* 🍥 鸣门鱼板漩涡纹理：右上角悬浮切片 */
+html[data-theme="theme_glass"] body::after {
+  content: '';
+  position: fixed;
+  right: -40px;
+  top: -40px;
+  width: 380px;
+  height: 380px;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3Cfilter id='f' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeDropShadow dx='0' dy='8' stdDeviation='10' flood-color='%23ec5f8f' flood-opacity='0.25'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M100 22 C115 23 125 32 138 35 C152 38 165 48 172 61 C180 75 178 91 180 106 C178 122 173 138 162 150 C150 162 135 170 119 175 C104 178 88 176 74 170 C60 163 48 152 40 139 C32 126 31 110 32 95 C33 79 40 64 51 53 C62 42 77 34 93 32 Z' fill='%23ffffff' opacity='0.88' filter='url(%23f)' stroke='%23f9cbdc' stroke-width='4'/%3E%3Cpath d='M100 58 A42 42 0 0 1 142 100 A42 42 0 0 1 100 142 A42 42 0 0 1 58 100 A22 22 0 0 1 100 78 A22 22 0 0 1 122 100 A12 12 0 0 1 100 112 A4 4 0 0 1 96 100' fill='none' stroke='%23ec5f8f' stroke-width='14' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  opacity: 0.82;
+  filter: drop-shadow(0 15px 35px rgba(236, 95, 143, 0.22));
+}
+
+/* 容器层挂磨砂。
+   只给"容器"：卡片、弹窗、侧栏、顶栏、登录卡。
+   列表行（.rcard）、开关、表格本体**不给** —— 见文件末尾的显式 none。 */
+html[data-theme="theme_glass"] .el-card,
+html[data-theme="theme_glass"] .stat-card,
+html[data-theme="theme_glass"] .workflow-card,
+html[data-theme="theme_glass"] .modern-card,
+html[data-theme="theme_glass"] .service-card,
+html[data-theme="theme_glass"] .stats-panel,
+html[data-theme="theme_glass"] .login-card,
+html[data-theme="theme_glass"] .layout-aside,
+html[data-theme="theme_glass"] .layout-header {
+  backdrop-filter: blur(var(--qsl-blur));
+  -webkit-backdrop-filter: blur(var(--qsl-blur));
+}
+
+/* 玻璃卡片的内侧高光与细白边——纯装饰，不涉及底色 */
+html[data-theme="theme_glass"] .el-card,
+html[data-theme="theme_glass"] .stat-card,
+html[data-theme="theme_glass"] .workflow-card,
+html[data-theme="theme_glass"] .modern-card,
+html[data-theme="theme_glass"] .service-card,
+html[data-theme="theme_glass"] .stats-panel,
+html[data-theme="theme_glass"] .rcard,
+html[data-theme="theme_glass"] .login-card {
+  border-color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 10px 32px rgba(76, 110, 245, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 品牌后缀 */
+html[data-theme="theme_glass"] .brand::after,
+html[data-theme="theme_glass"] .portal-brand::after {
+  content: '🍥';
+  font-size: 18px;
+  margin-left: 8px;
+  opacity: 0.92;
+  filter: drop-shadow(0 2px 6px rgba(236, 95, 143, 0.45));
+}
+
+html[data-theme="theme_glass"] .brand.collapsed::after {
+  display: none;
+}
+
+/* 移动端：漩涡缩小，模糊降档（全屏 backdrop-filter 在中低端机上很吃合成） */
+@media (max-width: 640px) {
+  /* --qsl-blur 定义在 :root（0,1,0），这里用 html[data-theme]（0,1,1）盖过去 */
+  html[data-theme="theme_glass"] {
+    --qsl-blur: 10px;
+  }
+  html[data-theme="theme_glass"] body::after {
+    width: 220px;
+    height: 220px;
+    right: -25px;
+    top: -25px;
+    opacity: 0.75;
+  }
+}
+
+/* 列表行不玻璃：手机上「每行一张卡片」动辄 20 个元素，
+   每个都带 backdrop-filter 会让长列表滚动明显掉帧。
+   容器层（卡片、侧栏、顶栏）保留磨砂，行内用半透明底 + 描边即可。 */
+html[data-theme="theme_glass"] .rcard,
+html[data-theme="theme_glass"] .lang-switch,
+html[data-theme="theme_glass"] .el-table {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

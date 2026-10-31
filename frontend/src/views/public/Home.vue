@@ -141,14 +141,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 分类强调色只定义色相（--qsl-tone-* 在 tokens.css），
+   底色用 color-mix 叠在主题表面之上，暗色主题下也不会刺眼 */
 .portal-page {
+  --tone-blue: var(--qsl-tone-blue);
+  --tone-indigo: var(--qsl-tone-indigo);
+  --tone-emerald: var(--qsl-tone-emerald);
+
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  color: var(--qsl-ink, #0f172a);
-  background: var(--qsl-paper, #f8fafc);
-  background-image: radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
-                    radial-gradient(at 90% 15%, rgba(16, 185, 129, 0.04) 0px, transparent 50%);
+  color: var(--qsl-ink);
+  background: var(--qsl-bg);
+  background-image: radial-gradient(at 10% 10%, color-mix(in srgb, var(--qsl-primary) 6%, transparent) 0px, transparent 50%),
+                    radial-gradient(at 90% 15%, color-mix(in srgb, var(--qsl-green) 5%, transparent) 0px, transparent 50%);
 }
 
 .portal-header {
@@ -173,12 +179,12 @@ onMounted(async () => {
   place-items: center;
   width: 36px;
   height: 36px;
-  color: #ffffff;
-  background: var(--el-color-primary, #2563eb);
+  color: var(--qsl-on-primary);
+  background: var(--qsl-primary);
   border-radius: 10px;
   font-size: 18px;
   font-weight: 850;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--qsl-shadow-1);
 }
 .brand-info strong {
   display: block;
@@ -239,7 +245,7 @@ onMounted(async () => {
   width: 28px;
   height: 28px;
   color: var(--qsl-yellow);
-  background: rgba(245, 158, 11, 0.12);
+  background: color-mix(in srgb, var(--qsl-yellow) 12%, transparent);
   border-radius: 8px;
   font-size: 14px;
 }
@@ -350,13 +356,13 @@ onMounted(async () => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--qsl-green, #10b981);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qsl-green) 25%, transparent);
   animation: pulse-dot 2s infinite;
 }
 .live-pill {
-  color: var(--qsl-green, #059669);
-  background: rgba(16, 185, 129, 0.12);
+  color: var(--qsl-green);
+  background: color-mix(in srgb, var(--qsl-green) 12%, transparent);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -446,9 +452,9 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.service-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.service-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.service-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+.service-icon.blue { color: var(--tone-blue); background: color-mix(in srgb, var(--tone-blue) 12%, transparent); }
+.service-icon.indigo { color: var(--tone-indigo); background: color-mix(in srgb, var(--tone-indigo) 12%, transparent); }
+.service-icon.emerald { color: var(--tone-emerald); background: color-mix(in srgb, var(--tone-emerald) 12%, transparent); }
 
 .service-text {
   flex: 1;

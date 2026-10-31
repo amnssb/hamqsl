@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 	"github.com/gin-gonic/gin"
@@ -50,12 +49,10 @@ func refreshStatus(c *model.CardRecord) {
 }
 
 func (h *CardHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
-	if page < 1 { page = 1 }
+	page, size := pageParams(c)
 
 	q := h.db.Model(&model.CardRecord{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", "%"+v+"%") }
+	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
 	if v := c.Query("scene_type"); v != "" { q = q.Where("scene_type = ?", v) }
 	if v := c.Query("flow_status"); v != "" { q = q.Where("flow_status = ?", v) }
 	if v := c.Query("mail_type"); v != "" { q = q.Where("mail_type = ?", v) }
@@ -429,13 +426,23 @@ func (h *CardHandler) FromQso(c *gin.Context) {
 	response.OK(c, card)
 }
 
+// BatchTrackingUpdate 把"已挂号寄出但还没有快递状态"的卡片批量标记为查询中。
+//
+// 原来是 Find 出全部行再逐条 Save（N 条 UPDATE，每条都回写整行）。
+// 改单条 UPDATE：条件里带上 tracking_status = ''，语义等价但只有 1 次写。
 func (h *CardHandler) BatchTrackingUpdate(c *gin.Context) {
-	var cards []model.CardRecord
-	h.db.Where("card_sent = ? AND mail_type = ? AND tracking_number <> ''", true, "REGISTERED").Find(&cards)
-	for i := range cards {
-		if cards[i].TrackingStatus == "" { cards[i].TrackingStatus = "查询中"; cards[i].TrackingUpdatedAt = cstNow().Format("2006-01-02 15:04:05"); h.db.Save(&cards[i]) }
+	res := h.db.Model(&model.CardRecord{}).
+		Where("card_sent = ? AND mail_type = ? AND tracking_number <> '' AND tracking_status = ''",
+			true, "REGISTERED").
+		Updates(map[string]interface{}{
+			"tracking_status":     "查询中",
+			"tracking_updated_at": cstNow().Format("2006-01-02 15:04:05"),
+		})
+	if res.Error != nil {
+		response.Error(c, "批量更新失败："+res.Error.Error())
+		return
 	}
-	response.OK(c, gin.H{"updated": len(cards)})
+	response.OK(c, gin.H{"updated": res.RowsAffected})
 }
 
 func (h *CardHandler) UpdateTracking(c *gin.Context) {

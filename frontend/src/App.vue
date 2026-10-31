@@ -31,12 +31,17 @@ const isPublicPage = computed(() => {
   return !(p.startsWith('/admin') || p.startsWith('/login'))
 })
 
-// 应用已启用的主题插件（公开端点，无需登录；失败静默不影响功能）
+// 主题
+//   · 配色（--p-* / --el-*）已经由 index.html 里的
+//     <link rel="stylesheet" href="/api/public/theme.css"> 在首帧应用，这里不再碰颜色。
+//   · 这里只做两件事：把 <html data-theme> 对齐到服务端当前主题，
+//     并按需加载该主题的装饰层（Layer 3）。
+//   · 拉取失败时什么都不做 —— 默认主题本来就已经生效。
 onMounted(async () => {
   try {
     const res = await api.get('/public/plugins')
-    applyEnabledThemes((res?.items || []).map(i => i.name))
-  } catch { /* 主题应用失败时保持默认外观 */ }
+    await applyEnabledThemes((res?.items || []).map(i => i.name))
+  } catch { /* 保持服务端下发的配色 */ }
 })
 </script>
 

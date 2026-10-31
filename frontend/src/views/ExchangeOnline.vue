@@ -44,7 +44,7 @@
         </el-table-column>
         <el-table-column label="已建卡" width="80" align="center">
           <template #default="{ row }">
-            <el-icon v-if="row.card_created" color="#67C23A"><Check /></el-icon>
+            <el-icon v-if="row.card_created" color="var(--qsl-green)"><Check /></el-icon>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
@@ -330,13 +330,13 @@ onMounted(loadData)
 
 <style scoped>
 .reason-box {
-  background: #f9f9f4;
-  border: 1px solid #e8e4dc;
-  border-radius: 4px;
+  background: var(--qsl-panel-2);
+  border: 1px solid var(--qsl-line);
+  border-radius: var(--qsl-radius-sm);
   padding: 12px 16px;
   font-size: 14px;
   line-height: 1.7;
-  color: #444;
+  color: var(--qsl-ink);
   white-space: pre-wrap;
   word-break: break-all;
 }

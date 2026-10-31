@@ -2,7 +2,10 @@ package plugin
 
 import (
 	"log"
+	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -10,6 +13,10 @@ import (
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
 )
+
+// pluginStateTTL 启用状态快照的存活时间。
+// 开关本身走 SetEnabled 主动失效，这个 TTL 只是兜底（比如直接改库的情况）。
+const pluginStateTTL = 5 * time.Second
 
 // Info 插件元数据
 type Info struct {
@@ -31,6 +38,15 @@ type Plugin interface {
 	Routes(rg *gin.RouterGroup)
 }
 
+// SkinProvider 由主题类插件可选实现：返回该主题的 CSS 自定义属性声明（不含选择器）。
+//
+// 配色放在后端是有意为之——只有服务端知道"现在哪个主题生效"，也才能把它写进
+// 首帧就会加载的 /api/public/theme.css，从而彻底消除主题闪烁。
+// 纯装饰（纹理、SVG、几何变形）仍然留在前端，按需动态加载。
+type SkinProvider interface {
+	ThemeCSS() string
+}
+
 // Manager 插件注册表与运行时管理。
 // 启停状态持久化在 system_settings（key = plugin_enabled_<name>），
 // 功能路由常驻注册、按请求校验开关 → 启停即时生效，无需重启进程。
@@ -39,6 +55,13 @@ type Manager struct {
 	db    *gorm.DB
 	items map[string]Plugin
 	order []string
+
+	// 启用状态的内存缓存：IsEnabled 在每个 /api/ext/* 请求上都会调用，
+	// HandlePublicThemes 还会对每个主题各调一次（5 个主题 = 5 次单行 SELECT）。
+	// 开关切换频率极低，用 5 秒 TTL 的快照，SetEnabled 时主动失效。
+	stateMu   sync.RWMutex
+	stateAt   time.Time
+	stateSnap map[string]bool
 }
 
 func NewManager(db *gorm.DB) *Manager {
@@ -64,14 +87,6 @@ func (m *Manager) Register(p Plugin) {
 
 func (m *Manager) settingKey(name string) string { return "plugin_enabled_" + name }
 
-func (m *Manager) getSetting(key string) string {
-	var s model.SystemSetting
-	if err := m.db.Where("key = ?", key).First(&s).Error; err != nil {
-		return ""
-	}
-	return s.Value
-}
-
 // setSetting 先加载再更新的 upsert 模式：
 // db.Save 对 ID=0 的 struct 走 INSERT，会撞 key 唯一索引并静默失败（见 HANDOFF 坑记录）
 func (m *Manager) setSetting(key, val string) {
@@ -91,7 +106,44 @@ func (m *Manager) IsEnabled(name string) bool {
 	if !ok {
 		return false
 	}
-	return m.getSetting(m.settingKey(name)) == "true"
+	return m.enabledSnapshot()[name]
+}
+
+// enabledSnapshot 一次性读出全部 plugin_enabled_* 开关。
+// 单次全表读（几十行）远比"每个插件查一次"便宜，尤其在公开页首屏。
+func (m *Manager) enabledSnapshot() map[string]bool {
+	m.stateMu.RLock()
+	if m.stateSnap != nil && time.Since(m.stateAt) < pluginStateTTL {
+		snap := m.stateSnap
+		m.stateMu.RUnlock()
+		return snap
+	}
+	m.stateMu.RUnlock()
+
+	var rows []model.SystemSetting
+	snap := make(map[string]bool)
+	if err := m.db.Model(&model.SystemSetting{}).
+		Select("key, value").
+		Where("key LIKE ?", m.settingKey("")+"%").
+		Find(&rows).Error; err == nil {
+		for _, r := range rows {
+			snap[strings.TrimPrefix(r.Key, m.settingKey(""))] = r.Value == "true"
+		}
+	}
+
+	m.stateMu.Lock()
+	m.stateSnap = snap
+	m.stateAt = time.Now()
+	m.stateMu.Unlock()
+	return snap
+}
+
+// invalidatePluginState 让下一次 IsEnabled 重新查库
+func (m *Manager) invalidatePluginState() {
+	m.stateMu.Lock()
+	m.stateSnap = nil
+	m.stateAt = time.Time{}
+	m.stateMu.Unlock()
 }
 
 func (m *Manager) SetEnabled(name string, on bool) {
@@ -100,6 +152,8 @@ func (m *Manager) SetEnabled(name string, on bool) {
 		v = "true"
 	}
 	m.setSetting(m.settingKey(name), v)
+	// 开关立即生效，不等 TTL
+	m.invalidatePluginState()
 }
 
 // InitEnabled 启动时对已启用插件执行 Init
@@ -146,6 +200,7 @@ func (m *Manager) enabledGuard(name string) gin.HandlerFunc {
 func (m *Manager) handleList(c *gin.Context) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	enabled := m.enabledSnapshot()
 	items := make([]gin.H, 0, len(m.order))
 	for _, name := range m.order {
 		meta := m.items[name].Meta()
@@ -155,7 +210,7 @@ func (m *Manager) handleList(c *gin.Context) {
 			"version":     meta.Version,
 			"description": meta.Description,
 			"kind":        meta.Kind,
-			"enabled":     m.getSetting(m.settingKey(name)) == "true",
+			"enabled":     enabled[name],
 		})
 	}
 	response.OK(c, gin.H{"items": items})
@@ -184,12 +239,59 @@ func (m *Manager) handleToggle(on bool) gin.HandlerFunc {
 func (m *Manager) HandlePublicThemes(c *gin.Context) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	enabled := m.enabledSnapshot()
 	items := make([]gin.H, 0)
 	for _, name := range m.order {
 		meta := m.items[name].Meta()
-		if meta.Kind == "theme" && m.getSetting(m.settingKey(name)) == "true" {
+		if meta.Kind == "theme" && enabled[name] {
 			items = append(items, gin.H{"name": meta.Name, "title": meta.Title, "version": meta.Version})
 		}
 	}
 	response.OK(c, gin.H{"items": items})
+}
+
+// ThemeCSS 输出当前站点的主题样式表。
+//
+// 设计要点：
+//  1. 当前生效主题的变量以 "无属性" 的 :root:root 块下发 → index.html 里的
+//     <link rel="stylesheet" href="/api/public/theme.css"> 在第一帧就命中正确配色，
+//     不必等 JS，故没有 FOUC。双伪类 :root:root 是为了稳定压过打包 CSS 里的 :root{}，
+//     不依赖样式表先后顺序（Vite 会把产物 CSS 链接插到 <head> 末尾）。
+//  2. 同时下发每个主题的 [data-theme="..."] 块 → 后台切换主题只需改一个属性，
+//     不用重新请求样式表。
+//  3. 内容只有 CSS 自定义属性（几十行），每次请求现拼即可，无需缓存。
+func (m *Manager) HandleThemeCSS(c *gin.Context) {
+	m.mu.RLock()
+	enabled := m.enabledSnapshot()
+	declsByTheme := make(map[string]string, len(m.order))
+	active := ""
+	for _, name := range m.order {
+		p := m.items[name]
+		if p.Meta().Kind != "theme" || !enabled[name] {
+			continue
+		}
+		sp, ok := p.(SkinProvider)
+		if !ok {
+			continue
+		}
+		declsByTheme[name] = sp.ThemeCSS()
+		active = name
+	}
+	names := append([]string(nil), m.order...)
+	m.mu.RUnlock()
+
+	var b strings.Builder
+	b.WriteString("/* 由 /api/public/theme.css 生成：主题配色变量 */\n")
+	if active != "" {
+		b.WriteString(":root:root{" + declsByTheme[active] + "}\n")
+	}
+	for _, name := range names {
+		if decls, ok := declsByTheme[name]; ok {
+			b.WriteString(`:root:root[data-theme="` + name + `"]{` + decls + "}\n")
+		}
+	}
+
+	c.Header("Cache-Control", "no-cache")
+	c.Header("X-QSL-Theme", active)
+	c.Data(http.StatusOK, "text/css; charset=utf-8", []byte(b.String()))
 }

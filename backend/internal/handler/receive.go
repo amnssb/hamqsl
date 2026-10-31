@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"fmt"
-	"strconv"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
@@ -14,10 +12,9 @@ type ReceiveHandler struct{ db *gorm.DB }
 func NewReceiveHandler(db *gorm.DB) *ReceiveHandler { return &ReceiveHandler{db: db} }
 
 func (h *ReceiveHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page, size := pageParams(c)
 	q := h.db.Model(&model.ReceiveRecord{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", "%"+v+"%") }
+	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
 	var total int64
 	q.Count(&total)
 	var items []model.ReceiveRecord
@@ -57,16 +54,18 @@ func (h *ReceiveHandler) Create(c *gin.Context) {
 	response.OK(c, record)
 }
 
-// nextReceiveCode 生成收卡记录编号 R%04d-YYYYMMDD：更新 receive_record_sequence 序列行
+// nextReceiveCode 生成收卡记录编号 R%04d-YYYYMMDD。
+//
+// 走 sequence.go 的统一发号器（进程内互斥 + 显式 upsert），
+// 避免并发登记时两条记录拿到同一个编号。
 func nextReceiveCode(db *gorm.DB, receivedDate string) string {
-	// 更新已加载的序列行（Save 新建 struct 会走 INSERT 撞唯一索引静默失败）
-	var setting model.SystemSetting
-	if err := db.Where("key = ?", "receive_record_sequence").First(&setting).Error; err != nil {
-		setting = model.SystemSetting{Key: "receive_record_sequence", Value: "0"}
+	// receivedDate 是用户输入；长度不足 10 时直接取当天，避免切片越界 panic
+	suffix := ""
+	if len(receivedDate) >= 10 && receivedDate[4] == '-' && receivedDate[7] == '-' {
+		suffix = "-" + receivedDate[0:4] + receivedDate[5:7] + receivedDate[8:10]
+	} else {
+		today := cstNow().Format("2006-01-02")
+		suffix = "-" + today[0:4] + today[5:7] + today[8:10]
 	}
-	seq, _ := strconv.Atoi(setting.Value)
-	seq++
-	setting.Value = strconv.Itoa(seq)
-	db.Save(&setting)
-	return fmt.Sprintf("R%04d-%s", seq, receivedDate[0:4]+receivedDate[5:7]+receivedDate[8:10])
+	return nextSequence(db, "receive_record_sequence", "R", 4, suffix)
 }

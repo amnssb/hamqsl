@@ -133,28 +133,28 @@ onMounted(() => {
 }
 
 .modern-card {
-  background: white;
+  background: var(--qsl-card-bg);
   border-radius: 20px;
   padding: 32px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  box-shadow: var(--qsl-shadow-2);
   margin-bottom: 24px;
 }
 
 .card-header {
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--qsl-line);
 }
 
 .card-header h2 {
   margin: 0 0 8px;
   font-size: 22px;
-  color: #1a1a1a;
+  color: var(--qsl-heading);
 }
 
 .carrier-tip {
   margin: 0;
-  color: #909399;
+  color: var(--qsl-muted);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -171,8 +171,8 @@ onMounted(() => {
   border-radius: 12px;
 }
 
-.tip-card b { color: #1a1a1a; font-size: 14px; }
-.tip-card p { margin: 8px 0 10px; color: #909399; font-size: 13px; line-height: 1.7; }
+.tip-card b { color: var(--qsl-heading); font-size: 14px; }
+.tip-card p { margin: 8px 0 10px; color: var(--qsl-muted); font-size: 13px; line-height: 1.7; }
 
 .public-footer {
   text-align: center;

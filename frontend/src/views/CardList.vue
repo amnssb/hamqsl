@@ -67,7 +67,7 @@
         <el-table-column label="挂号信号码" width="140">
           <template #default="{ row }">
             <span v-if="row.tracking_number" style="font-size:12px;">{{ row.tracking_number }}</span>
-            <span v-else style="color:#c0c4cc;">-</span>
+            <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
         <el-table-column label="快递状态" width="120">
@@ -75,15 +75,15 @@
             <el-tag v-if="row.tracking_status" :type="trackingTagType(row.tracking_status)" size="small" effect="plain">
               {{ row.tracking_status.substring(0, 10) }}
             </el-tag>
-            <span v-else style="color:#c0c4cc;">-</span>
+            <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
         <el-table-column label="邮件" width="70" align="center">
           <template #default="{ row }">
             <el-tooltip v-if="row.mail_target_email" :content="row.mail_target_email" placement="top">
-              <el-icon color="#67C23A"><Message /></el-icon>
+              <el-icon color="var(--qsl-green)"><Message /></el-icon>
             </el-tooltip>
-            <el-icon v-else color="#c0c4cc"><Message /></el-icon>
+            <el-icon v-else color="var(--qsl-muted)"><Message /></el-icon>
           </template>
         </el-table-column>
         <el-table-column label="对方回寄" width="96" align="center">
@@ -96,7 +96,7 @@
             <el-tooltip v-else-if="row.return_mail_enabled" content="回寄已开启，等待对方确认收件并回寄" placement="top">
               <el-tag type="info" size="small" effect="plain">回寄中</el-tag>
             </el-tooltip>
-            <span v-else style="color:#c0c4cc;">-</span>
+            <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="260" fixed="right">
@@ -135,7 +135,7 @@
           <el-tag v-if="row.return_received_at" type="success" size="small">已收 {{ row.return_record_code }}</el-tag>
           <el-tag v-else-if="row.return_mailed_at" type="warning" size="small" style="cursor:pointer;" @click="openReturnTracking(row)">已回寄</el-tag>
           <el-tag v-else-if="row.return_mail_enabled" type="info" size="small" effect="plain">回寄中</el-tag>
-          <span v-else style="color:#c0c4cc;">-</span>
+          <span v-else style="color:var(--qsl-muted);">-</span>
         </template>
         <template #actions="{ row }">
           <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
@@ -322,7 +322,7 @@
         <el-descriptions-item label="对方回寄" :span="2">
           <template v-if="detailCard.return_mailed_at">
             {{ detailCard.return_mail_type === 'REGISTERED' ? '挂号信 ' + (detailCard.return_tracking || '') : '平信' }}
-            <span style="color:#909399;">（登记于 {{ detailCard.return_mailed_at }}）</span>
+            <span style="color:var(--qsl-muted);">（登记于 {{ detailCard.return_mailed_at }}）</span>
             <el-tag v-if="detailCard.return_received_at" type="success" size="small" style="margin-left:8px;">已收 {{ detailCard.return_record_code }}</el-tag>
             <el-button v-if="detailCard.return_tracking" link type="primary" size="small" @click="openReturnTracking(detailCard)">在快递100 查询</el-button>
           </template>
@@ -365,10 +365,10 @@
           <el-descriptions-item label="对方呼号">{{ qrCardInfo.call_sign }}</el-descriptions-item>
           <el-descriptions-item label="卡片版本">{{ qrCardInfo.card_version || '—' }}</el-descriptions-item>
         </el-descriptions>
-        <div style="display:inline-block;padding:16px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;">
+        <div style="display:inline-block;padding:16px;background:var(--qsl-qr-bg);border:1px solid var(--qsl-line);border-radius:8px;">
           <canvas ref="qrCanvasRef"></canvas>
         </div>
-        <p style="margin-top:12px;color:#909399;font-size:13px;">对方扫码后可确认收卡；二维码需随卡装入信封，请在发信前打印。</p>
+        <p style="margin-top:12px;color:var(--qsl-muted);font-size:13px;">对方扫码后可确认收卡；二维码需随卡装入信封，请在发信前打印。</p>
         <div style="margin-top:12px;">
           <el-button type="primary" plain size="small" @click="copyConfirmLink">复制确认链接</el-button>
           <el-button size="small" @click="printQR">打印</el-button>
@@ -630,12 +630,21 @@ function showQRCode(row) {
   qrDialog.value = true
 }
 
+// 二维码配色必须与主题无关（白底黑码才扫得出来）。
+// 色值统一从 token 读，避免组件里散落裸十六进制；canvas / qrcode 不认 var()，所以要取值。
+function qrColors() {
+  const cs = getComputedStyle(document.documentElement)
+  const bg = (cs.getPropertyValue('--qsl-qr-bg') || '').trim() || '#ffffff'
+  const fg = (cs.getPropertyValue('--qsl-qr-fg') || '').trim() || '#1a1a1a'
+  return { dark: fg, light: bg }
+}
+
 function renderQR() {
   if (qrCanvasRef.value && qrCardInfo.value) {
     const url = window.location.origin + '/confirm/' + qrCardInfo.value.card_code
     QRCode.toCanvas(qrCanvasRef.value, url, {
       width: 220, margin: 2,
-      color: { dark: '#1a1a1a', light: '#ffffff' }
+      color: qrColors()
     })
   }
 }
@@ -666,13 +675,15 @@ function printQR() {
 }
 
 // 导出二维码 PNG：白底合成标题/编号/呼号/二维码/提示，尺寸自控（2 倍清晰度）
+// 这是给人打印/转发的位图，配色固定（白底黑码），不跟随主题。
 async function exportQRImage() {
   if (!qrCardInfo.value) return
   const info = qrCardInfo.value
   const url = window.location.origin + '/confirm/' + info.card_code
+  const colors = qrColors()
   const dataUrl = await QRCode.toDataURL(url, {
     width: 400, margin: 2,
-    color: { dark: '#1a1a1a', light: '#ffffff' }
+    color: colors
   })
   const img = new Image()
   await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataUrl })
@@ -683,16 +694,17 @@ async function exportQRImage() {
   canvas.height = h * scale
   const ctx = canvas.getContext('2d')
   ctx.scale(scale, scale)
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = colors.light
   ctx.fillRect(0, 0, w, h)
   ctx.textAlign = 'center'
-  ctx.fillStyle = '#1a1a1a'
+  ctx.fillStyle = colors.dark
   ctx.font = 'bold 24px sans-serif'
   ctx.fillText('QSL 卡片收卡确认', w / 2, 56)
   ctx.font = '17px sans-serif'
   ctx.fillText('卡片编号: ' + info.card_code, w / 2, 96)
   ctx.fillText('对方呼号: ' + (info.call_sign || '—'), w / 2, 124)
   ctx.drawImage(img, (w - 400) / 2, 148, 400, 400)
+  // 提示文字用中灰：纯黑会和标题抢视觉，纯浅灰打印后可能看不清
   ctx.fillStyle = '#666666'
   ctx.font = '15px sans-serif'
   ctx.fillText('请扫描上方二维码确认收卡', w / 2, 588)
@@ -716,9 +728,9 @@ onMounted(() => { loadData(); loadVersions() })
 </script>
 
 <style scoped>
-.return-admin { margin-top: 16px; padding: 12px 14px; background: #faf7f0; border: 1px dashed var(--qsl-line); }
+.return-admin { margin-top: 16px; padding: 12px 14px; background: var(--qsl-panel-2); border: 1px dashed var(--qsl-line); border-radius: var(--qsl-radius); }
 .return-admin-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .return-admin-row + .return-admin-row { margin-top: 10px; }
-.ra-label { font-weight: 600; color: var(--qsl-navy); }
-.ra-hint { color: #909399; font-size: 12px; line-height: 1.6; }
+.ra-label { font-weight: 600; color: var(--qsl-heading); }
+.ra-hint { color: var(--qsl-muted); font-size: 12px; line-height: 1.6; }
 </style>

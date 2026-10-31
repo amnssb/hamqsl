@@ -520,7 +520,7 @@ onMounted(() => { loadSite(); loadSmtp(); loadSecurity() })
 
 <style scoped>
 .hint-text {
-  color: var(--qsl-muted, #6b7280);
+  color: var(--qsl-muted);
   font-size: 12.5px;
   margin-left: 8px;
 }
@@ -536,10 +536,10 @@ onMounted(() => { loadSite(); loadSmtp(); loadSecurity() })
 .totp-qr {
   width: 180px;
   height: 180px;
-  border: 1px solid var(--qsl-line, #e5e7eb);
-  border-radius: 8px;
+  border: 1px solid var(--qsl-line);
+  border-radius: var(--qsl-radius);
   padding: 6px;
-  background: #fff;
+  background: var(--qsl-qr-bg);
 }
 .totp-tips {
   flex: 1;
@@ -553,8 +553,8 @@ onMounted(() => { loadSite(); loadSmtp(); loadSecurity() })
 .totp-secret {
   display: inline-block;
   padding: 4px 8px;
-  background: var(--qsl-paper, #f3f4f6);
-  border-radius: 6px;
+  background: var(--qsl-panel-2);
+  border-radius: var(--qsl-radius-sm);
   font-size: 13px;
   letter-spacing: 0.05em;
   word-break: break-all;
@@ -566,8 +566,8 @@ onMounted(() => { loadSite(); loadSmtp(); loadSecurity() })
 }
 .recovery-grid code {
   padding: 6px 10px;
-  background: var(--qsl-paper, #f3f4f6);
-  border-radius: 6px;
+  background: var(--qsl-panel-2);
+  border-radius: var(--qsl-radius-sm);
   font-size: 14px;
   letter-spacing: 0.08em;
 }

@@ -233,7 +233,7 @@
         <div v-if="submitted" class="card modern-card success-card">
           <div class="success-content">
             <div class="success-icon">
-              <el-icon :size="64" color="#10b981"><CircleCheck /></el-icon>
+              <el-icon :size="64" color="var(--qsl-green)"><CircleCheck /></el-icon>
             </div>
             <h2>{{ t('apply.successTitle') }}</h2>
             <p>{{ t('apply.successLine', { code: result.request_code }) }}</p>
@@ -446,9 +446,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 页面底色由主题主色派生：默认蓝、玻璃粉、纸墨砖红、罗德岛青……不再是写死的紫色渐变 */
 .public-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--qsl-primary) 0%, var(--qsl-primary-2) 100%);
   padding: 20px;
 }
 
@@ -496,34 +497,34 @@ onMounted(() => {
 }
 
 .modern-card {
-  background: white;
+  background: var(--qsl-card-bg);
   border-radius: 20px;
   padding: 32px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  box-shadow: var(--qsl-shadow-2);
   margin-bottom: 24px;
 }
 
 .card-header {
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--qsl-line);
 }
 
 .card-header h2 {
   margin: 0 0 8px;
   font-size: 22px;
-  color: #1a1a1a;
+  color: var(--qsl-heading);
 }
 
 .card-header p {
   margin: 0;
-  color: #666;
+  color: var(--qsl-muted);
   font-size: 14px;
 }
 
 .modern-form :deep(.el-form-item__label) {
   font-weight: 500;
-  color: #374151;
+  color: var(--qsl-ink);
 }
 
 .form-grid {
@@ -600,24 +601,24 @@ onMounted(() => {
 }
 
 .success-content h2 {
-  color: #10b981;
+  color: var(--qsl-green);
   margin: 0 0 12px;
 }
 
 .success-content p {
-  color: #666;
+  color: var(--qsl-muted);
   margin: 8px 0;
 }
 
 .success-note {
   font-size: 14px;
-  color: #999;
+  color: var(--qsl-muted);
 }
 
 .share-section {
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--qsl-line);
 }
 
 .share-link {
@@ -653,30 +654,29 @@ onMounted(() => {
 .mail-section {
   margin-top: 24px;
   padding: 16px 20px;
-  background: #f8f7f2;
-  border: 1px dashed #c9c3b4;
-  text-align: left;
+  background: var(--qsl-panel-2);
+  border: 1px dashed var(--qsl-line);
 }
-.mail-title { font-weight: 600; margin-bottom: 8px; color: var(--qsl-navy, #1a1a1a); }
-.mail-note { font-size: 12px; color: #999; margin-top: 8px; }
+.mail-title { font-weight: 600; margin-bottom: 8px; color: var(--qsl-heading); }
+.mail-note { font-size: 12px; color: var(--qsl-muted); margin-top: 8px; }
 
 .version-block { width: 100%; }
-.version-label { margin: 0 0 12px; font-weight: 500; color: #374151; }
+.version-label { margin: 0 0 12px; font-weight: 500; color: var(--qsl-ink); }
 .version-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.version-card { position: relative; border: 2px solid #e5e1d8; border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; transition: all .15s; background: #fff; }
-.version-card:hover { border-color: #b9b29f; }
-.version-card.selected { border-color: #10b981; background: #f0fdf7; }
-.version-thumb { height: 90px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 8px; background: #faf9f5; border-radius: 4px; }
+.version-card { position: relative; border: 2px solid var(--qsl-line); border-radius: var(--qsl-radius-sm); padding: 12px; text-align: center; cursor: pointer; transition: all .15s; background: var(--qsl-panel); }
+.version-card:hover { border-color: var(--qsl-muted); }
+.version-card.selected { border-color: var(--qsl-green); background: color-mix(in srgb, var(--qsl-green) 8%, var(--qsl-panel)); }
+.version-thumb { height: 90px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 8px; background: var(--qsl-panel-2); border-radius: var(--qsl-radius-sm); }
 .version-thumb img { max-height: 90px; max-width: 100%; object-fit: contain; }
-.version-placeholder { font-weight: 700; color: #c9c3b4; letter-spacing: 2px; }
-.version-name { font-size: 13px; color: #374151; word-break: break-all; }
-.version-check { position: absolute; top: 6px; right: 6px; color: #10b981; }
-.share-tip { font-size: 13px; color: #666; }
+.version-placeholder { font-weight: 700; color: var(--qsl-muted); letter-spacing: 2px; }
+.version-name { font-size: 13px; color: var(--qsl-ink); word-break: break-all; }
+.version-check { position: absolute; top: 6px; right: 6px; color: var(--qsl-green); }
+.share-tip { font-size: 13px; color: var(--qsl-muted); }
 
 @media (max-width: 640px) {
   .version-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-.field-tip { margin: 6px 0 0; font-size: 12px; color: #999; }
+.field-tip { margin: 6px 0 0; font-size: 12px; color: var(--qsl-muted); }
 
 </style>

@@ -29,14 +29,14 @@
         <!-- 加载中 -->
         <div v-if="loading && !info" class="card modern-card" style="text-align:center;padding:60px;">
           <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-          <p style="margin-top:12px;color:#666;">{{ t('status.loading') }}</p>
+          <p style="margin-top:12px;color:var(--qsl-muted);">{{ t('status.loading') }}</p>
         </div>
 
         <!-- 查询失败 -->
         <div v-if="error" class="card modern-card" style="text-align:center;padding:40px;">
-          <el-icon :size="48" color="#f56c6c"><CircleClose /></el-icon>
-          <h2 style="color:#f56c6c;margin:16px 0 8px;">{{ t('status.failedTitle') }}</h2>
-          <p style="color:#666;">{{ error }}</p>
+          <el-icon :size="48" color="var(--qsl-danger)"><CircleClose /></el-icon>
+          <h2 style="color:var(--qsl-danger);margin:16px 0 8px;">{{ t('status.failedTitle') }}</h2>
+          <p style="color:var(--qsl-muted);">{{ error }}</p>
           <el-button @click="reset" style="margin-top:16px;">{{ t('status.reenter') }}</el-button>
         </div>
 
@@ -367,31 +367,32 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 底色由主题主色派生，不再写死紫色渐变 */
 .public-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--qsl-primary) 0%, var(--qsl-primary-2) 100%);
   padding: 20px;
 }
 .public-container { max-width: 720px; margin: 0 auto; }
-.public-header { text-align: center; padding: 40px 0 30px; color: white; }
+.public-header { text-align: center; padding: 40px 0 30px; color: var(--qsl-on-primary); }
 .logo-section { display: flex; align-items: center; justify-content: center; gap: 16px; }
-.logo-icon { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; backdrop-filter: blur(10px); }
+.logo-icon { width: 60px; height: 60px; background: color-mix(in srgb, var(--qsl-on-primary) 20%, transparent); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; backdrop-filter: blur(10px); }
 .public-header h1 { margin: 0; font-size: 28px; font-weight: 600; }
 .subtitle { margin: 8px 0 0; opacity: 0.9; font-size: 16px; }
-.modern-card { background: white; border-radius: 20px; padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); margin-bottom: 24px; }
+.modern-card { background: var(--qsl-card-bg); border-radius: 20px; padding: 32px; box-shadow: var(--qsl-shadow-2); margin-bottom: 24px; }
 .form-actions { margin-top: 24px; text-align: center; }
 .submit-btn { width: 200px; height: 50px; font-size: 16px; border-radius: 12px; }
-.refresh-note { margin-top: 24px; text-align: center; color: #909399; font-size: 13px; }
-.public-footer { text-align: center; padding: 30px 0; color: rgba(255,255,255,0.7); font-size: 14px; }
+.refresh-note { margin-top: 24px; text-align: center; color: var(--qsl-muted); font-size: 13px; }
+.public-footer { text-align: center; padding: 30px 0; color: color-mix(in srgb, var(--qsl-on-primary) 70%, transparent); font-size: 14px; }
 
-.mail-block { margin-top: 28px; padding: 18px 22px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+.mail-block { margin-top: 28px; padding: 18px 22px; background: var(--qsl-panel-2); border: 1px solid var(--qsl-line); border-radius: var(--qsl-radius-card); }
 .mail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.mail-head b { color: #0f172a; font-weight: 700; }
-.addr-text { margin: 12px 0 0; padding: 14px 16px; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: #1e293b; }
-.sender-mail { font-family: monospace; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px; word-break: break-all; }
+.mail-head b { color: var(--qsl-heading); font-weight: 700; }
+.addr-text { margin: 12px 0 0; padding: 14px 16px; background: var(--qsl-panel); border: 1px dashed var(--qsl-line); border-radius: var(--qsl-radius); font-family: inherit; font-size: 14px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: var(--qsl-ink); }
+.sender-mail { font-family: monospace; font-weight: 700; color: var(--qsl-primary); background: var(--qsl-active-tint); border: 1px solid var(--qsl-line); padding: 2px 8px; border-radius: 6px; word-break: break-all; }
 .mail-actions { margin-top: 12px; }
 
-.notice-block { margin: -8px 0 24px; padding: 16px 20px; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #f59e0b; border-radius: 10px; }
-.notice-head { display: flex; align-items: center; gap: 8px; color: #92400e; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
-.notice-text { margin: 0; font-family: inherit; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: #78350f; }
+.notice-block { margin: -8px 0 24px; padding: 16px 20px; background: color-mix(in srgb, var(--qsl-yellow) 10%, var(--qsl-panel)); border: 1px solid color-mix(in srgb, var(--qsl-yellow) 35%, var(--qsl-line)); border-left: 4px solid var(--qsl-yellow); border-radius: var(--qsl-radius); }
+.notice-head { display: flex; align-items: center; gap: 8px; color: var(--qsl-ink); font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.notice-text { margin: 0; font-family: inherit; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-all; color: var(--qsl-ink); }
 </style>

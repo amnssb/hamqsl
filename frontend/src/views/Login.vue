@@ -303,9 +303,11 @@ function backToCredentials() {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(460px, 1.25fr);
-  background: var(--qsl-paper, #f8fafc);
+  background: var(--qsl-bg);
 }
 
+/* 左侧品牌板是固定的深色"海报"，不随主题变 —— 它是视觉标识，不是内容面。
+   颜色全部收敛到 --qsl-poster-* token（定义在 tokens.css），组件里不写裸色值。 */
 .login-aside {
   position: relative;
   display: flex;
@@ -313,8 +315,8 @@ function backToCredentials() {
   justify-content: space-between;
   padding: 48px;
   overflow: hidden;
-  color: #fff;
-  background: linear-gradient(145deg, #0b132b 0%, #1c2541 60%, #1e3a8a 100%);
+  color: var(--qsl-poster-text);
+  background: linear-gradient(145deg, var(--qsl-poster-from) 0%, var(--qsl-poster-mid) 60%, var(--qsl-poster-to) 100%);
 }
 
 .radio-waves {
@@ -332,7 +334,7 @@ function backToCredentials() {
   top: 50%;
   left: 50%;
   border-radius: 50%;
-  border: 1px solid rgba(96, 165, 250, 0.15);
+  border: 1px solid color-mix(in srgb, var(--qsl-poster-accent-2) 15%, transparent);
   transform: translate(-50%, -50%);
 }
 .wave-1 {
@@ -366,8 +368,8 @@ function backToCredentials() {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #3b82f6;
-  box-shadow: 0 0 16px #60a5fa;
+  background: var(--qsl-poster-accent);
+  box-shadow: 0 0 16px var(--qsl-poster-accent-2);
 }
 .station-pulse {
   position: absolute;
@@ -376,7 +378,7 @@ function backToCredentials() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid #60a5fa;
+  border: 2px solid var(--qsl-poster-accent-2);
   animation: core-pulse 2s infinite;
 }
 @keyframes core-pulse {
@@ -396,23 +398,23 @@ function backToCredentials() {
   place-items: center;
   width: 40px;
   height: 40px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: var(--qsl-poster-text);
+  background: linear-gradient(135deg, var(--qsl-poster-accent) 0%, var(--qsl-poster-to) 100%);
   border-radius: 10px;
   font-size: 20px;
   font-weight: 850;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--qsl-poster-accent) 40%, transparent);
 }
 .brand-text strong {
   display: block;
   font-size: 16px;
   letter-spacing: 0.08em;
-  color: #f8fafc;
+  color: var(--qsl-poster-text);
 }
 .brand-text span {
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: #93c5fd;
+  color: var(--qsl-poster-line);
   font-weight: 600;
 }
 
@@ -426,16 +428,16 @@ function backToCredentials() {
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.14em;
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(147, 197, 253, 0.3);
+  color: var(--qsl-poster-line);
+  background: color-mix(in srgb, var(--qsl-poster-accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--qsl-poster-line) 30%, transparent);
   padding: 4px 12px;
   border-radius: 9999px;
   margin-bottom: 20px;
 }
 .aside-kicker {
   margin: 0 0 18px;
-  color: #ffffff;
+  color: var(--qsl-poster-text);
   font-size: clamp(28px, 3.5vw, 42px);
   font-weight: 850;
   line-height: 1.1;
@@ -444,7 +446,7 @@ function backToCredentials() {
 .aside-copy {
   max-width: 380px;
   margin: 0;
-  color: #cbd5e1;
+  color: var(--qsl-poster-text-2);
   font-size: 14.5px;
   line-height: 1.75;
 }
@@ -455,13 +457,13 @@ function backToCredentials() {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #64748b;
+  color: var(--qsl-poster-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
 }
 .freq-tag {
-  color: #60a5fa;
+  color: var(--qsl-poster-accent-2);
   font-weight: 700;
 }
 .dot-sep {
@@ -477,11 +479,11 @@ function backToCredentials() {
 .login-card {
   width: 100%;
   max-width: 440px;
-  border-radius: 16px;
-  background: var(--qsl-panel);
+  border-radius: var(--qsl-radius-card);
+  background: var(--qsl-card-bg);
   border: 1px solid var(--qsl-line);
   padding: 36px 32px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--qsl-shadow-1);
 }
 
 .login-header {
@@ -566,8 +568,8 @@ function backToCredentials() {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--qsl-green, #10b981);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--qsl-green) 25%, transparent);
 }
 .back-home-btn {
   color: var(--el-color-primary);
