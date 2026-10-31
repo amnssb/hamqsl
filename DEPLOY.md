@@ -260,7 +260,14 @@ docker compose down             # 停止（数据在 ./data，不会丢）
 
 - `JWT_SECRET`：留空则首次启动自动生成（推荐，密钥随 `data` 卷持久）；多实例共享数据时才需手动指定同一个值
 - `ADMIN_USER` / `ADMIN_PASS`：初始管理员账号与口令。`ADMIN_PASS` 留空则首次启动随机生成并只打印一次日志
-- `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`：启用通行密钥（WebAuthn）。前者只填域名（如 `qsl.ba4slt.cn`），后者填完整来源（如 `https://qsl.ba4slt.cn`）。**两个都留空则功能关闭**，其余功能不受影响
+- `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`：启用通行密钥（WebAuthn）。前者只填域名（如 `qsl.ba4slt.cn`），后者填完整来源（如 `https://qsl.ba4slt.cn`）。**两个都留空则功能关闭**，其余功能不受影响。
+  推荐把这两行写进 `docker-compose.yml` 同目录的 `.env`（compose 会自动加载，`.env` 已被 gitignore），这样既满足 1Panel 编排单文件管理，又不会和 `git pull` 冲突：
+
+  ```bash
+  # /opt/qsl/.env
+  WEBAUTHN_RP_ID=qsl.ba4slt.cn
+  WEBAUTHN_ORIGINS=https://qsl.ba4slt.cn
+  ```
 - `REQUIRE_MFA=true`：强制二步验证，未绑定第二因子时禁止导出备份、改 SMTP 等敏感操作
 - `ADMIN_RESET=1`：逃生开关，见下一节
 - 默认 SQLite（`./data/qsl.db`）；要切 PostgreSQL，放开 compose 里 `DB_*` 注释并加一个 postgres 服务即可（代码已支持）

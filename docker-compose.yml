@@ -22,10 +22,14 @@ services:
       # - ADMIN_USER=admin
       # - ADMIN_PASS=
       # 通行密钥（WebAuthn）：两个都配才生效，留空则功能关闭、其余不受影响。
+      # 具体值写在同目录的 .env 里（已被 .gitignore 排除），这样仓库保持通用，
+      # 在 1Panel 编排里看得到、改也不会和 git pull 打架：
+      #   WEBAUTHN_RP_ID=qsl.ba4slt.cn
+      #   WEBAUTHN_ORIGINS=https://qsl.ba4slt.cn
       # RP ID 只填域名（不含协议与端口），必须与浏览器地址栏域名一致；
       # 绑定后换域名会让已有密钥全部失效 —— 这是 WebAuthn 的硬约束。
-      # - WEBAUTHN_RP_ID=qsl.ba4slt.cn
-      # - WEBAUTHN_ORIGINS=https://qsl.ba4slt.cn
+      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
+      - WEBAUTHN_ORIGINS=${WEBAUTHN_ORIGINS:-}
       # 强制二步验证：true 时未绑定第二因子将无法导出备份、改 SMTP 等敏感操作
       # - REQUIRE_MFA=true
       # 逃生开关：设为 1 启动会清空管理员的通行密钥与二步验证，并重置成一次性随机口令
