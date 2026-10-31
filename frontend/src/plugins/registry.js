@@ -49,7 +49,7 @@ export const themeRegistry = {
     version: '2.0.0',
     description: '深色工作台皮肤：深蓝黑底、暖橙点缀，后台与公开页同步生效。',
     swatches: ['#0f151c', '#16202b', '#ff7a45', '#3aa396'],
-    // 纯配色主题，不需要装饰层
+    skin: () => import('../styles/themes/dark.css'),
   },
   theme_paper: {
     name: 'theme_paper',
@@ -57,7 +57,7 @@ export const themeRegistry = {
     version: '2.0.0',
     description: '仿老式 QSL 卡片：暖黄纸面、墨黑文字、砖红点缀，适合打印与怀旧风格。',
     swatches: ['#efe6d0', '#faf5e8', '#b4552d', '#5e7d4e'],
-    // 纯配色主题，不需要装饰层
+    skin: () => import('../styles/themes/paper.css'),
   },
 }
 

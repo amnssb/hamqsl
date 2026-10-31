@@ -1,10 +1,24 @@
 /* =============================================================================
-   theme_ba · 蔚蓝档案 📘 —— Layer 3 皮肤（只放装饰，不放配色）
-   =============================================================================
-   规则全部限定在 html[data-theme="theme_ba"] 下，切走即失效。
-   ========================================================================== */
+   theme_ba · 蔚蓝档案 📘 — Layer 3 皮肤（基底蔚蓝 × 晨光白 × 暖黄点睛）
+   ============================================================================= */
 
-/* 招牌折射菱形网格纹理（周期 12px，透明度 ≤0.04） */
+/* 1. 容器全透：透出基底天空色与折射菱形网格 */
+html[data-theme="theme_ba"] .layout-container,
+html[data-theme="theme_ba"] .main-container,
+html[data-theme="theme_ba"] .layout-main,
+html[data-theme="theme_ba"] .portal-page,
+html[data-theme="theme_ba"] .login-container {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+html[data-theme="theme_ba"] body {
+  background: linear-gradient(160deg, #F0F7FF 0%, #E8F4FD 40%, #FDFEFF 100%) !important;
+  color: #2C3E50 !important;
+  min-height: 100vh;
+}
+
+/* 2. 招牌折射菱形网格纹理（周期 12px，透明度 ≤0.04） */
 html[data-theme="theme_ba"] body::before {
   content: '';
   position: fixed;
@@ -16,19 +30,19 @@ html[data-theme="theme_ba"] body::before {
       45deg,
       transparent,
       transparent 12px,
-      color-mix(in srgb, var(--qsl-primary) 4%, transparent) 12px,
-      color-mix(in srgb, var(--qsl-primary) 4%, transparent) 13px
+      rgba(69, 175, 255, 0.035) 12px,
+      rgba(69, 175, 255, 0.035) 13px
     ),
     repeating-linear-gradient(
       -45deg,
       transparent,
       transparent 12px,
-      color-mix(in srgb, var(--qsl-primary) 4%, transparent) 12px,
-      color-mix(in srgb, var(--qsl-primary) 4%, transparent) 13px
+      rgba(69, 175, 255, 0.035) 12px,
+      rgba(69, 175, 255, 0.035) 13px
     );
 }
 
-/* 右上角光环（Halo）柔光符号 */
+/* 3. 右上角光环（Halo）柔光符号 */
 html[data-theme="theme_ba"] body::after {
   content: '';
   position: fixed;
@@ -41,27 +55,33 @@ html[data-theme="theme_ba"] body::after {
   pointer-events: none;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--qsl-primary) 12%, transparent) 0%,
-    color-mix(in srgb, var(--qsl-primary) 3%, transparent) 60%,
+    rgba(69, 175, 255, 0.12) 0%,
+    rgba(69, 175, 255, 0.03) 60%,
     transparent 70%
   );
-  border: 2px dashed color-mix(in srgb, var(--qsl-primary) 22%, transparent);
+  box-shadow: inset 0 0 30px rgba(69, 175, 255, 0.15), 0 0 40px rgba(69, 175, 255, 0.10);
+  border: 2px dashed rgba(69, 175, 255, 0.22);
   opacity: 0.85;
 }
 
-/* 平行四边形斜切按键（skewX(-12deg)，内层文字反向回正） */
+/* 4. 平行四边形斜切按键（主按钮 skewX(-12deg)，内层文字反向回正） */
 html[data-theme="theme_ba"] .el-button--primary,
 html[data-theme="theme_ba"] .hero-btn-primary,
 html[data-theme="theme_ba"] .login-button {
   transform: skewX(-12deg) !important;
   border-radius: 4px !important;
+  background: linear-gradient(180deg, #6BC8FF 0%, #3E9EF8 100%) !important;
+  border: 1px solid #45AFFF !important;
+  box-shadow: 0 4px 14px rgba(62, 158, 248, 0.3) !important;
   font-weight: 700 !important;
   letter-spacing: 0.02em !important;
+  color: #ffffff !important;
 }
 html[data-theme="theme_ba"] .el-button--primary:hover,
 html[data-theme="theme_ba"] .hero-btn-primary:hover,
 html[data-theme="theme_ba"] .login-button:hover {
   filter: brightness(1.08) !important;
+  box-shadow: 0 6px 18px rgba(62, 158, 248, 0.45) !important;
 }
 html[data-theme="theme_ba"] .el-button--primary > *,
 html[data-theme="theme_ba"] .hero-btn-primary > *,
@@ -72,7 +92,7 @@ html[data-theme="theme_ba"] .login-button > * {
   justify-content: center;
 }
 
-/* 标题黄色下划线装饰（BA 标志性黄色点睛） */
+/* 5. 标题黄色下划线装饰（BA 标志性黄色点睛） */
 html[data-theme="theme_ba"] .page-heading h1,
 html[data-theme="theme_ba"] .hero-title,
 html[data-theme="theme_ba"] .card-header h2 {
@@ -85,24 +105,106 @@ html[data-theme="theme_ba"] .section-heading h2::after {
   display: block;
   width: 44px;
   height: 3.5px;
-  background: var(--qsl-yellow);
+  background: #FFD700;
   border-radius: 2px;
   margin-top: 6px;
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--qsl-yellow) 40%, transparent);
+  box-shadow: 0 1px 4px rgba(255, 215, 0, 0.4);
 }
 
-/* 品牌后缀 */
+/* 6. 赛璐璐轻透卡片与面板（柔和浅蓝投影，细边框） */
+html[data-theme="theme_ba"] .el-card,
+html[data-theme="theme_ba"] .stat-card,
+html[data-theme="theme_ba"] .workflow-card,
+html[data-theme="theme_ba"] .modern-card,
+html[data-theme="theme_ba"] .service-card,
+html[data-theme="theme_ba"] .stats-panel,
+html[data-theme="theme_ba"] .rcard,
+html[data-theme="theme_ba"] .login-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(69, 175, 255, 0.22) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(69, 175, 255, 0.08), 0 2px 8px rgba(69, 175, 255, 0.04) !important;
+}
+html[data-theme="theme_ba"] .el-card__header,
+html[data-theme="theme_ba"] .card-header {
+  border-bottom: 1px solid rgba(69, 175, 255, 0.16) !important;
+}
+
+/* 7. 顶栏与侧栏：清爽晨光蓝白 */
+html[data-theme="theme_ba"] .layout-header {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom: 1px solid rgba(69, 175, 255, 0.20) !important;
+  backdrop-filter: blur(12px) !important;
+}
+html[data-theme="theme_ba"] .layout-aside {
+  background: rgba(240, 247, 255, 0.95) !important;
+  border-right: 1px solid rgba(69, 175, 255, 0.20) !important;
+  box-shadow: 2px 0 12px rgba(69, 175, 255, 0.06) !important;
+}
+html[data-theme="theme_ba"] .side-menu .el-menu-item,
+html[data-theme="theme_ba"] .side-menu .el-sub-menu__title {
+  color: #5A6B7C !important;
+}
+html[data-theme="theme_ba"] .side-menu .el-menu-item:hover,
+html[data-theme="theme_ba"] .side-menu .el-sub-menu__title:hover {
+  background: rgba(69, 175, 255, 0.1) !important;
+  color: #006EB0 !important;
+}
+html[data-theme="theme_ba"] .side-menu .el-menu-item.is-active {
+  background: #45AFFF !important;
+  color: #FFFFFF !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(69, 175, 255, 0.3) !important;
+}
+
+/* 8. 品牌与输入框 */
+html[data-theme="theme_ba"] .brand-mark,
+html[data-theme="theme_ba"] .logo-icon {
+  background: linear-gradient(135deg, #45AFFF, #006EB0) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(69, 175, 255, 0.35) !important;
+}
 html[data-theme="theme_ba"] .brand::after,
 html[data-theme="theme_ba"] .portal-brand::after {
   content: '✦ SCHALE';
-  color: var(--qsl-primary);
+  color: #45AFFF;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
   margin-left: 8px;
   font-family: monospace, sans-serif;
 }
-
 html[data-theme="theme_ba"] .brand.collapsed::after {
   display: none;
+}
+
+html[data-theme="theme_ba"] .el-input__wrapper,
+html[data-theme="theme_ba"] .el-textarea__inner,
+html[data-theme="theme_ba"] .el-select__wrapper {
+  background: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(69, 175, 255, 0.28) inset !important;
+  border-radius: 8px !important;
+}
+html[data-theme="theme_ba"] .el-input__wrapper.is-focus,
+html[data-theme="theme_ba"] .el-select__wrapper.is-focused,
+html[data-theme="theme_ba"] .el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px #45AFFF inset, 0 0 0 3px rgba(69, 175, 255, 0.2) !important;
+}
+
+html[data-theme="theme_ba"] .el-table {
+  --el-table-header-bg-color: #f0f7fe !important;
+  --el-table-row-hover-bg-color: rgba(69, 175, 255, 0.08) !important;
+  --el-table-border-color: rgba(69, 175, 255, 0.18) !important;
+  background: #ffffff !important;
+}
+html[data-theme="theme_ba"] .el-table th.el-table__cell {
+  color: #006EB0 !important;
+}
+
+html[data-theme="theme_ba"] .el-dialog,
+html[data-theme="theme_ba"] .el-message-box {
+  border-radius: 16px !important;
+  border: 1px solid rgba(69, 175, 255, 0.25) !important;
+  box-shadow: 0 14px 34px rgba(69, 175, 255, 0.14) !important;
 }

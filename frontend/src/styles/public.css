@@ -60,10 +60,10 @@
   margin-bottom: 24px;
   padding: 28px;
   border: 1px solid var(--qsl-line);
-  border-radius: var(--qsl-radius-card);
+  border-radius: 16px;
   background: var(--qsl-card-bg);
   color: var(--qsl-ink);
-  box-shadow: var(--qsl-shadow-1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
 }
 
 .card-header {
@@ -150,17 +150,17 @@
   gap: 16px;
   padding: 18px 20px;
   border: 1px solid var(--qsl-line);
-  border-radius: var(--qsl-radius-card);
-  background: var(--qsl-card-bg);
+  border-radius: 12px;
+  background: var(--qsl-panel);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--qsl-shadow-1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .record-item:hover, .card-item:hover {
-  border-color: var(--qsl-primary);
+  border-color: var(--el-color-primary, #2563eb);
   background: var(--qsl-panel-2);
   transform: translateY(-1px);
-  box-shadow: var(--qsl-shadow-2);
+  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
 }
 
 .record-code, .card-code {

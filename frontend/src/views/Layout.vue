@@ -136,12 +136,12 @@ function handleLogout() { auth.logout(); router.push('/login') }
   display: grid;
   place-items: center;
   flex: none;
-  background: var(--qsl-primary);
+  background: var(--el-color-primary, #2563eb);
   border-radius: 10px;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--qsl-chrome-bg) 40%, transparent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .brand-glyph {
-  color: var(--qsl-on-primary);
+  color: #ffffff;
   font-size: 20px;
   font-weight: 850;
   letter-spacing: -0.02em;
@@ -154,7 +154,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
   color: var(--qsl-chrome-text);
 }
 .brand-title strong {
-  color: var(--qsl-primary);
+  color: #60a5fa;
   font-weight: 850;
   margin-left: 2px;
 }
@@ -188,9 +188,9 @@ function handleLogout() { auth.logout(); router.push('/login') }
   background: color-mix(in srgb, var(--qsl-chrome-text) 8%, transparent);
 }
 :deep(.side-menu .el-menu-item.is-active) {
-  color: var(--qsl-on-primary);
-  background: var(--qsl-primary);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--qsl-chrome-bg) 40%, transparent);
+  color: #ffffff;
+  background: var(--el-color-primary, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
   font-weight: 650;
 }
 :deep(.side-menu .el-menu) {

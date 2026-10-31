@@ -179,12 +179,12 @@ onMounted(async () => {
   place-items: center;
   width: 36px;
   height: 36px;
-  color: var(--qsl-on-primary);
-  background: var(--qsl-primary);
+  color: #ffffff;
+  background: var(--el-color-primary, #2563eb);
   border-radius: 10px;
   font-size: 18px;
   font-weight: 850;
-  box-shadow: var(--qsl-shadow-1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 .brand-info strong {
   display: block;
@@ -452,9 +452,9 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.service-icon.blue { color: var(--tone-blue); background: color-mix(in srgb, var(--tone-blue) 12%, transparent); }
-.service-icon.indigo { color: var(--tone-indigo); background: color-mix(in srgb, var(--tone-indigo) 12%, transparent); }
-.service-icon.emerald { color: var(--tone-emerald); background: color-mix(in srgb, var(--tone-emerald) 12%, transparent); }
+.service-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
+.service-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
+.service-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
 
 .service-text {
   flex: 1;

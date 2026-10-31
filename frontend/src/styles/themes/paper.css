@@ -1,0 +1,99 @@
+/* =============================================================================
+   theme_paper · 纸墨主题 — Layer 3 皮肤（老式 QSL 卡片纸感 × 暖黄 × 砖红）
+   ============================================================================= */
+
+html[data-theme="theme_paper"] body {
+  background: #efe6d0 !important;
+  color: #2b2317 !important;
+}
+
+/* 纸面输入控件 */
+html[data-theme="theme_paper"] .el-input__wrapper,
+html[data-theme="theme_paper"] .el-textarea__inner,
+html[data-theme="theme_paper"] .el-select__wrapper {
+  background: #fbf7ec !important;
+  box-shadow: 0 0 0 1px #cfc2a4 inset !important;
+  color: #2b2317 !important;
+}
+
+/* 纸墨表格 */
+html[data-theme="theme_paper"] .el-table {
+  --el-table-header-bg-color: #e7dcc2 !important;
+  --el-table-row-hover-bg-color: #f3ead4 !important;
+  --el-bg-color: #faf5e8 !important;
+  --el-table-tr-bg-color: #faf5e8 !important;
+  --el-table-border-color: #cfc2a4 !important;
+  background: #faf5e8 !important;
+  color: #2b2317 !important;
+}
+html[data-theme="theme_paper"] .el-table th.el-table__cell {
+  background-color: #e7dcc2 !important;
+  color: #4a3b26 !important;
+  border-bottom-color: #cfc2a4 !important;
+}
+html[data-theme="theme_paper"] .el-table td.el-table__cell {
+  background-color: #faf5e8 !important;
+  border-bottom-color: #cfc2a4 !important;
+  color: #2b2317 !important;
+}
+
+/* 纸质卡片与容器 */
+html[data-theme="theme_paper"] .el-card,
+html[data-theme="theme_paper"] .stat-card,
+html[data-theme="theme_paper"] .workflow-card,
+html[data-theme="theme_paper"] .modern-card,
+html[data-theme="theme_paper"] .service-card,
+html[data-theme="theme_paper"] .stats-panel,
+html[data-theme="theme_paper"] .rcard,
+html[data-theme="theme_paper"] .login-card {
+  background: #faf5e8 !important;
+  border-color: #cfc2a4 !important;
+  box-shadow: 0 2px 8px rgba(74, 59, 38, 0.06) !important;
+  color: #2b2317 !important;
+}
+html[data-theme="theme_paper"] .el-card__header {
+  border-bottom-color: #cfc2a4 !important;
+  color: #4a3b26 !important;
+}
+
+/* 顶栏与侧栏 */
+html[data-theme="theme_paper"] .layout-header {
+  background: #faf5e8 !important;
+  border-bottom-color: #cfc2a4 !important;
+}
+html[data-theme="theme_paper"] .layout-aside {
+  background: #362a1c !important;
+  border-right-color: #cfc2a4 !important;
+}
+html[data-theme="theme_paper"] .side-menu .el-menu-item.is-active {
+  background: #b4552d !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="theme_paper"] .user-chip,
+html[data-theme="theme_paper"] .admin-link,
+html[data-theme="theme_paper"] .hero-btn-secondary {
+  background: #efe6d0 !important;
+  border-color: #cfc2a4 !important;
+  color: #2b2317 !important;
+}
+html[data-theme="theme_paper"] .record-item,
+html[data-theme="theme_paper"] .card-item {
+  background: #faf5e8 !important;
+  border-color: #cfc2a4 !important;
+}
+html[data-theme="theme_paper"] .record-item:hover,
+html[data-theme="theme_paper"] .card-item:hover {
+  background: #efe6d0 !important;
+  border-color: #b4552d !important;
+}
+
+html[data-theme="theme_paper"] .el-button--primary {
+  background: #b4552d !important;
+  border-color: #b4552d !important;
+  color: #ffffff !important;
+}
+html[data-theme="theme_paper"] .el-button--primary:hover {
+  background: #9a4726 !important;
+  border-color: #9a4726 !important;
+}

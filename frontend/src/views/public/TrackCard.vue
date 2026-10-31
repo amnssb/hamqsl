@@ -133,30 +133,44 @@ onMounted(() => {
 }
 
 .modern-card {
-  background: var(--qsl-card-bg);
+  background: white;
   border-radius: 20px;
   padding: 32px;
-  box-shadow: var(--qsl-shadow-2);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
   margin-bottom: 24px;
+}
+html[data-theme="theme_dark"] .modern-card {
+  background: #16202b;
+  border: 1px solid #2a3644;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
 
 .card-header {
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--qsl-line);
+  border-bottom: 1px solid #f0f0f0;
+}
+html[data-theme="theme_dark"] .card-header {
+  border-bottom: 1px solid #2a3644;
 }
 
 .card-header h2 {
   margin: 0 0 8px;
   font-size: 22px;
-  color: var(--qsl-heading);
+  color: #1a1a1a;
+}
+html[data-theme="theme_dark"] .card-header h2 {
+  color: #f1f0ec;
 }
 
 .carrier-tip {
   margin: 0;
-  color: var(--qsl-muted);
+  color: #909399;
   font-size: 13px;
   line-height: 1.7;
+}
+html[data-theme="theme_dark"] .carrier-tip {
+  color: #8f9aa6;
 }
 
 .form-actions {
@@ -171,8 +185,10 @@ onMounted(() => {
   border-radius: 12px;
 }
 
-.tip-card b { color: var(--qsl-heading); font-size: 14px; }
-.tip-card p { margin: 8px 0 10px; color: var(--qsl-muted); font-size: 13px; line-height: 1.7; }
+.tip-card b { color: #1a1a1a; font-size: 14px; }
+html[data-theme="theme_dark"] .tip-card b { color: #f1f0ec; }
+.tip-card p { margin: 8px 0 10px; color: #909399; font-size: 13px; line-height: 1.7; }
+html[data-theme="theme_dark"] .tip-card p { color: #8f9aa6; }
 
 .public-footer {
   text-align: center;

@@ -1,10 +1,13 @@
 /* =============================================================================
-   theme_rhodes · 罗德岛终端 📐 —— Layer 3 皮肤（只放装饰，不放配色）
-   =============================================================================
-   规则全部限定在 html[data-theme="theme_rhodes"] 下，切走即失效。
-   ========================================================================== */
+   theme_rhodes · 罗德岛终端 📐 — Layer 3 皮肤（工业美学 × 精密标线 × 品牌青）
+   ============================================================================= */
 
-/* 工业字距与更硬的字重 */
+/* 1. 浅色纸感基座与工业字距 */
+html[data-theme="theme_rhodes"] body {
+  background: #F4F5F6 !important;
+  color: #141517 !important;
+}
+
 html[data-theme="theme_rhodes"] h1,
 html[data-theme="theme_rhodes"] h2,
 html[data-theme="theme_rhodes"] .hero-title,
@@ -20,7 +23,7 @@ html[data-theme="theme_rhodes"] .brand-sub {
   font-family: monospace, sans-serif !important;
 }
 
-/* 工业斜纹警戒条（Card Header 点睛） */
+/* 2. 工业斜纹警戒条（Card Header / Section Heading 点睛） */
 html[data-theme="theme_rhodes"] .card-header::after,
 html[data-theme="theme_rhodes"] .section-heading::after {
   content: '';
@@ -29,21 +32,21 @@ html[data-theme="theme_rhodes"] .section-heading::after {
   width: 42px;
   background: repeating-linear-gradient(
     -45deg,
-    var(--qsl-primary),
-    var(--qsl-primary) 3px,
+    #2FA6DE,
+    #2FA6DE 3px,
     transparent 3px,
     transparent 6px
   );
   margin-top: 6px;
 }
 
-/* 工业黑底 chip 铭牌标签 */
+/* 3. 工业黑底 chip 铭牌标签 */
 html[data-theme="theme_rhodes"] .live-pill,
 html[data-theme="theme_rhodes"] .welcome-badge,
 html[data-theme="theme_rhodes"] .aside-pill,
 html[data-theme="theme_rhodes"] .status-tag {
-  background: var(--qsl-chrome-bg) !important;
-  color: var(--qsl-chrome-text) !important;
+  background: #171B26 !important;
+  color: #FFFFFF !important;
   border-radius: 2px !important;
   font-weight: 700 !important;
   font-size: 11px !important;
@@ -52,24 +55,108 @@ html[data-theme="theme_rhodes"] .status-tag {
   border: none !important;
 }
 
-/* 品牌后缀 */
+/* 4. 精密工业卡片：硬朗小圆角 + 发丝级标线 */
+html[data-theme="theme_rhodes"] .el-card,
+html[data-theme="theme_rhodes"] .stat-card,
+html[data-theme="theme_rhodes"] .workflow-card,
+html[data-theme="theme_rhodes"] .modern-card,
+html[data-theme="theme_rhodes"] .service-card,
+html[data-theme="theme_rhodes"] .stats-panel,
+html[data-theme="theme_rhodes"] .rcard,
+html[data-theme="theme_rhodes"] .login-card {
+  background: #FFFFFF !important;
+  border: 1px solid #D0D4DA !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="theme_rhodes"] .el-card__header {
+  border-bottom: 1px solid #D0D4DA !important;
+  font-weight: 750 !important;
+  color: #171B26 !important;
+}
+
+/* 5. 罗德岛指令终端顶栏与侧栏 */
+html[data-theme="theme_rhodes"] .layout-aside {
+  background: #171B26 !important;
+  border-right: 1px solid #2C313C !important;
+}
+html[data-theme="theme_rhodes"] .side-menu .el-menu-item {
+  border-radius: 2px !important;
+}
+html[data-theme="theme_rhodes"] .side-menu .el-menu-item.is-active {
+  background: #2FA6DE !important;
+  color: #FFFFFF !important;
+  border-radius: 2px !important;
+}
+html[data-theme="theme_rhodes"] .layout-header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #D0D4DA !important;
+}
+html[data-theme="theme_rhodes"] .brand-mark,
+html[data-theme="theme_rhodes"] .logo-icon {
+  background: #171B26 !important;
+  border: 1.5px solid #2FA6DE !important;
+  border-radius: 2px !important;
+  color: #2FA6DE !important;
+}
+
+/* 6. 操作按钮：品牌青色，硬直边缘 */
+html[data-theme="theme_rhodes"] .el-button {
+  border-radius: 2px !important;
+}
+html[data-theme="theme_rhodes"] .el-button--primary,
+html[data-theme="theme_rhodes"] .hero-btn-primary,
+html[data-theme="theme_rhodes"] .login-button {
+  background: #2FA6DE !important;
+  border-color: #2FA6DE !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  border-radius: 2px !important;
+  box-shadow: 0 2px 6px rgba(47, 166, 222, 0.25) !important;
+}
+html[data-theme="theme_rhodes"] .el-button--primary:hover,
+html[data-theme="theme_rhodes"] .hero-btn-primary:hover,
+html[data-theme="theme_rhodes"] .login-button:hover {
+  background: #238fc2 !important;
+  border-color: #238fc2 !important;
+}
+
+/* 7. 输入控件与表格 */
+html[data-theme="theme_rhodes"] .el-input__wrapper,
+html[data-theme="theme_rhodes"] .el-textarea__inner,
+html[data-theme="theme_rhodes"] .el-select__wrapper {
+  border-radius: 2px !important;
+  box-shadow: 0 0 0 1px #D0D4DA inset !important;
+}
+html[data-theme="theme_rhodes"] .el-input__wrapper.is-focus,
+html[data-theme="theme_rhodes"] .el-select__wrapper.is-focused,
+html[data-theme="theme_rhodes"] .el-textarea__inner:focus {
+  box-shadow: 0 0 0 1.5px #2FA6DE inset, 0 0 0 3px rgba(47, 166, 222, 0.18) !important;
+}
+html[data-theme="theme_rhodes"] .el-table {
+  --el-table-header-bg-color: #EBECEF !important;
+  --el-table-row-hover-bg-color: rgba(47, 166, 222, 0.08) !important;
+  --el-table-border-color: #D0D4DA !important;
+  border-radius: 3px !important;
+}
+html[data-theme="theme_rhodes"] .el-table th.el-table__cell {
+  color: #171B26 !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.02em;
+}
+
+/* 8. 品牌后缀 */
 html[data-theme="theme_rhodes"] .brand::after,
 html[data-theme="theme_rhodes"] .portal-brand::after {
   content: '◆ RHODES';
-  color: var(--qsl-primary);
+  color: #2FA6DE;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
   margin-left: 8px;
   font-family: monospace, sans-serif;
 }
-
 html[data-theme="theme_rhodes"] .brand.collapsed::after {
   display: none;
-}
-
-/* 硬直边缘：按钮与小徽章不收圆角 */
-html[data-theme="theme_rhodes"] .el-button,
-html[data-theme="theme_rhodes"] .el-tag {
-  border-radius: 2px !important;
 }

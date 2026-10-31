@@ -1,0 +1,140 @@
+/* =============================================================================
+   theme_dark · 暗色工作台 — Layer 3 皮肤（深邃护眼 × 暖橙光晕 × 细腻暗调）
+   ============================================================================= */
+
+html[data-theme="theme_dark"] body {
+  background: #0f151c !important;
+  color: #e6e4df !important;
+}
+
+/* 现代暗色滚动条 */
+html[data-theme="theme_dark"] ::-webkit-scrollbar-thumb {
+  background: #2a3644;
+}
+html[data-theme="theme_dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #3d4e61;
+}
+
+/* 输入控件：深色低反光 */
+html[data-theme="theme_dark"] .el-input__wrapper,
+html[data-theme="theme_dark"] .el-textarea__inner,
+html[data-theme="theme_dark"] .el-select__wrapper {
+  background: #101820 !important;
+  box-shadow: 0 0 0 1px #2a3644 inset !important;
+  color: #e6e4df !important;
+}
+html[data-theme="theme_dark"] .el-input__wrapper:hover,
+html[data-theme="theme_dark"] .el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px #3d4e61 inset !important;
+}
+html[data-theme="theme_dark"] .el-input__inner,
+html[data-theme="theme_dark"] .el-textarea__inner {
+  color: #e6e4df !important;
+}
+
+/* 暗色表格 */
+html[data-theme="theme_dark"] .el-table {
+  --el-table-header-bg-color: #121b24 !important;
+  --el-table-row-hover-bg-color: #1a2736 !important;
+  --el-bg-color: #16202b !important;
+  --el-table-tr-bg-color: #16202b !important;
+  --el-table-border-color: #2a3644 !important;
+  background: #16202b !important;
+  color: #e6e4df !important;
+}
+html[data-theme="theme_dark"] .el-table th.el-table__cell {
+  background-color: #121b24 !important;
+  color: #f1f0ec !important;
+  border-bottom-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .el-table td.el-table__cell {
+  background-color: #16202b !important;
+  color: #e6e4df !important;
+  border-bottom-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .el-table--border {
+  border-color: #2a3644 !important;
+}
+
+/* 暗色卡片与容器：坚实深黑底 + 细腻暗线 + 沉浸深度投影 */
+html[data-theme="theme_dark"] .el-card,
+html[data-theme="theme_dark"] .stat-card,
+html[data-theme="theme_dark"] .workflow-card,
+html[data-theme="theme_dark"] .modern-card,
+html[data-theme="theme_dark"] .service-card,
+html[data-theme="theme_dark"] .stats-panel,
+html[data-theme="theme_dark"] .rcard,
+html[data-theme="theme_dark"] .login-card {
+  background: #16202b !important;
+  border-color: #2a3644 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+  color: #e6e4df !important;
+}
+html[data-theme="theme_dark"] .el-card__header {
+  border-bottom-color: #2a3644 !important;
+  color: #f1f0ec !important;
+}
+
+/* 弹窗与浮层 */
+html[data-theme="theme_dark"] .el-dialog,
+html[data-theme="theme_dark"] .el-message-box {
+  background: #16202b !important;
+  border-color: #2a3644 !important;
+  color: #e6e4df !important;
+}
+html[data-theme="theme_dark"] .el-dialog__header,
+html[data-theme="theme_dark"] .el-dialog__footer {
+  border-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .el-dialog__title {
+  color: #f1f0ec !important;
+}
+html[data-theme="theme_dark"] .el-popper.is-light {
+  background: #16202b !important;
+  border-color: #2a3644 !important;
+  color: #e6e4df !important;
+}
+
+/* 顶栏与侧栏 */
+html[data-theme="theme_dark"] .layout-header {
+  background: #16202b !important;
+  border-bottom-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .layout-aside {
+  background: #0b1017 !important;
+  border-right-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .side-menu .el-menu-item.is-active {
+  background: #ff7a45 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(255, 122, 69, 0.35) !important;
+}
+
+html[data-theme="theme_dark"] .user-chip,
+html[data-theme="theme_dark"] .admin-link,
+html[data-theme="theme_dark"] .hero-btn-secondary {
+  background: #101820 !important;
+  border-color: #2a3644 !important;
+  color: #e6e4df !important;
+}
+html[data-theme="theme_dark"] .record-item,
+html[data-theme="theme_dark"] .card-item {
+  background: #16202b !important;
+  border-color: #2a3644 !important;
+}
+html[data-theme="theme_dark"] .record-item:hover,
+html[data-theme="theme_dark"] .card-item:hover {
+  background: #101820 !important;
+  border-color: #ff7a45 !important;
+}
+
+/* 主按钮 */
+html[data-theme="theme_dark"] .el-button--primary {
+  background: #ff7a45 !important;
+  border-color: #ff7a45 !important;
+  box-shadow: 0 2px 10px rgba(255, 122, 69, 0.3) !important;
+}
+html[data-theme="theme_dark"] .el-button--primary:hover {
+  background: #e9632b !important;
+  border-color: #e9632b !important;
+}
