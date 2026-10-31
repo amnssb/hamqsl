@@ -15,77 +15,72 @@ import (
 	"qsl-management/pkg/response"
 )
 
-// ExportHandler 数据备份导出：全部业务表打包为 JSON 下载
+/*
+数据备份导出与导入。
+
+导哪些表、清哪些表，全部由 model.Tables 决定——这里不再列一遍表名，
+否则加一张新表就要在三个地方同时改，漏一处就是"备份里没有它"或"导入后旧数据残留"。
+
+两条刻意的例外：
+  - users / passkeys 只导出、不导入。口令哈希本来就不进备份，恢复了也登不进去；
+    passkeys 的 user_id 在导入后可能悬空。宁可让管理员重新绑定，也不要把自己锁在门外。
+  - system_settings 导入时逐条跳过被剔除的敏感键，并回填当前值。
+
+调用示例：
+
+	GET  /api/admin/export                     → 下载 qsl-backup-时间戳.json
+	POST /api/admin/import  (multipart: file)  → 单事务覆盖，失败整体回滚
+*/
 type ExportHandler struct{ db *gorm.DB }
 
 func NewExportHandler(db *gorm.DB) *ExportHandler { return &ExportHandler{db: db} }
 
-func (h *ExportHandler) All(c *gin.Context) {
-	var users []model.User
-	var profiles []model.StationProfile
-	var cards []model.StationCard
-	var equipments []model.StationEquipment
-	var qsoRecords []model.QsoRecord
-	var cardRecords []model.CardRecord
-	var addresses []model.AddressBookEntry
-	var bureaus []model.BureauEntry
-	var exchanges []model.ExchangeRequest
-	var offlineActivities []model.OfflineActivity
-	var receives []model.ReceiveRecord
-	var settings []model.SystemSetting
-	var audits []model.AuditLog
+// importSecretKeys 导出时被剔除的敏感配置：导入时从当前库保留，避免恢复备份后邮件功能失效。
+var importSecretKeys = []string{"smtp_password", "kuaidi100_key", "kuaidi100_secret"}
 
-	h.db.Find(&users)
-	h.db.Find(&profiles)
-	h.db.Find(&cards)
-	h.db.Find(&equipments)
-	h.db.Find(&qsoRecords)
-	h.db.Find(&cardRecords)
-	h.db.Find(&addresses)
-	h.db.Find(&bureaus)
-	h.db.Find(&exchanges)
-	h.db.Find(&offlineActivities)
-	h.db.Find(&receives)
-	h.db.Find(&settings)
-	h.db.Find(&audits)
-
-	// 剔除敏感配置（SMTP 密码等），避免明文随备份泄露
-	safeSettings := make([]gin.H, 0, len(settings))
-	for _, s := range settings {
-		v := s.Value
-		switch s.Key {
-		case "smtp_password", "kuaidi100_key", "kuaidi100_secret":
-			v = ""
+func isSecretKey(key string) bool {
+	for _, k := range importSecretKeys {
+		if k == key {
+			return true
 		}
-		safeSettings = append(safeSettings, gin.H{"key": s.Key, "value": v})
+	}
+	return false
+}
+
+func (h *ExportHandler) All(c *gin.Context) {
+	tables := gin.H{}
+	for _, t := range model.Tables {
+		if !t.Backup {
+			continue
+		}
+		if t.Key == "system_settings" {
+			// 敏感配置清空后再导出，避免明文随备份泄露
+			var settings []model.SystemSetting
+			h.db.Find(&settings)
+			safe := make([]gin.H, 0, len(settings))
+			for _, s := range settings {
+				v := s.Value
+				if isSecretKey(s.Key) {
+					v = ""
+				}
+				safe = append(safe, gin.H{"key": s.Key, "value": v})
+			}
+			tables[t.Key] = safe
+			continue
+		}
+		rows := model.NewRows(t)
+		h.db.Find(rows)
+		tables[t.Key] = rows
 	}
 
 	c.Header("Content-Disposition", "attachment; filename=qsl-backup-"+time.Now().Format("20060102-150405")+".json")
 	c.JSON(http.StatusOK, gin.H{
 		"exported_at": cstNow().Format("2006-01-02 15:04:05"),
-		"tables": gin.H{
-			"users":              users,
-			"station_profiles":   profiles,
-			"station_cards":      cards,
-			"station_equipments": equipments,
-			"qso_records":        qsoRecords,
-			"card_records":       cardRecords,
-			"address_book":       addresses,
-			"bureau_entries":     bureaus,
-			"exchange_requests":  exchanges,
-			"offline_activities": offlineActivities,
-			"receive_records":    receives,
-			"system_settings":    safeSettings,
-			"audit_logs":         audits,
-		},
+		"tables":      tables,
 	})
 }
 
-// importSecretKeys 导出时被剔除的敏感配置：导入时从当前库保留，避免恢复备份后邮件功能失效
-var importSecretKeys = []string{"smtp_password", "kuaidi100_key", "kuaidi100_secret"}
-
 // Import 导入恢复：接收系统导出的备份 JSON，在单个事务内整库覆盖。
-// 登录账号（users）保持现状不覆盖；SMTP 密码等敏感配置保留当前值（备份里本就剔除）。
 // 任一步骤失败整体回滚，当前数据不受影响。
 func (h *ExportHandler) Import(c *gin.Context) {
 	file, err := c.FormFile("file")
@@ -129,75 +124,36 @@ func (h *ExportHandler) Import(c *gin.Context) {
 			}
 		}
 
-		// 2. 清空业务表（users 除外，登录账号保持现状）
-		wipe := []interface{}{
-			&model.ReceiveRecord{}, &model.CardRecord{}, &model.QsoRecord{},
-			&model.ExchangeRequest{}, &model.OfflineActivity{},
-			&model.AddressBookEntry{}, &model.BureauEntry{},
-			&model.StationEquipment{}, &model.StationCard{}, &model.StationProfile{},
-			&model.SystemSetting{}, &model.AuditLog{},
-		}
-		for _, m := range wipe {
-			if err := tx.Where("id > 0").Delete(m).Error; err != nil {
-				return fmt.Errorf("清空数据失败: %v", err)
+		// 2. 清空参与恢复的表（users / passkeys 的 Restore 为 false，登录凭证保持现状）
+		for _, t := range model.Tables {
+			if !t.Restore {
+				continue
+			}
+			if err := tx.Where("id > 0").Delete(t.Model).Error; err != nil {
+				return fmt.Errorf("清空 %s 失败: %v", t.Key, err)
 			}
 		}
 
 		// 3. 按备份内容恢复（保留原始 ID，卡↔通联↔申请 关联不断）
-		loadRows := func(name string, dst interface{}) (bool, error) {
-			rawTable, ok := payload.Tables[name]
+		for _, t := range model.Tables {
+			if !t.Restore || t.Key == "system_settings" {
+				continue // system_settings 有敏感键要逐条处理，走下面单独一段
+			}
+			rawTable, ok := payload.Tables[t.Key]
 			if !ok || string(rawTable) == "null" {
-				return false, nil
+				continue
 			}
-			if err := json.Unmarshal(rawTable, dst); err != nil {
-				return false, fmt.Errorf("解析 %s 失败: %v", name, err)
+			rows := model.NewRows(t)
+			if err := json.Unmarshal(rawTable, rows); err != nil {
+				return fmt.Errorf("解析 %s 失败: %v", t.Key, err)
 			}
-			return true, nil
-		}
-		insertAll := func(name string, rows interface{}) error {
-			rv := reflectValueSlice(rows)
+			rv := reflect.ValueOf(rows).Elem()
 			for i := 0; i < rv.Len(); i++ {
 				if err := tx.Create(rv.Index(i).Addr().Interface()).Error; err != nil {
-					return fmt.Errorf("恢复 %s 失败: %v", name, err)
+					return fmt.Errorf("恢复 %s 失败: %v", t.Key, err)
 				}
 			}
-			restored[name] = rv.Len()
-			return nil
-		}
-
-		var profiles []model.StationProfile
-		var cards []model.StationCard
-		var equipments []model.StationEquipment
-		var qsoRecords []model.QsoRecord
-		var exchanges []model.ExchangeRequest
-		var cardRecords []model.CardRecord
-		var addresses []model.AddressBookEntry
-		var bureaus []model.BureauEntry
-		var offlineActivities []model.OfflineActivity
-		var receives []model.ReceiveRecord
-		var audits []model.AuditLog
-
-		steps := []struct {
-			name string
-			dst  interface{}
-		}{
-			{"station_profiles", &profiles}, {"station_cards", &cards},
-			{"station_equipments", &equipments}, {"qso_records", &qsoRecords},
-			{"exchange_requests", &exchanges}, {"card_records", &cardRecords},
-			{"address_book", &addresses}, {"bureau_entries", &bureaus},
-			{"offline_activities", &offlineActivities}, {"receive_records", &receives},
-			{"audit_logs", &audits},
-		}
-		for _, st := range steps {
-			ok, lerr := loadRows(st.name, st.dst)
-			if lerr != nil {
-				return lerr
-			}
-			if ok {
-				if err := insertAll(st.name, st.dst); err != nil {
-					return err
-				}
-			}
+			restored[t.Key] = rv.Len()
 		}
 
 		// system_settings：跳过敏感键的空值行；缺敏感键时回填当前值
@@ -236,19 +192,6 @@ func (h *ExportHandler) Import(c *gin.Context) {
 		"restored":     restored,
 		"exported_at":  payload.ExportedAt,
 		"kept_secrets": len(importSecretKeys) > 0,
+		"notice":       "通行密钥与二步验证不会随备份恢复，如为换机请重新绑定",
 	})
-}
-
-func isSecretKey(key string) bool {
-	for _, k := range importSecretKeys {
-		if k == key {
-			return true
-		}
-	}
-	return false
-}
-
-// reflectValueSlice 取出指向切片的底层值（rows 为 *[]T）
-func reflectValueSlice(rows interface{}) reflect.Value {
-	return reflect.ValueOf(rows).Elem()
 }

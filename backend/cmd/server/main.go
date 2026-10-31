@@ -1,26 +1,32 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
 	"qsl-management/internal/config"
 	"qsl-management/internal/handler"
 	"qsl-management/internal/middleware"
 	"qsl-management/internal/model"
 	"qsl-management/internal/plugin"
 	pluginstatsdaily "qsl-management/internal/plugins/stats_daily"
+	pluginthemeba "qsl-management/internal/plugins/theme_ba"
+	pluginthemedark "qsl-management/internal/plugins/theme_dark"
 	pluginthemeglass "qsl-management/internal/plugins/theme_glass"
 	pluginthemepaper "qsl-management/internal/plugins/theme_paper"
-	pluginthemedark "qsl-management/internal/plugins/theme_dark"
-	pluginthemeba "qsl-management/internal/plugins/theme_ba"
 	pluginthemerhodes "qsl-management/internal/plugins/theme_rhodes"
+	"qsl-management/pkg/response"
 )
 
 func main() {
@@ -46,12 +52,12 @@ func main() {
 		log.Fatal("数据库连接失败:", err)
 	}
 
-	db.AutoMigrate(
-		&model.User{}, &model.StationProfile{}, &model.StationCard{}, &model.StationEquipment{},
-		&model.QsoRecord{}, &model.CardRecord{}, &model.AddressBookEntry{}, &model.BureauEntry{},
-		&model.ExchangeRequest{}, &model.OfflineActivity{}, &model.ReceiveRecord{},
-		&model.SystemSetting{}, &model.AuditLog{},
-	)
+	// 建表只读一份清单（model.Tables），加新表不用改这里
+	for _, t := range model.Tables {
+		if err := db.AutoMigrate(t.Model); err != nil {
+			log.Fatalf("建表失败 %s: %v", t.Key, err)
+		}
+	}
 
 	// 历史数据归一化：老版本场景类型 ONLINE_EYEBALL -> EYEBALL
 	db.Model(&model.ExchangeRequest{}).Where("scene_type = ?", "ONLINE_EYEBALL").Update("scene_type", "EYEBALL")
@@ -59,16 +65,10 @@ func main() {
 	db.Model(&model.CardRecord{}).Where("card_type = ?", "ONLINE_EYEBALL").Update("card_type", "EYEBALL")
 	db.Model(&model.ReceiveRecord{}).Where("business_type = ?", "ONLINE_EYEBALL").Update("business_type", "EYEBALL")
 
-	var count int64
-	db.Model(&model.User{}).Where("username = ?", cfg.AdminUser).Count(&count)
-	if count == 0 {
-		hash, _ := middleware.HashPassword(cfg.AdminPass)
-		db.Create(&model.User{Username: cfg.AdminUser, HashPassword: hash, DisplayName: "管理员", IsAdmin: true})
-		log.Printf("已创建默认管理员: %s", cfg.AdminUser)
-	}
+	bootstrapAdmin(cfg, db)
+	escapeHatch(cfg, db)
 
 	// 插件系统：注册 → 初始化已启用插件 → 之后挂载管理端点与功能路由。
-	// 插件默认全部禁用（system_settings 无开关记录即视为禁用），升级零行为变化。
 	pm := plugin.NewManager(db)
 	pm.Register(pluginthemedark.New())
 	pm.Register(pluginthemepaper.New())
@@ -79,6 +79,12 @@ func main() {
 	pm.InitEnabled()
 
 	r := gin.Default()
+	// 关掉 gin 内置的 XFF 解析：客户端塞什么头都不该影响"这个请求是谁发的"。
+	// 真实地址统一走 middleware.RealClientIP。
+	r.ForwardedByClientIP = false
+	if err := r.SetTrustedProxies([]string{"127.0.0.1/32", "::1/128"}); err != nil {
+		log.Printf("[warn] 设置可信代理失败: %v", err)
+	}
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.SecurityHeadersMiddleware())
 
@@ -128,24 +134,48 @@ func main() {
 	pub.GET("/station-mail-info", pubH.StationMailInfo)
 	pub.GET("/exchange-status/:request_code", pubH.ExchangeStatus)
 	pub.GET("/bureaus", pubH.Bureaus)
-	pub.POST("/exchange-online", pubH.SubmitExchange)      // 线上换卡申请
-	pub.POST("/confirm-receipt", pubH.ConfirmReceipt)      // 确认收件
-	pub.POST("/return-mail", pubH.ReturnMail)              // 回寄登记：对方确认收卡后登记回寄方式与单号
+	pub.POST("/exchange-online", pubH.SubmitExchange)        // 线上换卡申请
+	pub.POST("/confirm-receipt", pubH.ConfirmReceipt)        // 确认收件
+	pub.POST("/return-mail", pubH.ReturnMail)                // 回寄登记：对方确认收卡后登记回寄方式与单号
 	pub.POST("/exchange-return-mail", pubH.SubmitReturnMail) // SWL 反寄登记
-	pub.GET("/cards/:card_code", pubH.GetCardByCode)       // 按编号查卡片（公开）
-	pub.GET("/tracking", pubH.QueryTracking)               // 快递追踪
+	pub.GET("/cards/:card_code", pubH.GetCardByCode)         // 按编号查卡片（公开）
+	pub.GET("/tracking", pubH.QueryTracking)                 // 快递追踪
 	pub.GET("/tracking/:tracking_number", pubH.QueryTracking)
-	pub.GET("/plugins", pm.HandlePublicThemes)             // 已启用主题插件（公开页应用皮肤）
+	pub.GET("/plugins", pm.HandlePublicThemes) // 已启用主题插件（公开页应用皮肤）
 
-	// 认证（登录/刷新接口应用严格速率限制）
+	// 认证：登录链路全部走严格限速
 	authH := handler.NewAuthHandler(db)
+	totpH := handler.NewTotpHandler(db)
+	accH := handler.NewAccountHandler(db)
+	pkH := handler.NewPasskeyHandler(db, newWebAuthn(cfg))
+
 	api.POST("/auth/login", middleware.LoginRateLimitMiddleware(), authH.Login)
 	api.POST("/auth/refresh", middleware.LoginRateLimitMiddleware(), authH.Refresh)
-	api.GET("/auth/me", middleware.AuthRequired(), authH.Me)
-	api.POST("/auth/change-password", middleware.AuthRequired(), authH.ChangePassword)
+	api.POST("/auth/mfa/totp", middleware.LoginRateLimitMiddleware(), authH.MfaTotp)
+	api.POST("/auth/mfa/recovery", middleware.LoginRateLimitMiddleware(), authH.MfaRecovery)
+	api.POST("/auth/mfa/passkey/begin", middleware.LoginRateLimitMiddleware(), pkH.MfaBegin)
+	api.POST("/auth/mfa/passkey/finish", middleware.LoginRateLimitMiddleware(), pkH.MfaFinish)
+	api.POST("/auth/passkey/login/begin", middleware.LoginRateLimitMiddleware(), pkH.LoginBegin)
+	api.POST("/auth/passkey/login/finish", middleware.LoginRateLimitMiddleware(), pkH.LoginFinish)
+	// 登录页要据此决定显不显示"用通行密钥登录"，所以是公开的
+	api.GET("/auth/capabilities", func(c *gin.Context) {
+		response.OK(c, gin.H{"passkey": pkH.Enabled()})
+	})
+
+	api.GET("/auth/me", middleware.AuthRequired(db), authH.Me)
+	api.POST("/auth/change-password", middleware.AuthRequired(db), authH.ChangePassword)
+	api.GET("/auth/security", middleware.AuthRequired(db), accH.Security)
+	api.POST("/auth/username", middleware.AuthRequired(db), accH.ChangeUsername)
+	api.POST("/auth/sessions/revoke", middleware.AuthRequired(db), accH.RevokeSessions)
+	api.POST("/auth/totp/setup", middleware.AuthRequired(db), totpH.Setup)
+	api.POST("/auth/totp/enable", middleware.AuthRequired(db), totpH.Enable)
+	api.POST("/auth/totp/disable", middleware.AuthRequired(db), totpH.Disable)
+	api.POST("/auth/passkey/register/begin", middleware.AuthRequired(db), pkH.RegisterBegin)
+	api.POST("/auth/passkey/register/finish", middleware.AuthRequired(db), pkH.RegisterFinish)
+	api.DELETE("/auth/passkey/:id", middleware.AuthRequired(db), pkH.Remove)
 
 	// 需认证接口
-	auth := api.Group("", middleware.AuthRequired())
+	auth := api.Group("", middleware.AuthRequired(db))
 
 	dashH := handler.NewDashboardHandler(db)
 	auth.GET("/dashboard/summary", dashH.Summary)
@@ -186,8 +216,11 @@ func main() {
 	auth.POST("/exchange/online/requests/:id/create-card", exH.CreateCard)
 	auth.POST("/exchange/online/requests/:id/send-address", exH.SendAddress)
 	auth.POST("/exchange/online/requests/:id/receive-return", exH.ReceiveReturnCard)
-	auth.GET("/admin/export", expH.All)
-	auth.POST("/admin/import", expH.Import)
+
+	// 全量备份与覆盖式导入：拿到就能接管整个后台，所以要求二次验证
+	auth.GET("/admin/export", middleware.RequireMFA(db, cfg.RequireMFA), expH.All)
+	auth.POST("/admin/import", middleware.RequireMFA(db, cfg.RequireMFA), expH.Import)
+
 	auth.GET("/exchange/offline/activities", exH.ListActivities)
 	auth.POST("/exchange/offline/activities", exH.CreateActivity)
 	auth.PUT("/exchange/offline/activities/:id", exH.UpdateActivity)
@@ -216,12 +249,13 @@ func main() {
 	auth.GET("/station/equipments", stH.ListEquipments)
 	auth.POST("/station/equipments", stH.CreateEquipment)
 
+	// SMTP 与快递查询设置里含凭据/密钥，同样要求二次验证
 	setH := handler.NewSettingsHandler(db)
-	auth.GET("/settings/smtp", setH.GetSmtp)
-	auth.POST("/settings/smtp", setH.SaveSmtp)
-	auth.POST("/settings/smtp/test", setH.TestSmtp)
-	auth.GET("/settings/tracking", setH.GetTracking)
-	auth.POST("/settings/tracking", setH.SaveTracking)
+	auth.GET("/settings/smtp", middleware.RequireMFA(db, cfg.RequireMFA), setH.GetSmtp)
+	auth.POST("/settings/smtp", middleware.RequireMFA(db, cfg.RequireMFA), setH.SaveSmtp)
+	auth.POST("/settings/smtp/test", middleware.RequireMFA(db, cfg.RequireMFA), setH.TestSmtp)
+	auth.GET("/settings/tracking", middleware.RequireMFA(db, cfg.RequireMFA), setH.GetTracking)
+	auth.POST("/settings/tracking", middleware.RequireMFA(db, cfg.RequireMFA), setH.SaveTracking)
 	auth.GET("/settings/site", setH.GetSite)
 	auth.POST("/settings/site", setH.SaveSite)
 
@@ -235,4 +269,109 @@ func main() {
 	}
 
 	r.Run(":" + cfg.ServerPort)
+}
+
+// bootstrapAdmin 首次启动时建管理员账号。
+//
+// 没配 ADMIN_PASS 就随机生成一个并打印一次——以前默认是 admin123，
+// 公网上等于没有口令，爆破字典第一条就是它。
+func bootstrapAdmin(cfg *config.Config, db *gorm.DB) {
+	var count int64
+	db.Model(&model.User{}).Where("username = ?", cfg.AdminUser).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	pass := cfg.AdminPass
+	generated := pass == ""
+	if generated {
+		pass = randomPassword(20)
+	}
+	hash, _ := middleware.HashPassword(pass)
+	db.Create(&model.User{
+		Username:     cfg.AdminUser,
+		HashPassword: hash,
+		DisplayName:  "管理员",
+		IsAdmin:      true,
+		IsActive:     true,
+	})
+	log.Printf("已创建默认管理员: %s", cfg.AdminUser)
+
+	if generated {
+		log.Printf("======================================================")
+		log.Printf(" 初始口令（只打印这一次，登录后立刻改掉）: %s", pass)
+		log.Printf("======================================================")
+	}
+}
+
+// escapeHatch 逃生开关：ADMIN_RESET=1 启动时清空管理员的第二因子、失败计数，
+// 并重置成一个一次性口令。丢了手机、丢了恢复码、忘了口令，这是唯一还能进门的路。
+//
+// 用法：docker compose run --rm -e ADMIN_RESET=1 qsl   （或临时改 compose 环境变量后重启）
+func escapeHatch(cfg *config.Config, db *gorm.DB) {
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("ADMIN_RESET")), "1") {
+		return
+	}
+
+	var user model.User
+	if err := db.Where("username = ?", cfg.AdminUser).First(&user).Error; err != nil {
+		log.Printf("[逃生] 账号 %s 不存在，跳过重置", cfg.AdminUser)
+		return
+	}
+
+	pass := randomPassword(20)
+	hash, _ := middleware.HashPassword(pass)
+	if err := handler.ResetSecondFactor(db, cfg.AdminUser); err != nil {
+		log.Printf("[逃生] 清空第二因子失败: %v", err)
+		return
+	}
+	if err := db.Model(&model.User{}).Where("id = ?", user.ID).Update("hash_password", hash).Error; err != nil {
+		log.Printf("[逃生] 重置口令失败: %v", err)
+		return
+	}
+
+	log.Printf("======================================================")
+	log.Printf("[逃生] 已清空 %s 的全部通行密钥与二步验证", cfg.AdminUser)
+	log.Printf("[逃生] 一次性口令: %s", pass)
+	log.Printf("[逃生] 登录后请立刻改密并重新绑定，然后把 ADMIN_RESET 去掉")
+	log.Printf("======================================================")
+	log.Printf("[逃生] 记得移除 ADMIN_RESET=1，否则每次重启都会重置")
+}
+
+// newWebAuthn 初始化通行密钥。没配域名就返回 nil，整个功能关闭，其余照常。
+func newWebAuthn(cfg *config.Config) *webauthn.WebAuthn {
+	if cfg.WebAuthnRPID == "" || len(cfg.WebAuthnOrigins) == 0 {
+		log.Printf("[passkey] 未配置 WEBAUTHN_RP_ID / WEBAUTHN_ORIGINS，通行密钥功能关闭")
+		return nil
+	}
+	wa, err := webauthn.New(&webauthn.Config{
+		RPDisplayName: "QSL 管理台",
+		RPID:          cfg.WebAuthnRPID,
+		RPOrigins:     cfg.WebAuthnOrigins,
+		// 要支持"免用户名直接登录"，必须要求 resident key + 用户验证
+		AuthenticatorSelection: protocol.AuthenticatorSelection{
+			ResidentKey:      protocol.ResidentKeyRequirementRequired,
+			UserVerification: protocol.VerificationRequired,
+		},
+		AttestationPreference: protocol.PreferNoAttestation,
+	})
+	if err != nil {
+		log.Printf("[passkey] 初始化失败，功能关闭: %v", err)
+		return nil
+	}
+	log.Printf("[passkey] 已启用 RP ID=%s 来源=%v", cfg.WebAuthnRPID, cfg.WebAuthnOrigins)
+	return wa
+}
+
+// randomPassword 生成不易混淆的随机口令（去掉了 0/O/1/I/l）。
+func randomPassword(n int) string {
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		return "ChangeMe-Please-Now"
+	}
+	for i := range buf {
+		buf[i] = alphabet[int(buf[i])%len(alphabet)]
+	}
+	return string(buf)
 }

@@ -116,11 +116,18 @@ server {
     }
 
     # 后端 API 反代
+    #
+    # 真实客户端地址只认 nginx 覆盖写入的 X-Real-Client-IP（后端不信任客户端自带的
+    # X-Forwarded-For 最左值，否则限速键和审计日志都能被伪造）。
+    # 前面若有 Cloudflare，先按 CF 官方网段启用 realip，再反代：
+    #   set_real_ip_from 173.245.48.0/20;   # …… CF 其余网段照抄
+    #   real_ip_header CF-Connecting-IP;
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-Client-IP $remote_addr;   # 覆盖式写入，客户端伪造无效
+        proxy_set_header X-Forwarded-For "";               # 丢掉客户端自带的 XFF
         client_max_body_size 20m;   # 备份导入 / ADIF 上传
     }
 
@@ -151,11 +158,13 @@ sudo certbot --nginx -d qsl.example.com
 ## 8. 上线检查清单
 
 1. 浏览器打开 `http://qsl.example.com` —— 首页正常、申请换卡可提交
-2. 登录 `/login`（默认 `admin / admin123`）→ **立即修改密码**（设置→账号安全）
-3. **设置→站点设置：站点地址改成 `https://qsl.example.com`**——确认收件二维码、邮件里的链接全靠它，不改生成的都是 localhost 链接
-4. 设置→SMTP：填服务器上的授权码 → 发送测试邮件（本机测试通过的配置直接重填一遍即可，密码不会随备份导出）
-5. 扫一张卡的确认二维码，用手机验证 `/confirm/编号` 能打开
-6. 公告栏、回寄地址勾选按需配置
+2. 登录 `/login`：账号默认 `admin`，**口令是首次启动时日志里打印的那串随机值**（只打印一次）。
+   想自己指定就用 `ADMIN_USER` / `ADMIN_PASS` 环境变量。**再也没有 `admin123` 这种默认口令了。**
+3. 设置→账号安全：**绑定二步验证或通行密钥**——后台就这一个账号，绑了才不怕口令泄露
+4. **设置→站点设置：站点地址改成 `https://qsl.example.com`**——确认收件二维码、邮件里的链接全靠它，不改生成的都是 localhost 链接
+5. 设置→SMTP：填服务器上的授权码 → 发送测试邮件（本机测试通过的配置直接重填一遍即可，密码不会随备份导出）
+6. 扫一张卡的确认二维码，用手机验证 `/confirm/编号` 能打开
+7. 公告栏、回寄地址勾选按需配置
 
 ## 9. 日常更新
 
@@ -186,7 +195,7 @@ cd ../frontend && npm ci && npm run build && sudo cp -r dist/* /var/www/qsl/
 
 # 容器部署（一键，推荐）
 
-单容器单进程：镜像内先构建前端 dist、再编译后端，运行时**后端直接托管前端页面**（`web/dist` 存在时自动启用，SPA 回退内建），无 Nginx、无 supervisor。宿主端口 **3073**。
+单容器单进程：镜像内先构建前端 dist、再编译后端，运行时**后端直接托管前端页面**（`web/dist` 存在时自动启用，SPA 回退内建），无 Nginx、无 supervisor。宿主端口 **3073，只绑 127.0.0.1**——只能经本机反代访问，公网直连源站会被拒绝。
 
 **镜像两种来源（默认第一种）：**
 - **GHCR 预构建镜像（推荐）**：push 到 `main` 后 GitHub Actions 自动构建发布 `ghcr.io/amnssb/hamqsl:latest`，部署机 `docker compose pull` 秒级获取，**无需装 Go/Node、不占服务器 CPU**
@@ -250,7 +259,36 @@ docker compose down             # 停止（数据在 ./data，不会丢）
 ## 环境变量
 
 - `JWT_SECRET`：留空则首次启动自动生成（推荐，密钥随 `data` 卷持久）；多实例共享数据时才需手动指定同一个值
+- `ADMIN_USER` / `ADMIN_PASS`：初始管理员账号与口令。`ADMIN_PASS` 留空则首次启动随机生成并只打印一次日志
+- `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`：启用通行密钥（WebAuthn）。前者只填域名（如 `qsl.ba4slt.cn`），后者填完整来源（如 `https://qsl.ba4slt.cn`）。**两个都留空则功能关闭**，其余功能不受影响
+- `REQUIRE_MFA=true`：强制二步验证，未绑定第二因子时禁止导出备份、改 SMTP 等敏感操作
+- `ADMIN_RESET=1`：逃生开关，见下一节
 - 默认 SQLite（`./data/qsl.db`）；要切 PostgreSQL，放开 compose 里 `DB_*` 注释并加一个 postgres 服务即可（代码已支持）
+
+## 二步验证、通行密钥与逃生
+
+登录现在是两步：口令 → 动态码 / 通行密钥 / 恢复码。也可以直接点「使用通行密钥登录」免密进入。
+
+**通行密钥的两条硬约束（不是 bug）：**
+
+1. **必须 HTTPS。** 明文 HTTP 下浏览器根本不提供 `navigator.credentials`，登录页会自动隐藏按钮。
+2. **绑定域名。** 密钥跟着 `WEBAUTHN_RP_ID` 走，换域名（或从 `http://IP:3073` 换成域名）后已有密钥全部失效，需要重新绑定。
+
+**忘了口令 / 手机丢了 / 恢复码也没了**——唯一活路：
+
+```bash
+# 1. 临时给容器加上 ADMIN_RESET=1
+docker compose run --rm -e ADMIN_RESET=1 qsl
+# 日志里会打印：
+#   [逃生] 已清空 admin 的全部通行密钥与二步验证
+#   [逃生] 一次性口令: xxxxxxxxxxxxxxxxxxxx
+# 2. 用它登录，立刻改密并重新绑定
+```
+
+> `ADMIN_RESET=1` 每天都会重置一次安全状态，**验证完就把它去掉**。
+> 恢复码在绑定时只显示一次，建议当场抄到纸上或存进密码管理器。
+
+**备份与账号的关系：** 备份 JSON 里**不含**口令哈希、二步验证密钥，导入时也**不会覆盖**登录账号与通行密钥。换机器恢复后，需要重新绑定二步验证（数据不会丢）。
 
 ## 从本机迁移数据到容器
 

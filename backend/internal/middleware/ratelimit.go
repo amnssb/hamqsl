@@ -2,108 +2,153 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// RateLimiter 速率限制器
-type RateLimiter struct {
-	visitors map[string]*visitor
-	mu       sync.RWMutex
-	rate     int           // 每分钟最大请求数
-	burst    int           // 突发请求上限
-	cleanup  time.Duration // 清理间隔
+/*
+限速器：固定窗口计数。
+
+窗口从某个键的第一次请求开始计时，到期整体清零。比"距上次请求超过 N 秒才清零"好理解，
+也不会出现"一直被拒、窗口永远不重置"的怪状态。
+
+调用示例：
+
+	loginIPLimiter.Allow("203.0.113.7")   // true 放行 / false 拒绝
+	loginUserLimiter.Reset("admin")       // 登录成功后清掉这个账号的计数
+*/
+type windowLimiter struct {
+	limit     int
+	window    time.Duration
+	maxKeys   int
+	mu        sync.Mutex
+	entries   map[string]*windowEntry
+	lastSweep time.Time
 }
 
-type visitor struct {
-	count    int
-	lastSeen time.Time
+type windowEntry struct {
+	count   int
+	started time.Time
 }
 
-// NewRateLimiter 创建新的速率限制器
-func NewRateLimiter(rate, burst int) *RateLimiter {
-	rl := &RateLimiter{
-		visitors: make(map[string]*visitor),
-		rate:     rate,
-		burst:    burst,
-		cleanup:  3 * time.Minute,
+func newWindowLimiter(limit int, window time.Duration, maxKeys int) *windowLimiter {
+	return &windowLimiter{
+		limit:   limit,
+		window:  window,
+		maxKeys: maxKeys,
+		entries: make(map[string]*windowEntry),
 	}
-	go rl.cleanupVisitors()
-	return rl
 }
 
-// cleanupVisitors 定期清理过期的访问者记录
-func (rl *RateLimiter) cleanupVisitors() {
-	ticker := time.NewTicker(rl.cleanup)
-	defer ticker.Stop()
-	for range ticker.C {
-		rl.mu.Lock()
-		for ip, v := range rl.visitors {
-			if time.Since(v.lastSeen) > rl.cleanup {
-				delete(rl.visitors, ip)
-			}
+// Allow 记一次并判断是否放行。
+func (l *windowLimiter) Allow(key string) bool {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sweepLocked(now) // 先清过期的，腾出位置
+
+	e, ok := l.entries[key]
+	if !ok {
+		// 键数量封顶：伪造键（比如随手换 X-Forwarded-For）不能把内存撑爆。
+		// 满了就拒绝新键，宁让别人稍后重试，也不无限扩张。
+		if len(l.entries) >= l.maxKeys {
+			return false
 		}
-		rl.mu.Unlock()
-	}
-}
-
-// isAllowed 检查请求是否允许
-func (rl *RateLimiter) isAllowed(ip string) bool {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	v, exists := rl.visitors[ip]
-	if !exists {
-		rl.visitors[ip] = &visitor{count: 1, lastSeen: time.Now()}
+		l.entries[key] = &windowEntry{count: 1, started: now} // 窗口从这一次开始算
 		return true
 	}
-
-	// 检查是否需要重置计数器（每分钟重置）
-	if time.Since(v.lastSeen) > time.Minute {
-		v.count = 1
-		v.lastSeen = time.Now()
+	if now.Sub(e.started) >= l.window { // 窗口到期，重新开始计数
+		e.count = 1
+		e.started = now
 		return true
 	}
-
-	// 检查是否超过限制
-	if v.count >= rl.rate {
+	if e.count >= l.limit { // 配额用完
 		return false
 	}
-
-	v.count++
-	v.lastSeen = time.Now()
+	e.count++
 	return true
 }
 
-// RateLimitMiddleware 创建速率限制中间件
-func RateLimitMiddleware(rate, burst int) gin.HandlerFunc {
-	limiter := NewRateLimiter(rate, burst)
+// Reset 清掉一个键的计数。登录成功时调用，避免正常用户被自己的重试拖累。
+func (l *windowLimiter) Reset(key string) {
+	l.mu.Lock()
+	delete(l.entries, key)
+	l.mu.Unlock()
+}
+
+// sweepLocked 清过期键。只在表长到一半容量、且距上次清理超过 1 秒时才做，避免每次请求都遍历。
+func (l *windowLimiter) sweepLocked(now time.Time) {
+	if len(l.entries) < l.maxKeys/2 || now.Sub(l.lastSweep) < time.Second {
+		return
+	}
+	l.lastSweep = now
+	for k, e := range l.entries {
+		if now.Sub(e.started) >= l.window {
+			delete(l.entries, k)
+		}
+	}
+}
+
+// --- 三个桶 ---
+//
+// 登录要同时过 IP 桶和账号桶，任一超限就拒。
+// 只按 IP 限速等于没限：攻击者换个 X-Forwarded-For 就换了身份。
+// 账号桶与 IP 无关，伪造多少头都没用，这才是真正挡住定向爆破的那一半。
+
+var (
+	loginIPLimiter   = newWindowLimiter(5, time.Minute, 50000)   // 同一 IP：5 次/分钟
+	loginUserLimiter = newWindowLimiter(5, 5*time.Minute, 10000) // 同一账号：5 次/5分钟
+	totpLimiter      = newWindowLimiter(5, 5*time.Minute, 10000) // 验证码：6 位数字只有 100 万种，必须限
+	apiLimiter       = newWindowLimiter(600, time.Minute, 50000) // 已登录后台接口：600 次/分钟
+)
+
+// AllowLoginAttempt 账号维度配额。用户名大小写不敏感，避免 Admin / admin 各算一份。
+func AllowLoginAttempt(username string) bool {
+	return loginUserLimiter.Allow(strings.ToLower(strings.TrimSpace(username)))
+}
+
+// ResetLoginAttempt 登录成功后清掉账号配额。
+func ResetLoginAttempt(username string) {
+	loginUserLimiter.Reset(strings.ToLower(strings.TrimSpace(username)))
+}
+
+// AllowTotpAttempt 二步验证码的尝试配额，按账号计。
+func AllowTotpAttempt(username string) bool {
+	return totpLimiter.Allow(strings.ToLower(strings.TrimSpace(username)))
+}
+
+func tooMany(c *gin.Context) {
+	c.Header("Retry-After", "60")
+	c.JSON(http.StatusTooManyRequests, gin.H{
+		"code":    "QSL-429",
+		"message": "请求过于频繁，请稍后再试",
+	})
+	c.Abort()
+}
+
+// LoginRateLimitMiddleware 登录相关接口的 IP 维度限速。
+// 账号维度在 handler 里（要先解析出 username 才能计数）。
+func LoginRateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		if !limiter.isAllowed(ip) {
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"code":    "QSL-429",
-				"message": "请求过于频繁，请稍后再试",
-			})
-			c.Abort()
+		if !loginIPLimiter.Allow(RealClientIP(c)) {
+			tooMany(c)
 			return
 		}
 		c.Next()
 	}
 }
 
-// LoginRateLimitMiddleware 登录接口专用的严格速率限制
-func LoginRateLimitMiddleware() gin.HandlerFunc {
-	// 登录接口：每分钟最多5次尝试，突发最多3次
-	return RateLimitMiddleware(5, 3)
-}
-
-// APIRateLimitMiddleware 普通API接口的速率限制
-// 认证后的后台 API 为单管理员使用场景，放宽到 600 次/分钟：
-// 正常交互远低于该值，同时仍能拦截脚本化滥用与意外死循环请求。
+// APIRateLimitMiddleware 认证后的后台接口限速。
+// 单管理员使用场景，正常交互远低于 600 次/分钟，只拦脚本化滥用与死循环。
 func APIRateLimitMiddleware() gin.HandlerFunc {
-	// 后台API：每分钟最多600次请求
-	return RateLimitMiddleware(600, 100)
+	return func(c *gin.Context) {
+		if !apiLimiter.Allow(RealClientIP(c)) {
+			tooMany(c)
+			return
+		}
+		c.Next()
+	}
 }

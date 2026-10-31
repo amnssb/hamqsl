@@ -120,15 +120,15 @@ func (m *Manager) InitEnabled() {
 // 管理端点自带 AuthRequired；功能插件统一挂 /api/ext/<name>/...，
 // 与 /api/plugins/:name/... 参数段分离，规避 gin 路由树静态/参数段混挂歧义。
 func (m *Manager) Mount(api *gin.RouterGroup) {
-	api.GET("/plugins", middleware.AuthRequired(), m.handleList)
-	api.POST("/plugins/:name/enable", middleware.AuthRequired(), m.handleToggle(true))
-	api.POST("/plugins/:name/disable", middleware.AuthRequired(), m.handleToggle(false))
+	api.GET("/plugins", middleware.AuthRequired(m.db), m.handleList)
+	api.POST("/plugins/:name/enable", middleware.AuthRequired(m.db), m.handleToggle(true))
+	api.POST("/plugins/:name/disable", middleware.AuthRequired(m.db), m.handleToggle(false))
 	for _, name := range m.order {
 		p := m.items[name]
 		if p.Meta().Kind == "theme" {
 			continue
 		}
-		g := api.Group("/ext/"+name, middleware.AuthRequired(), m.enabledGuard(name))
+		g := api.Group("/ext/"+name, middleware.AuthRequired(m.db), m.enabledGuard(name))
 		p.Routes(g)
 	}
 }

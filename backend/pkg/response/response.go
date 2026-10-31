@@ -1,8 +1,8 @@
 package response
 
 import (
-	"net/http"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type Response struct {
@@ -38,8 +38,31 @@ func Page(c *gin.Context, items interface{}, total int64, page, size int) {
 	})
 }
 
+// Fail 按 HTTP 状态返回错误。响应体里的 code 跟着状态走，
+// 这样 429/410/423 这些新状态在日志和前端里也能一眼认出来，不会都显示成 QSL-400-0001。
 func Fail(c *gin.Context, code int, msg string) {
-	c.JSON(code, Response{Code: "QSL-400-0001", Message: msg})
+	c.JSON(code, Response{Code: codeForStatus(code), Message: msg})
+}
+
+func codeForStatus(status int) string {
+	switch status {
+	case http.StatusUnauthorized:
+		return "QSL-401-0001"
+	case http.StatusForbidden:
+		return "QSL-403-0001"
+	case http.StatusNotFound:
+		return "QSL-404-0001"
+	case http.StatusConflict:
+		return "QSL-409-0001"
+	case http.StatusGone:
+		return "QSL-410"
+	case http.StatusLocked:
+		return "QSL-423"
+	case http.StatusTooManyRequests:
+		return "QSL-429"
+	default:
+		return "QSL-400-0001"
+	}
 }
 
 func Unauthorized(c *gin.Context) {

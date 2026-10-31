@@ -40,8 +40,15 @@
           <p>管理台站日志、QSL 卡片制作与线上换卡业务</p>
         </div>
 
-        <el-form :model="form" @submit.prevent="handleLogin" label-position="top" class="login-form">
-          <el-form-item label="管理员账号">
+        <!-- 第一阶段：账号 + 口令 -->
+        <el-form
+          v-if="step === 'credentials'"
+          :model="form"
+          @submit.prevent="handleLogin"
+          label-position="top"
+          class="login-form"
+        >
+          <el-form-item label="账号">
             <el-input
               v-model="form.username"
               prefix-icon="User"
@@ -70,6 +77,64 @@
             <span>进入管理工作台</span>
             <el-icon><Right /></el-icon>
           </el-button>
+
+          <!-- 免密登录：只在服务端启用了通行密钥、且当前是 HTTPS（安全上下文）时出现 -->
+          <template v-if="passkeyReady">
+            <el-divider class="login-divider">或</el-divider>
+            <el-button
+              plain
+              size="large"
+              class="login-button"
+              :loading="passkeyLoading"
+              @click="handlePasskeyLogin"
+            >
+              <span>使用通行密钥登录</span>
+            </el-button>
+          </template>
+        </el-form>
+
+        <!-- 第二阶段：口令已经过了，补第二因子 -->
+        <el-form
+          v-else
+          :model="mfa"
+          @submit.prevent="handleVerify"
+          label-position="top"
+          class="login-form"
+        >
+          <el-alert type="success" :closable="false" class="mfa-hint">
+            口令已验证，再完成一步即可进入。
+          </el-alert>
+
+          <el-form-item :label="mfa.useRecovery ? '恢复码' : '动态验证码'">
+            <el-input
+              v-model="mfa.code"
+              :placeholder="mfa.useRecovery ? 'ABCDE-FGHJK' : '身份验证器里的 6 位数字'"
+              size="large"
+              :maxlength="mfa.useRecovery ? 20 : 6"
+              @keyup.enter="handleVerify"
+            />
+          </el-form-item>
+
+          <el-button
+            type="primary"
+            size="large"
+            :loading="loading"
+            @click="handleVerify"
+            class="login-button"
+          >
+            <span>完成验证</span>
+            <el-icon><Right /></el-icon>
+          </el-button>
+
+          <div class="mfa-actions">
+            <el-button text @click="mfa.useRecovery = !mfa.useRecovery">
+              {{ mfa.useRecovery ? '改用动态验证码' : '手机丢了？用恢复码' }}
+            </el-button>
+            <el-button v-if="canUsePasskeyMfa" text :loading="passkeyLoading" @click="handlePasskeyMfa">
+              改用通行密钥
+            </el-button>
+            <el-button text @click="backToCredentials">换个账号</el-button>
+          </div>
         </el-form>
 
         <div class="login-footer">
@@ -88,15 +153,46 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
+import { passkeySupported } from '../utils/webauthn'
+import api from '../api'
 
 const router = useRouter()
 const auth = useAuthStore()
+
 const loading = ref(false)
+const passkeyLoading = ref(false)
+const step = ref('credentials') // credentials → mfa
 const form = reactive({ username: '', password: '' })
+const mfa = reactive({ ticket: '', code: '', methods: [], useRecovery: false })
+const serverPasskey = ref(false)
+
+// 免密登录要求：服务端启用了通行密钥 + 当前是安全上下文（HTTPS）。
+// 明文 HTTP 下 navigator.credentials 根本不存在，直接把按钮藏掉，别让用户点了报错。
+const passkeyReady = computed(() => serverPasskey.value && passkeySupported())
+const canUsePasskeyMfa = computed(() => mfa.methods.includes('passkey'))
+
+onMounted(async () => {
+  try {
+    const cap = await api.get('/auth/capabilities')
+    serverPasskey.value = !!cap?.passkey
+  } catch {
+    serverPasskey.value = false
+  }
+})
+
+// 401 由页面自己提示（拦截器不弹）；其他状态码拦截器已经弹过了，避免重复
+function show401(e, fallback) {
+  if (e?.response?.status === 401) ElMessage.error(fallback)
+}
+
+function goDashboard() {
+  ElMessage.success('登录成功喵')
+  router.push('/admin/dashboard')
+}
 
 async function handleLogin() {
   if (!form.username || !form.password) {
@@ -105,14 +201,100 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    await auth.login(form.username, form.password)
-    ElMessage.success('登录成功喵')
-    router.push('/admin/dashboard')
-  } catch {
-    ElMessage.error('用户名或密码错误喵')
+    const r = await auth.login(form.username, form.password)
+    if (r.mfaRequired) {
+      mfa.ticket = r.ticket
+      mfa.methods = r.methods || []
+      mfa.code = ''
+      // 没绑动态码就默认切到恢复码输入，省一次点击
+      mfa.useRecovery = !mfa.methods.includes('totp')
+      step.value = 'mfa'
+      return
+    }
+    goDashboard()
+  } catch (e) {
+    if (e?.response?.status === 423) return // 已锁定，拦截器已提示
+    show401(e, '用户名或密码错误喵')
   } finally {
     loading.value = false
   }
+}
+
+async function handleVerify() {
+  const code = (mfa.code || '').trim()
+  if (!code) {
+    ElMessage.warning(mfa.useRecovery ? '请输入恢复码' : '请输入 6 位动态验证码')
+    return
+  }
+  loading.value = true
+  try {
+    if (mfa.useRecovery) await auth.completeRecovery(mfa.ticket, code)
+    else await auth.completeTotp(mfa.ticket, code)
+    goDashboard()
+  } catch (e) {
+    if (e?.response?.status === 410) {
+      ElMessage.warning('登录已超时，请重新登录')
+      backToCredentials()
+      return
+    }
+    if (e?.response?.status === 429) return // 限速，拦截器已提示
+    show401(e, mfa.useRecovery ? '恢复码不正确' : '验证码不正确')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handlePasskeyLogin() {
+  if (!passkeyReady.value) {
+    ElMessage.warning('当前环境（需 HTTPS）不支持通行密钥')
+    return
+  }
+  passkeyLoading.value = true
+  try {
+    await auth.loginWithPasskey()
+    goDashboard()
+  } catch (e) {
+    reportPasskeyError(e)
+  } finally {
+    passkeyLoading.value = false
+  }
+}
+
+async function handlePasskeyMfa() {
+  passkeyLoading.value = true
+  try {
+    await auth.completePasskey(mfa.ticket)
+    goDashboard()
+  } catch (e) {
+    if (e?.response?.status === 410) {
+      ElMessage.warning('登录已超时，请重新登录')
+      backToCredentials()
+      return
+    }
+    reportPasskeyError(e)
+  } finally {
+    passkeyLoading.value = false
+  }
+}
+
+function reportPasskeyError(e) {
+  if (e?.name === 'NotAllowedError') {
+    ElMessage.warning('未选择通行密钥，或验证被取消')
+    return
+  }
+  if (e?.name === 'SecurityError' || e?.name === 'NotSupportedError') {
+    ElMessage.error('当前浏览器或域名不支持通行密钥（必须 HTTPS）')
+    return
+  }
+  if (!e?.response) ElMessage.error('通行密钥验证失败')
+}
+
+function backToCredentials() {
+  step.value = 'credentials'
+  mfa.ticket = ''
+  mfa.code = ''
+  mfa.methods = []
+  mfa.useRecovery = false
 }
 </script>
 
@@ -331,6 +513,25 @@ async function handleLogin() {
   font-weight: 650;
   font-size: 13.5px;
   margin-bottom: 6px;
+}
+
+.mfa-hint {
+  margin-bottom: 16px;
+}
+
+.mfa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.login-divider {
+  margin: 18px 0 14px;
+  font-size: 12px;
+  color: var(--qsl-muted);
 }
 
 .login-button {

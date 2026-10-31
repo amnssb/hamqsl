@@ -16,11 +16,15 @@ data/.jwt_secret
 
 # 内部文档（不含入开源仓库）
 HANDOFF.md
+SECURITY-REVIEW-login-ratelimit.md
 
 # 系统杂项
 *.log
 .DS_Store
 Thumbs.db
+
+# 本地冒烟测试产物（scripts/smoke-auth.ps1 会写这里：临时库、日志、请求正文）
+backend/.tmp/
 
 # E2E 运行时文件
 scripts/img_b64.txt

@@ -53,8 +53,9 @@ api.interceptors.response.use(
     const status = error.response?.status
     const config = error.config || {}
     const url = config.url || ''
-    // 登录/刷新本身失败不进入刷新流程
-    const isAuthCall = url.includes('/auth/login') || url.includes('/auth/refresh')
+    // 登录链路（含二步验证、通行密钥）本身失败不进入刷新流程，
+    // 也不能清会话：验证码输错一位就被踢回登录页，用户体验是灾难性的。
+    const isAuthCall = /\/(auth\/(login|refresh|mfa|passkey))/.test(url)
     if (status === 401 && !isAuthCall && !config._retriedAfterRefresh) {
       config._retriedAfterRefresh = true
       const ok = await tryRefresh()
@@ -67,7 +68,7 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     if (status === 401) {
-      clearSession()
+      if (!isAuthCall) clearSession()
       return Promise.reject(error)
     }
     const msg = error.response?.data?.message || error.response?.data?.detail || error.message || '请求失败'
