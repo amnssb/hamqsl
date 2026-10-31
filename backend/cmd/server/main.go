@@ -46,18 +46,23 @@ func main() {
 		if dir != "." && dir != "" {
 			os.MkdirAll(dir, 0755)
 		}
-		// SQLite 调优：
-		//   journal_mode(WAL)     读写不再互相阻塞，前端并发拉几个接口时明显顺
-		//   busy_timeout(5000)    拿不到写锁时等 5s 而不是立刻 database is locked
-		//   synchronous(NORMAL)   WAL 下安全，且比 FULL 少一次 fsync
-		//   cache_size(-20000)    约 20MB page cache，减少小库的重复读
-		// 参数用 _pragma 形式，SQLite 驱动会逐条执行。
+		// SQLite 调优（mattn/go-sqlite3 的参数名，不是 _pragma=xxx 那种写法）：
+		//   _journal_mode=WAL   读写不再互相阻塞，前端并发拉几个接口时明显顺
+		//   _busy_timeout=5000  拿不到写锁时等 5s，而不是立刻 database is locked
+		//   _synchronous=NORMAL WAL 下安全，且比 FULL 少一次 fsync
+		//   _cache_size=-20000  约 20MB page cache（负数表示 KB），减少小库重复读
+		//
+		// 注意：驱动只认上面这几个下划线参数名。写成 "_pragma=journal_mode(WAL)"
+		// 是 modernc.org/sqlite 的语法，mattn 会静默忽略 —— 之前就是这么写的，
+		// 结果 WAL 一直没生效（库文件头 offset 18/19 还是 01 01，也没有 -wal 文件）。
+		//
+		// 故意不开 _foreign_keys：库里本来就没有声明外键约束，这一项从没生效过，
+		// 贸然打开会让既有的删除路径（删卡/删申请）开始报约束错误。
 		dsn := cfg.DBPath +
-			"?_pragma=journal_mode(WAL)" +
-			"&_pragma=busy_timeout(5000)" +
-			"&_pragma=synchronous(NORMAL)" +
-			"&_pragma=cache_size(-20000)" +
-			"&_pragma=foreign_keys(1)"
+			"?_journal_mode=WAL" +
+			"&_busy_timeout=5000" +
+			"&_synchronous=NORMAL" +
+			"&_cache_size=-20000"
 		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	}
 
