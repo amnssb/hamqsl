@@ -19,11 +19,11 @@ permissions:
 jobs:
   backend:
     name: Go · fmt / vet / test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
           cache-dependency-path: backend/go.sum
@@ -44,7 +44,7 @@ jobs:
         working-directory: backend
         run: go vet ./...
 
-      # SQLite 驱动需要 CGO；ubuntu-latest 自带 gcc，无需额外安装
+      # SQLite 驱动需要 CGO；ubuntu-24.04 自带 gcc，无需额外安装
       - name: go test
         working-directory: backend
         env:
@@ -59,11 +59,11 @@ jobs:
 
   frontend:
     name: Vue · build / stylelint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: npm
