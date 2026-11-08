@@ -132,7 +132,9 @@ html[data-theme="theme_ba"] .card-header {
 }
 
 /* 7. 顶栏与侧栏：清爽晨光蓝白 */
-html[data-theme="theme_ba"] .layout-header {
+html[data-theme="theme_ba"] .layout-header,
+html[data-theme="theme_ba"] .portal-header,
+html[data-theme="theme_ba"] .public-header {
   background: rgba(255, 255, 255, 0.92) !important;
   border-bottom: 1px solid rgba(69, 175, 255, 0.20) !important;
   backdrop-filter: blur(12px) !important;
@@ -152,10 +154,13 @@ html[data-theme="theme_ba"] .side-menu .el-sub-menu__title:hover {
   color: #006EB0 !important;
 }
 html[data-theme="theme_ba"] .side-menu .el-menu-item.is-active {
-  background: #45AFFF !important;
-  color: #FFFFFF !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 12px rgba(69, 175, 255, 0.3) !important;
+  background: color-mix(in srgb, var(--qsl-primary) 18%, transparent) !important;
+  color: var(--qsl-heading) !important;
+  box-shadow: inset 3px 0 0 var(--qsl-primary) !important;
+}
+html[data-theme="theme_ba"] .filter-bar.el-form--inline {
+  background: rgba(240, 247, 254, 0.72) !important;
+  border-color: rgba(69, 175, 255, 0.22) !important;
 }
 
 /* 8. 品牌与输入框 */

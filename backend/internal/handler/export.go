@@ -47,6 +47,35 @@ func isSecretKey(key string) bool {
 	return false
 }
 
+// createInChunks 把 rows（*[]某张表）按 batch 行一批插入。
+// 一批是一条 INSERT，不再一行一次往返。
+// 80 行是给字段最多的卡片表留的余量：大约 50 列 × 80 ≈ 4000 个参数，
+// 低于 SQLite 单条语句 32766 的上限。调用方已在事务里，这里不再另开一层。
+func createInChunks(tx *gorm.DB, rows any, batch int) error {
+	rv := reflect.ValueOf(rows).Elem()
+	n := rv.Len()
+	if n == 0 {
+		return nil
+	}
+	if batch < 1 {
+		batch = 80
+	}
+	for i := 0; i < n; i += batch {
+		end := i + batch
+		if end > n {
+			end = n
+		}
+		chunk := reflect.MakeSlice(rv.Type(), end-i, end-i)
+		reflect.Copy(chunk, rv.Slice(i, end))
+		ptr := reflect.New(chunk.Type())
+		ptr.Elem().Set(chunk)
+		if err := tx.Create(ptr.Interface()).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (h *ExportHandler) All(c *gin.Context) {
 	tables := gin.H{}
 	for _, t := range model.Tables {
@@ -148,10 +177,9 @@ func (h *ExportHandler) Import(c *gin.Context) {
 				return fmt.Errorf("解析 %s 失败: %v", t.Key, err)
 			}
 			rv := reflect.ValueOf(rows).Elem()
-			for i := 0; i < rv.Len(); i++ {
-				if err := tx.Create(rv.Index(i).Addr().Interface()).Error; err != nil {
-					return fmt.Errorf("恢复 %s 失败: %v", t.Key, err)
-				}
+			// 一批一条 INSERT。整段仍在上面的事务里，任一批失败会连前面的批次一起回滚。
+			if err := createInChunks(tx, rows, 80); err != nil {
+				return fmt.Errorf("恢复 %s 失败: %v", t.Key, err)
 			}
 			restored[t.Key] = rv.Len()
 		}

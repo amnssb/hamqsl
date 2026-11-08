@@ -120,21 +120,30 @@ func (m *Manager) enabledSnapshot() map[string]bool {
 	}
 	m.stateMu.RUnlock()
 
+	// 公开页首屏会同时要主题列表和 theme.css，两处都读这份快照。
+	// 过期时只让一个请求查库，另一个等结果，避免同一瞬间打两次。
+	m.stateMu.Lock()
+	defer m.stateMu.Unlock()
+	if m.stateSnap != nil && time.Since(m.stateAt) < pluginStateTTL {
+		return m.stateSnap
+	}
+
 	var rows []model.SystemSetting
 	snap := make(map[string]bool)
 	if err := m.db.Model(&model.SystemSetting{}).
 		Select("key, value").
 		Where("key LIKE ?", m.settingKey("")+"%").
-		Find(&rows).Error; err == nil {
-		for _, r := range rows {
-			snap[strings.TrimPrefix(r.Key, m.settingKey(""))] = r.Value == "true"
+		Find(&rows).Error; err != nil {
+		if m.stateSnap != nil {
+			return m.stateSnap // 这次没读到就继续用上一份
 		}
+		return snap
 	}
-
-	m.stateMu.Lock()
+	for _, r := range rows {
+		snap[strings.TrimPrefix(r.Key, m.settingKey(""))] = r.Value == "true"
+	}
 	m.stateSnap = snap
 	m.stateAt = time.Now()
-	m.stateMu.Unlock()
 	return snap
 }
 

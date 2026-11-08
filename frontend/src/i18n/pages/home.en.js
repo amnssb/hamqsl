@@ -19,5 +19,17 @@ export default {
   'home.svcStatusDesc': 'Review and mailing progress in real time',
   'home.svcTrack': 'Mail Tracking',
   'home.svcTrackDesc': 'Follow your registered mail',
+  'home.svcConfirm': 'Confirm & Return',
+  'home.svcConfirmDesc': 'Confirm card receipt and register return mail',
+  'home.workflowTitle': 'QSL Exchange Workflow',
+  'home.workflowSub': 'From radio waves to physical QSL cards in your mailbox',
+  'home.step1Title': 'Submit QSO Evidence',
+  'home.step1Desc': 'Fill QSO / SWL / Eyeball log and desired card version',
+  'home.step2Title': 'Station Verification',
+  'home.step2Desc': 'Log matched by station operator with instant email notice',
+  'home.step3Title': 'Card Print & Mail',
+  'home.step3Desc': 'Quality printing and registered mail with tracking number',
+  'home.step4Title': 'Receipt & Return',
+  'home.step4Desc': 'Scan QR code to confirm and send your card in return',
   'home.footerTagline': 'Connecting radio waves and faraway places'
 }

@@ -22,11 +22,14 @@ var kuaidi100Company = map[string]string{
 	"YT": "yuantong", "ZTO": "zhongtong", "STO": "shentong",
 }
 
+// 进程内复用一个客户端：每次查询都 new Client 会丢掉已建立的 TLS 连接。
+var kuaidiClient = &http.Client{Timeout: 10 * time.Second}
+
 type kuaidi100Resp struct {
 	Message string `json:"message"`
 	Nu      string `json:"nu"`
 	State   string `json:"state"`
-	Data []struct {
+	Data    []struct {
 		Time    string `json:"time"`
 		Context string `json:"context"`
 		Fcity   string `json:"fcity"`
@@ -75,8 +78,7 @@ func fetchKuaidi100(db *gorm.DB, num, carrier string) ([]gin.H, string, error) {
 	sum := md5.Sum(buf)
 	sign := strings.ToUpper(hex.EncodeToString(sum[:]))
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.PostForm("https://poll.kuaidi100.com/poll/query.do", url.Values{
+	resp, err := kuaidiClient.PostForm("https://poll.kuaidi100.com/poll/query.do", url.Values{
 		"customer": {customer}, "sign": {sign}, "param": {string(param)},
 	})
 	if err != nil {
@@ -105,7 +107,14 @@ func fetchKuaidi100(db *gorm.DB, num, carrier string) ([]gin.H, string, error) {
 	return details, status, nil
 }
 
-// ensureTrackingFresh 轨迹为空或距上次更新超过 10 分钟时尝试实时刷新（需已配置快递100）
+// trackingCacheTTL 快递轨迹的内存缓存窗口。
+//
+// 原来这里写成 10 * time.Minute，但 TrackingUpdatedAt 落库是东八区墙钟字符串，
+// 用 time.Parse 当 UTC 解析会晚 8 小时 → time.Since 恒为负 → 缓存永不失效，
+// 只有等真实 8 小时过去才会再查一次。现在解析走 parseCST，窗口才是真的 10 分钟。
+const trackingCacheTTL = 10 * time.Minute
+
+// ensureTrackingFresh 轨迹为空或距上次更新超过 trackingCacheTTL 时尝试实时刷新（需已配置快递100）
 func ensureTrackingFresh(db *gorm.DB, card *model.CardRecord) string {
 	if !kuaidi100Configured(db) {
 		return ""
@@ -113,7 +122,7 @@ func ensureTrackingFresh(db *gorm.DB, card *model.CardRecord) string {
 	if !card.CardSent || card.TrackingNumber == "" {
 		return ""
 	}
-	if t, err := time.Parse("2006-01-02 15:04:05", card.TrackingUpdatedAt); err == nil && time.Since(t) < 10*time.Minute {
+	if t, err := parseCST(card.TrackingUpdatedAt); err == nil && time.Since(t) < trackingCacheTTL {
 		return "" // 缓存未过期
 	}
 	details, status, err := fetchKuaidi100(db, card.TrackingNumber, card.TrackingCarrier)
@@ -126,8 +135,7 @@ func ensureTrackingFresh(db *gorm.DB, card *model.CardRecord) string {
 	raw, _ := json.Marshal(details)
 	card.TrackingDetail = string(raw)
 	card.TrackingStatus = status
-	card.TrackingUpdatedAt = cstNow().Format("2006-01-02 15:04:05")
+	card.TrackingUpdatedAt = cstNow().Format(cstLayout)
 	db.Save(card)
 	return ""
 }
-

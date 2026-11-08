@@ -49,7 +49,7 @@
         <div class="header-left">
           <el-button v-if="isMobile" class="nav-burger" text @click="mobileNav = true"><el-icon :size="20"><Menu /></el-icon></el-button>
           <div class="header-title">
-            <div class="eyebrow">HAM RADIO STATION</div>
+            <div class="eyebrow"><span class="pulse-indicator"></span>HAM RADIO STATION WORKBENCH</div>
             <el-breadcrumb separator="/">
               <el-breadcrumb-item :to="{ path: '/admin/dashboard' }">工作台</el-breadcrumb-item>
               <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
@@ -57,9 +57,14 @@
           </div>
         </div>
         <div class="header-right">
+          <el-button class="portal-link-btn" text @click="openPortal">
+            <el-icon><Promotion /></el-icon>
+            <span class="portal-link-text">公开门户</span>
+          </el-button>
           <div class="user-chip">
             <span class="avatar">{{ (auth.user?.display_name || auth.user?.username || 'A').slice(0, 1).toUpperCase() }}</span>
             <span class="user-name">{{ auth.user?.display_name || auth.user?.username }}</span>
+            <span class="status-online-dot"></span>
           </div>
           <el-button class="logout-btn" text @click="handleLogout">
             <el-icon><SwitchButton /></el-icon>
@@ -102,6 +107,7 @@ function toggleAside() {
 }
 
 function handleLogout() { auth.logout(); router.push('/login') }
+function openPortal() { window.open('/', '_blank') }
 </script>
 
 <style scoped>
@@ -136,12 +142,12 @@ function handleLogout() { auth.logout(); router.push('/login') }
   display: grid;
   place-items: center;
   flex: none;
-  background: var(--el-color-primary, #2563eb);
+  background: var(--qsl-primary);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--qsl-ink) 25%, transparent);
 }
 .brand-glyph {
-  color: #ffffff;
+  color: var(--qsl-on-primary);
   font-size: 20px;
   font-weight: 850;
   letter-spacing: -0.02em;
@@ -154,7 +160,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
   color: var(--qsl-chrome-text);
 }
 .brand-title strong {
-  color: #60a5fa;
+  color: var(--qsl-poster-accent-2);
   font-weight: 850;
   margin-left: 2px;
 }
@@ -188,9 +194,9 @@ function handleLogout() { auth.logout(); router.push('/login') }
   background: color-mix(in srgb, var(--qsl-chrome-text) 8%, transparent);
 }
 :deep(.side-menu .el-menu-item.is-active) {
-  color: #ffffff;
-  background: var(--el-color-primary, #2563eb);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  color: var(--qsl-chrome-text);
+  background: color-mix(in srgb, var(--qsl-primary) 22%, transparent);
+  box-shadow: inset 3px 0 0 var(--qsl-primary);
   font-weight: 650;
 }
 :deep(.side-menu .el-menu) {
@@ -232,7 +238,9 @@ function handleLogout() { auth.logout(); router.push('/login') }
 
 .main-container {
   min-height: 100vh;
-  background: var(--qsl-bg);
+  background:
+    radial-gradient(at 0% 0%, color-mix(in srgb, var(--qsl-primary) 7%, transparent), transparent 46%),
+    var(--qsl-bg);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -243,7 +251,8 @@ function handleLogout() { auth.logout(); router.push('/login') }
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  background: var(--qsl-card-bg);
+  background: color-mix(in srgb, var(--qsl-panel) 84%, transparent);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--qsl-line);
   position: sticky;
   top: 0;
@@ -255,23 +264,51 @@ function handleLogout() { auth.logout(); router.push('/login') }
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.14em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 :deep(.el-breadcrumb__inner) { color: var(--qsl-muted); font-size: 13.5px; font-weight: 500; }
 :deep(.el-breadcrumb__inner.is-link:hover) { color: var(--qsl-primary); }
 :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) { color: var(--qsl-heading); font-weight: 650; }
 
-.header-right { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.portal-link-btn {
+  color: var(--qsl-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--qsl-radius);
+  border: 1px solid var(--qsl-line);
+  background: var(--qsl-panel);
+  transition: all 0.2s ease;
+}
+.portal-link-btn:hover {
+  color: var(--qsl-primary);
+  border-color: var(--qsl-primary);
+  background: var(--qsl-hover-tint);
+}
+.portal-link-text { margin-left: 5px; }
+
 .user-chip {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 10px 4px 4px;
-  background: var(--qsl-panel-2);
+  padding: 4px 12px 4px 4px;
+  background: var(--qsl-panel);
   border-radius: 9999px;
   border: 1px solid var(--qsl-line);
   color: var(--qsl-ink);
   font-size: 13px;
   font-weight: 600;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--qsl-ink) 4%, transparent);
+}
+.status-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--qsl-green) 30%, transparent);
 }
 .avatar {
   display: grid;
@@ -299,7 +336,7 @@ function handleLogout() { auth.logout(); router.push('/login') }
 .layout-main {
   flex: 1;
   padding: 28px 32px;
-  background: var(--qsl-bg);
+  background: transparent;
   min-width: 0;
   overflow-x: hidden;
   padding-bottom: max(28px, env(safe-area-inset-bottom));

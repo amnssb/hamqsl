@@ -61,7 +61,7 @@
 1. **永远盖不全**。新增任何页面 / 任何 EP 组件都要回来补一条。
 2. **互相打架**。`theme.css:115` 的聚焦环写死 `rgba(37,99,235,.15)`（蓝色），粉色的 glass、棕色的 paper 主题下都是蓝环。
 3. **无法预防**。没有任何机制阻止下一个人再写 `color: #1a1a1a`。
-4. **`--qsl-navy` 语义被重载**。它同时被当"标题色"（`theme.css:60,133,200`）和"深色侧栏上的文字"用。`theme_glass` 必须让它保持深色（HANDOFF 第 85 条已记录这个坑），于是没法同时满足两张语义 —— 现在只是靠 `Layout.vue` 里硬编码 `#f8fafc` 蒙对了。
+4. **`--qsl-navy` 语义被重载**。它同时被当"标题色"（`theme.css:60,133,200`）和"深色侧栏上的文字"用。`theme_glass` 必须让它保持深色，于是没法同时满足两张语义。已拆开：标题用 `--qsl-heading`、深色侧栏文字用 `--qsl-chrome-text`，两者可独立跟随主题（见 `tokens.css` Layer 1）。
 
 ### 1.3 附带的时序问题（同时也是 A2）
 
@@ -563,7 +563,9 @@ DevTools → Performance → 勾选 Screenshots → 硬刷新，逐帧看第 1 �
 - 重写 `frontend/src/styles/theme.css`、`frontend/src/plugins/registry.js`
 - 5 个 `backend/internal/plugins/theme_*/theme_*.go` 增加 `ThemeCSS()`
 - `backend/internal/plugin/plugin.go` 增加 `SkinProvider` / `HandleThemeCSS` / 启用状态快照
-- 详见 HANDOFF.md 第九节
+
+> 注：早期版本这里引用过 `HANDOFF.md`（内部交接文档，已被 `.gitignore` 排除、不在仓库里）。
+> 相关结论已合并进本文，不再需要外部文档。
 
 ### 第二轮（巡检 / 玻璃性能 / 发号器 / 按需引入）
 
@@ -578,4 +580,23 @@ DevTools → Performance → 勾选 Screenshots → 硬刷新，逐帧看第 1 �
   替换 4 处重复的"读-改-写"；顺带修 `nextReceiveCode` 的切片越界 panic。
 - `vite.config.js` 加 `unplugin-vue-components` **运行时探测**：没装 → 行为不变；
   装了 → 组件按需引入。`npm i -D unplugin-vue-components` 即可开启，卸载即回退。
-  详见 HANDOFF.md 第十节。
+
+### 第三轮（质量门禁 / 安全修复）
+
+这一轮不再动主题，补的是"改错了也不报错"的地方：
+
+- **PUT 字段白名单**（`handler/patch.go`）：原来 `Updates(map[string]interface{})`
+  直传，`flow_status` / `card_sent` / `return_received_at` 都能被单个 PUT 改写，
+  卡片状态机形同虚设。现在 7 张表的 Update 各有一份字段清单，流程字段只能走流程端点。
+- **快递轨迹缓存时区**（`handler/tracking_query.go`）：`TrackingUpdatedAt` 是东八区
+  墙钟字符串，`time.Parse` 当 UTC 解析会晚 8 小时 → `time.Since` 恒为负 →
+  10 分钟窗口永不生效。改走 `parseCST`（`ParseInLocation`）。
+- **`/uploads` 补强缓存**：文件名是随机 hex，内容不可变，给 `immutable` 一年。
+- **公开统计 60 秒快照**（`handler/stats_cache.go`）：首页三条 `COUNT(*)` 全表扫，
+  改为 `SUM(CASE WHEN)` 单条聚合 + 60s 内存缓存，写路径主动失效。
+- **组件硬编码色清零**：`Dashboard` / `Layout` / `public/Home` 共 22 处裸十六进制
+  收敛到 `--qsl-tone-*` / `--qsl-on-primary`，`npm run lint:css` 从红转绿。
+- **CI 门禁**（`.github/workflows/ci.yml`）：gofmt / go vet / go test / build /
+  npm ci / stylelint / vite build。此前 `release.yml` 只做镜像推送，红了照样发。
+- **68 个 Go 单元测试**：白名单、分页上界、ADIF 解析、发号器并发、时区、密钥文件、表清单。
+- `Dockerfile` 前端改 `npm ci`（有 lock 却用 `npm install`，构建不可复现）。

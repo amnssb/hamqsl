@@ -16,7 +16,7 @@
           <div class="plugin-head">
             <div>
               <div class="plugin-title">{{ p.title }} <span class="plugin-ver">v{{ p.version }}</span></div>
-              <div class="plugin-name">{{ p.name }}</div>
+              <div class="plugin-name mono-val">{{ p.name }}</div>
             </div>
             <el-switch :model-value="p.enabled" :loading="p._busy" @change="v => toggle(p, v)" />
           </div>
@@ -101,6 +101,8 @@ onMounted(load)
 
 <style scoped>
 .plugin-col { margin-bottom: 16px; }
+.plugin-card { transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+.plugin-card:hover { border-color: var(--el-color-primary); box-shadow: var(--qsl-shadow-2); }
 .plugin-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .plugin-title { color: var(--qsl-navy); font-size: 16px; font-weight: 750; }
 .plugin-ver { color: var(--qsl-muted); font-size: 11px; font-weight: 500; }

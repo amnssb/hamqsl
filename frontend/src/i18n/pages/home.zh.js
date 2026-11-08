@@ -19,5 +19,17 @@ export default {
   'home.svcStatusDesc': '实时查看审核与邮寄进度',
   'home.svcTrack': '快递追踪',
   'home.svcTrackDesc': '查询挂号信运输进度',
+  'home.svcConfirm': '确认收件 / 回寄',
+  'home.svcConfirmDesc': '扫码确认已收卡，并登记回寄',
+  'home.workflowTitle': 'QSL 卡片交换流程',
+  'home.workflowSub': '从电波通联到实体卡片在信箱中相遇',
+  'home.step1Title': '提交通联凭据',
+  'home.step1Desc': '登记 QSO / SWL / EYEBALL 证据与期望卡片版本',
+  'home.step2Title': '台站审核确认',
+  'home.step2Desc': '台长核对日志，通过或回退即时邮件通知',
+  'home.step3Title': '制卡封装寄出',
+  'home.step3Desc': '实体卡片精心印制，挂号信发出并附单号',
+  'home.step4Title': '确认签收与回寄',
+  'home.step4Desc': '扫卡面二维码完成签收，登记回寄卡片信息',
   'home.footerTagline': '连接电波与远方'
 }

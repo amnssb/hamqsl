@@ -48,7 +48,6 @@ html[data-theme="theme_dark"] .el-table th.el-table__cell {
   border-bottom-color: #2a3644 !important;
 }
 html[data-theme="theme_dark"] .el-table td.el-table__cell {
-  background-color: #16202b !important;
   color: #e6e4df !important;
   border-bottom-color: #2a3644 !important;
 }
@@ -96,18 +95,14 @@ html[data-theme="theme_dark"] .el-popper.is-light {
 }
 
 /* 顶栏与侧栏 */
-html[data-theme="theme_dark"] .layout-header {
-  background: #16202b !important;
-  border-bottom-color: #2a3644 !important;
-}
 html[data-theme="theme_dark"] .layout-aside {
   background: #0b1017 !important;
   border-right-color: #2a3644 !important;
 }
 html[data-theme="theme_dark"] .side-menu .el-menu-item.is-active {
-  background: #ff7a45 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(255, 122, 69, 0.35) !important;
+  background: color-mix(in srgb, var(--qsl-primary) 22%, transparent) !important;
+  color: var(--qsl-chrome-text) !important;
+  box-shadow: inset 3px 0 0 var(--qsl-primary) !important;
 }
 
 html[data-theme="theme_dark"] .user-chip,

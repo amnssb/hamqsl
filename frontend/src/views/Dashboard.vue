@@ -5,14 +5,16 @@
         <h1>业务总览</h1>
         <p>实时追踪无线电通联、QSL 卡片制作与换卡进度。</p>
       </div>
-      <el-button type="primary" size="large" @click="$router.push('/admin/qso')">
-        <el-icon><Plus /></el-icon>
-        <span>新增通联记录</span>
-      </el-button>
+      <div class="page-actions">
+        <el-button type="primary" @click="$router.push('/admin/qso')">
+          <el-icon><Plus /></el-icon>
+          <span>新增通联记录</span>
+        </el-button>
+      </div>
     </div>
 
     <div class="stat-grid">
-      <el-card v-for="card in statCards" :key="card.label" class="stat-card" shadow="never">
+      <el-card v-for="card in statCards" :key="card.label" class="stat-card" shadow="never" @click="$router.push(card.path)">
         <div class="stat-top">
           <span class="stat-label">{{ card.label }}</span>
           <div class="stat-mark" :class="card.tone">
@@ -22,7 +24,7 @@
         <div class="stat-value">{{ card.value }}</div>
         <div class="stat-foot">
           <span class="stat-tag" :class="card.tone">{{ card.note }}</span>
-          <span class="stat-hint">数据实时同步</span>
+          <span class="stat-hint">点击直达列表</span>
         </div>
       </el-card>
     </div>
@@ -33,13 +35,13 @@
           <div class="section-heading">
             <div>
               <h2>待处理事项</h2>
-              <p>需要跟进的卡片与交换任务</p>
+              <p>需要跟进的卡片与交换任务（点击卡片直达处理）</p>
             </div>
             <span class="pending-badge">{{ pendingTotal }} 项待办</span>
           </div>
         </template>
         <div class="workflow-list">
-          <div v-for="item in pendingItems" :key="item.label" class="workflow-row">
+          <div v-for="item in pendingItems" :key="item.label" class="workflow-row" @click="$router.push(item.path)">
             <div class="workflow-icon" :class="item.tone">
               <component :is="item.icon" />
             </div>
@@ -49,6 +51,7 @@
             </div>
             <div class="workflow-value-box">
               <span class="workflow-value" :class="{ 'has-val': item.value > 0 }">{{ item.value }}</span>
+              <el-icon class="workflow-arrow"><ArrowRight /></el-icon>
             </div>
           </div>
         </div>
@@ -102,17 +105,17 @@ const summary = ref({
 
 // icon 直接传组件对象，不再用字符串让 <component :is> 去全局注册表里找
 const statCards = computed(() => [
-  { label: '通联日志', value: summary.value.total_qso, icon: icons.Document, tone: 'blue', note: '日志档案' },
-  { label: '卡片总数', value: summary.value.total_cards, icon: icons.Postcard, tone: 'indigo', note: '卡片库存' },
-  { label: '已发卡片', value: summary.value.total_sent, icon: icons.Promotion, tone: 'amber', note: '已递送' },
-  { label: '已收卡片', value: summary.value.total_received, icon: icons.Box, tone: 'emerald', note: '回卡已入库' },
+  { label: '通联日志', value: summary.value.total_qso, icon: icons.Document, tone: 'blue', note: '日志档案', path: '/admin/qso' },
+  { label: '卡片总数', value: summary.value.total_cards, icon: icons.Postcard, tone: 'indigo', note: '卡片库存', path: '/admin/cards' },
+  { label: '已发卡片', value: summary.value.total_sent, icon: icons.Promotion, tone: 'amber', note: '已递送', path: '/admin/cards?flow_status=SENT' },
+  { label: '已收卡片', value: summary.value.total_received, icon: icons.Box, tone: 'emerald', note: '回卡已入库', path: '/admin/receive' },
 ])
 
 const pendingItems = computed(() => [
-  { label: '待制卡', hint: '通联已完成，等待制作卡片', value: summary.value.pending_issue, icon: icons.Postcard, tone: 'blue' },
-  { label: '待发信', hint: '卡片已制作，等待封装寄出', value: summary.value.pending_sent, icon: icons.Promotion, tone: 'amber' },
-  { label: '待收卡', hint: '卡片已寄出，等待对方收件确认', value: summary.value.pending_receive, icon: icons.Box, tone: 'indigo' },
-  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: icons.Bell, tone: 'emerald' },
+  { label: '待制卡', hint: '通联已完成，等待制作卡片', value: summary.value.pending_issue, icon: icons.Postcard, tone: 'blue', path: '/admin/cards?flow_status=PENDING_ISSUE' },
+  { label: '待发信', hint: '卡片已制作，等待封装寄出', value: summary.value.pending_sent, icon: icons.Promotion, tone: 'amber', path: '/admin/cards?flow_status=ISSUED' },
+  { label: '待收卡', hint: '卡片已寄出，等待对方收件确认', value: summary.value.pending_receive, icon: icons.Box, tone: 'indigo', path: '/admin/cards?flow_status=SENT' },
+  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: icons.Bell, tone: 'emerald', path: '/admin/exchange/online' },
 ])
 
 const pendingTotal = computed(() => pendingItems.value.reduce((sum, item) => sum + Number(item.value || 0), 0))
@@ -161,13 +164,14 @@ onMounted(async () => {
   background: var(--qsl-panel);
   border: 1px solid var(--qsl-line);
   padding: 4px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--qsl-shadow-1);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .stat-card:hover {
   transform: translateY(-3px);
   border-color: var(--el-color-primary);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--qsl-shadow-2);
 }
 
 .stat-top {
@@ -189,14 +193,18 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.stat-mark.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.stat-mark.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.stat-mark.amber { color: #d97706; background: rgba(217, 119, 6, 0.12); }
-.stat-mark.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+/* 分类强调色走 --qsl-tone-*（定义在 tokens.css）：
+   底色用 color-mix 叠在主题表面之上，暗色主题下不会刺眼，
+   也不再出现裸十六进制（stylelint color-no-hex 会拦）。 */
+.stat-mark.blue { color: var(--qsl-tone-blue); background: color-mix(in srgb, var(--qsl-tone-blue) 12%, transparent); }
+.stat-mark.indigo { color: var(--qsl-tone-indigo); background: color-mix(in srgb, var(--qsl-tone-indigo) 12%, transparent); }
+.stat-mark.amber { color: var(--qsl-tone-amber); background: color-mix(in srgb, var(--qsl-tone-amber) 12%, transparent); }
+.stat-mark.emerald { color: var(--qsl-tone-emerald); background: color-mix(in srgb, var(--qsl-tone-emerald) 12%, transparent); }
 
 .stat-value {
   margin-top: 14px;
   color: var(--qsl-heading);
+  font-family: var(--qsl-font-mono);
   font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -216,10 +224,10 @@ onMounted(async () => {
   padding: 2px 8px;
   border-radius: 9999px;
 }
-.stat-tag.blue { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
-.stat-tag.indigo { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
-.stat-tag.amber { background: rgba(217, 119, 6, 0.1); color: #d97706; }
-.stat-tag.emerald { background: rgba(5, 150, 105, 0.1); color: #059669; }
+.stat-tag.blue { background: color-mix(in srgb, var(--qsl-tone-blue) 10%, transparent); color: var(--qsl-tone-blue); }
+.stat-tag.indigo { background: color-mix(in srgb, var(--qsl-tone-indigo) 10%, transparent); color: var(--qsl-tone-indigo); }
+.stat-tag.amber { background: color-mix(in srgb, var(--qsl-tone-amber) 10%, transparent); color: var(--qsl-tone-amber); }
+.stat-tag.emerald { background: color-mix(in srgb, var(--qsl-tone-emerald) 10%, transparent); color: var(--qsl-tone-emerald); }
 .stat-hint {
   color: var(--qsl-muted);
   font-size: 11.5px;
@@ -300,6 +308,7 @@ onMounted(async () => {
   border-radius: var(--qsl-radius);
   transition: background 0.18s ease;
   border-bottom: 1px solid var(--qsl-line);
+  cursor: pointer;
 }
 .workflow-row:last-child {
   border-bottom: 0;
@@ -317,10 +326,10 @@ onMounted(async () => {
   font-size: 17px;
   flex: none;
 }
-.workflow-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.workflow-icon.amber { color: #d97706; background: rgba(217, 119, 6, 0.12); }
-.workflow-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.workflow-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+.workflow-icon.blue { color: var(--qsl-tone-blue); background: color-mix(in srgb, var(--qsl-tone-blue) 12%, transparent); }
+.workflow-icon.amber { color: var(--qsl-tone-amber); background: color-mix(in srgb, var(--qsl-tone-amber) 12%, transparent); }
+.workflow-icon.indigo { color: var(--qsl-tone-indigo); background: color-mix(in srgb, var(--qsl-tone-indigo) 12%, transparent); }
+.workflow-icon.emerald { color: var(--qsl-tone-emerald); background: color-mix(in srgb, var(--qsl-tone-emerald) 12%, transparent); }
 
 .workflow-copy {
   display: flex;
@@ -340,7 +349,19 @@ onMounted(async () => {
 }
 
 .workflow-value-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: none;
+}
+.workflow-arrow {
+  color: var(--qsl-muted);
+  font-size: 14px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.workflow-row:hover .workflow-arrow {
+  transform: translateX(3px);
+  color: var(--qsl-primary);
 }
 .workflow-value {
   display: inline-block;

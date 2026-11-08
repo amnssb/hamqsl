@@ -27,18 +27,19 @@ type settingsSnapshotCache struct {
 
 var settingsCache settingsSnapshotCache
 
-func (c *settingsSnapshotCache) load(db *gorm.DB) map[string]string {
+// load 读出全部键值。第二个返回值表示这次读取是否成功：
+// 失败时不能把空 map 放进缓存，否则数据库抖一下，接下来 5 秒所有配置都像没填过。
+func (c *settingsSnapshotCache) load(db *gorm.DB) (map[string]string, bool) {
 	var rows []model.SystemSetting
 	// 只取 key/value 两列，避免把 description 之类的长文本也读上来
 	if err := db.Model(&model.SystemSetting{}).Select("key, value").Find(&rows).Error; err != nil {
-		// 读失败就返回空快照但不缓存失败结果，下次请求再试
-		return map[string]string{}
+		return map[string]string{}, false
 	}
 	m := make(map[string]string, len(rows))
 	for _, r := range rows {
 		m[r.Key] = r.Value
 	}
-	return m
+	return m, true
 }
 
 func settingsSnapshot(db *gorm.DB) map[string]string {
@@ -50,12 +51,21 @@ func settingsSnapshot(db *gorm.DB) map[string]string {
 	}
 	settingsCache.mu.RUnlock()
 
-	m := settingsCache.load(db)
-
+	// 过期后改拿写锁再查一次：并发的首页请求只打一条 SELECT，不会一窝蜂各查一遍。
 	settingsCache.mu.Lock()
+	defer settingsCache.mu.Unlock()
+	if settingsCache.data != nil && time.Since(settingsCache.at) < settingsCacheTTL {
+		return settingsCache.data
+	}
+	m, ok := settingsCache.load(db)
+	if !ok {
+		if settingsCache.data != nil {
+			return settingsCache.data // 这次没读到就继续用上一份，下一请求再试
+		}
+		return m
+	}
 	settingsCache.data = m
 	settingsCache.at = time.Now()
-	settingsCache.mu.Unlock()
 	return m
 }
 

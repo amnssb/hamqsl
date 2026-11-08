@@ -9,6 +9,10 @@
             <p class="subtitle" v-if="!info">{{ t('status.subtitle') }}</p>
           </div>
         </div>
+        <button class="home-back-link" @click="$router.push('/')">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ t('common.backHome') }}</span>
+        </button>
       </header>
 
       <main class="public-main">
@@ -49,10 +53,10 @@
           </div>
 
           <el-descriptions :column="2" border style="margin-bottom:28px;">
-            <el-descriptions-item :label="t('status.requestCode')">{{ info.request_code }}</el-descriptions-item>
-            <el-descriptions-item :label="t('status.callSign')">{{ info.call_sign }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.requestCode')"><span class="mono-val">{{ info.request_code }}</span></el-descriptions-item>
+            <el-descriptions-item :label="t('status.callSign')"><span class="callsign-badge">{{ info.call_sign }}</span></el-descriptions-item>
             <el-descriptions-item :label="t('status.scene')">{{ sceneText(info.scene_type) }}</el-descriptions-item>
-            <el-descriptions-item :label="t('status.requestTime')">{{ fmtTime(info.created_at) }}</el-descriptions-item>
+            <el-descriptions-item :label="t('status.requestTime')"><span class="mono-val">{{ fmtTime(info.created_at) }}</span></el-descriptions-item>
           </el-descriptions>
 
           <el-steps :active="activeStep" align-center :process-status="rejected ? 'error' : 'process'" finish-status="success">
@@ -65,7 +69,7 @@
           <div v-else-if="info.tracking_number && info.flow_status !== 'SIGNED'" class="mail-block">
             <div class="mail-head">
               <b>{{ t('status.mailTracking') }}</b>
-              <el-tag size="small" style="font-family:monospace;">{{ info.tracking_number }}</el-tag>
+              <el-tag size="small" class="mono-val">{{ info.tracking_number }}</el-tag>
             </div>
             <p class="mail-tip">{{ t('status.kuaidiTip') }}</p>
             <div class="mail-actions">
@@ -103,7 +107,7 @@
                 <b>{{ t('status.registeredHead') }}</b>
                 <el-tag size="small" :type="info.return_mail_type === 'REGISTERED' ? '' : 'info'">{{ info.return_mail_type === 'REGISTERED' ? t('status.registeredMail') : t('status.ordinaryMail') }}</el-tag>
               </div>
-              <p v-if="info.return_tracking" class="mail-tip">{{ t('status.trackingPrefix') }}<span style="font-family:monospace;">{{ info.return_tracking }}</span></p>
+              <p v-if="info.return_tracking" class="mail-tip">{{ t('status.trackingPrefix') }}<span class="mono-val">{{ info.return_tracking }}</span></p>
               <p class="mail-tip">{{ t('status.registeredAtPrefix') }}{{ fmtTime(info.return_mailed_at) }}</p>
               <el-button v-if="info.return_tracking" size="small" @click="openReturnTracking">{{ t('status.openKuaidiShort') }}</el-button>
             </template>

@@ -61,12 +61,8 @@ body {
   background: var(--qsl-card-bg);
   color: var(--qsl-ink);
   box-shadow: var(--qsl-shadow-1);
-  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.el-card:hover {
-  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-}
+/* 只有可点的卡片才抬起。数据表、设置卡跟着鼠标变阴影，翻页时整页都在抖。 */
 
 .el-card__header,
 .card-header {
@@ -163,12 +159,24 @@ body {
   width: 100% !important;
 }
 .el-table th.el-table__cell {
-  color: var(--qsl-heading);
+  color: var(--qsl-muted);
   font-weight: 650;
-  font-size: 13px;
-  letter-spacing: 0.01em;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   background-color: var(--qsl-panel-2);
   border-bottom: 1px solid var(--qsl-line);
+}
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: color-mix(in srgb, var(--qsl-panel-2) 65%, var(--qsl-panel));
+}
+/* 竖线网格让一张表看起来像电子表格。横线足够分行，右边框去掉。 */
+.el-table--border .el-table__cell {
+  border-right: none;
+}
+.el-table--border::after,
+.el-table--border::before,
+.el-table__inner-wrapper::before {
+  display: none;
 }
 .el-table td.el-table__cell {
   background-color: var(--qsl-panel);
@@ -251,6 +259,9 @@ body {
   --el-pagination-hover-color: var(--qsl-primary);
   --el-pagination-button-disabled-bg-color: transparent;
   --el-pagination-button-disabled-color: var(--qsl-muted);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
   color: var(--qsl-ink);
 }
 .el-empty__description p {
@@ -278,13 +289,96 @@ body {
   margin: 0;
   color: var(--qsl-heading);
   font-size: clamp(24px, 2.5vw, 32px);
-  font-weight: 750;
+  font-weight: 800;
   letter-spacing: -0.03em;
 }
 .page-heading p {
   margin: 6px 0 0;
   color: var(--qsl-muted);
   font-size: 14px;
+  line-height: 1.5;
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 列表页的筛选条：和表格分开，不再和第一行数据贴在一起 */
+.filter-bar.el-form--inline {
+  margin-bottom: 16px;
+  padding: 12px 14px 0;
+  background: var(--qsl-panel-2);
+  border: 1px solid var(--qsl-line-soft);
+  border-radius: var(--qsl-radius);
+}
+.filter-bar.el-form--inline .el-form-item {
+  margin-right: 16px;
+  margin-bottom: 12px;
+}
+
+/* 线上换卡的场景标签贴在卡片头里，默认的下边距会把表头撑出一条空带 */
+.el-card__header .el-tabs__header {
+  margin-bottom: 0;
+}
+.el-card__header .el-tabs {
+  margin-top: -4px;
+  margin-bottom: -8px;
+}
+
+/* 卡片头里「标题在左、按钮在右」以前每页各写一遍 inline style */
+.el-card__header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 业余无线电特有设计语言：呼号徽章、频率标识、精密单号、遥测元数据 */
+.callsign-badge {
+  font-family: var(--qsl-font-mono);
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--qsl-radius-sm);
+  background: var(--qsl-badge-bg);
+  border: 1px solid var(--qsl-badge-border);
+  color: var(--qsl-primary);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--qsl-ink) 4%, transparent);
+}
+.mono-val {
+  font-family: var(--qsl-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.telemetry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--qsl-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--qsl-primary) 20%, transparent);
+  color: var(--qsl-primary);
+}
+.pulse-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--qsl-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qsl-green) 25%, transparent);
+  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 /* ==========================================================================

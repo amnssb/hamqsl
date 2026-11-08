@@ -94,6 +94,16 @@
   --qsl-blur: var(--p-glass-blur);
   --qsl-shadow-1: var(--p-shadow-1);
   --qsl-shadow-2: var(--p-shadow-2);
+  --qsl-shadow-glow: 0 0 24px -4px color-mix(in srgb, var(--qsl-primary) 28%, transparent);
+  --qsl-glow-sm: 0 0 12px -2px color-mix(in srgb, var(--qsl-primary) 32%, transparent);
+
+  /* 字体系统：无线电呼号、频率、单号、时间戳走精密等宽字体 */
+  --qsl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --qsl-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  /* 徽章与无线电元数据标识 */
+  --qsl-badge-bg: color-mix(in srgb, var(--qsl-primary) 8%, var(--qsl-panel));
+  --qsl-badge-border: color-mix(in srgb, var(--qsl-primary) 22%, var(--qsl-line));
 
   /* 派生态：焦点环 / 悬停底色 / 选中底色，全部由主色算出，
      不再每个主题手填 5 个十六进制 */

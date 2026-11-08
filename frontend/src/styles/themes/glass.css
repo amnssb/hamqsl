@@ -74,7 +74,9 @@ html[data-theme="theme_glass"] .card-header {
 }
 
 /* 5. 顶栏：通透白玻璃 */
-html[data-theme="theme_glass"] .layout-header {
+html[data-theme="theme_glass"] .layout-header,
+html[data-theme="theme_glass"] .portal-header,
+html[data-theme="theme_glass"] .public-header {
   background: rgba(255, 255, 255, 0.75) !important;
   backdrop-filter: blur(20px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
@@ -93,9 +95,9 @@ html[data-theme="theme_glass"] .side-menu .el-menu {
   background: transparent !important;
 }
 html[data-theme="theme_glass"] .side-menu .el-menu-item.is-active {
-  background: linear-gradient(135deg, #ec5f8f, #f472b6) !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(236, 95, 143, 0.35) !important;
+  background: color-mix(in srgb, var(--qsl-primary) 22%, transparent) !important;
+  color: var(--qsl-chrome-text) !important;
+  box-shadow: inset 3px 0 0 var(--qsl-primary) !important;
 }
 
 /* 7. 表格：通透玻璃背景与悬停光影 */
@@ -116,6 +118,13 @@ html[data-theme="theme_glass"] .el-table th.el-table__cell {
 }
 html[data-theme="theme_glass"] .el-table th.el-table__cell {
   background-color: rgba(245, 248, 255, 0.85) !important;
+}
+html[data-theme="theme_glass"] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(255, 255, 255, 0.34) !important;
+}
+html[data-theme="theme_glass"] .filter-bar.el-form--inline {
+  background: rgba(255, 255, 255, 0.38) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
 }
 
 /* 8. 输入框控件：高透净白玻璃 */

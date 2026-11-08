@@ -1,17 +1,18 @@
 <template>
   <div>
-    <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>卡片记录</span>
-          <div>
-            <el-button type="success" @click="showFromQso">通联换卡</el-button>
-            <el-button type="primary" @click="showCreateCard">创建卡片</el-button>
-          </div>
-        </div>
-      </template>
+    <div class="page-heading">
+      <div>
+        <h1>卡片记录</h1>
+        <p>从建卡、寄出到对方签收。还没建卡的通联，用「通联换卡」直接做进去。</p>
+      </div>
+      <div class="page-actions">
+        <el-button @click="showFromQso">通联换卡</el-button>
+        <el-button type="primary" @click="showCreateCard">创建卡片</el-button>
+      </div>
+    </div>
 
-      <el-form :inline="true" style="margin-bottom:16px;">
+    <el-card>
+      <el-form class="filter-bar" :inline="true">
         <el-form-item label="呼号">
           <el-input v-model="query.call_sign" placeholder="对方呼号" clearable style="width:160px" @clear="loadData" />
         </el-form-item>
@@ -45,8 +46,16 @@
       <ResponsiveTable :data="list" row-key="id" :fields="cardFields" v-loading="loading">
         <template #default>
       <el-table :data="list" border stripe>
-        <el-table-column prop="card_code" label="编号" width="90" />
-        <el-table-column prop="call_sign" label="呼号" width="100" />
+        <el-table-column prop="card_code" label="编号" width="105">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.card_code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="call_sign" label="呼号" width="115">
+          <template #default="{ row }">
+            <span class="callsign-badge">{{ row.call_sign }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="owner_name" label="姓名" width="90">
           <template #default="{ row }">{{ row.owner_name || '-' }}</template>
         </el-table-column>
@@ -66,7 +75,7 @@
         </el-table-column>
         <el-table-column label="挂号信号码" width="140">
           <template #default="{ row }">
-            <span v-if="row.tracking_number" style="font-size:12px;">{{ row.tracking_number }}</span>
+            <span v-if="row.tracking_number" class="mono-val" style="font-size:12px;">{{ row.tracking_number }}</span>
             <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
@@ -102,6 +111,7 @@
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
+            <el-button link type="primary" size="small" @click="showEditDialog(row)">编辑</el-button>
             <el-button link type="success" size="small" v-if="!row.card_issued" @click="handleIssue(row)">制卡</el-button>
             <el-button link type="warning" size="small" v-if="row.card_issued && !row.card_sent" @click="showSentDialog(row)">发信</el-button>
             <el-button link type="info" size="small" v-if="row.card_sent && !row.card_received" @click="showReceivedDialog(row)">对方收卡</el-button>
@@ -123,6 +133,10 @@
         </el-table-column>
       </el-table>
         </template>
+        <template #card-title="{ row }">
+          <span class="mono-val">{{ row.card_code }}</span>
+          <span class="callsign-badge" style="margin-left:8px;">{{ row.call_sign }}</span>
+        </template>
         <template #card-flow_status="{ row }">
           <el-tag :type="statusType(row.flow_status)" size="small">{{ statusText(row.flow_status) }}</el-tag>
         </template>
@@ -139,6 +153,7 @@
         </template>
         <template #actions="{ row }">
           <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
+          <el-button link type="primary" size="small" @click="showEditDialog(row)">编辑</el-button>
           <el-button link type="success" size="small" v-if="!row.card_issued" @click="handleIssue(row)">制卡</el-button>
           <el-button link type="warning" size="small" v-if="row.card_issued && !row.card_sent" @click="showSentDialog(row)">发信</el-button>
           <el-button link type="info" size="small" v-if="row.card_sent && !row.card_received" @click="showReceivedDialog(row)">对方收卡</el-button>
@@ -206,6 +221,60 @@
       <template #footer>
         <el-button @click="createDialog = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleCreateCard">创建</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 编辑卡片对话框：只改非流程字段（与后端 PUT 白名单一致） -->
+    <el-dialog v-model="editDialog" title="编辑卡片" width="550px" destroy-on-close>
+      <el-form :model="editForm" label-width="100px">
+        <el-form-item label="卡片编号">
+          <el-input :model-value="editForm.card_code" disabled />
+        </el-form-item>
+        <el-alert type="info" :closable="false" style="margin-bottom:14px;">
+          制卡 / 发信 / 收卡 这些状态请用对应按钮推进，这里只改描述性字段。
+        </el-alert>
+        <el-form-item label="对方呼号" required><el-input v-model="editForm.call_sign" /></el-form-item>
+        <el-form-item label="对方姓名"><el-input v-model="editForm.owner_name" placeholder="邮件称呼会带上姓名" /></el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="卡片类型">
+              <el-select v-model="editForm.card_type">
+                <el-option label="QSO" value="QSO" /><el-option label="SWL" value="SWL" /><el-option label="EYEBALL" value="EYEBALL" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="场景">
+              <el-select v-model="editForm.scene_type">
+                <el-option label="QSO" value="QSO" /><el-option label="SWL" value="SWL" /><el-option label="EYEBALL" value="EYEBALL" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="卡片版本">
+          <el-select v-model="editForm.card_version" clearable>
+            <el-option v-for="v in versions" :key="v.card_version" :label="v.card_version" :value="v.card_version" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="邮寄方式">
+          <el-radio-group v-model="editForm.mail_type">
+            <el-radio value="REGISTERED">挂号信</el-radio>
+            <el-radio value="ORDINARY">平信</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="收件邮箱">
+          <el-input v-model="editForm.mail_target_email" placeholder="用于发送状态通知" />
+        </el-form-item>
+        <el-form-item label="业务备注">
+          <el-input v-model="editForm.business_remarks" type="textarea" :rows="2" />
+        </el-form-item>
+        <el-form-item label="卡片备注">
+          <el-input v-model="editForm.card_remarks" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSaveEdit">保存</el-button>
       </template>
     </el-dialog>
 
@@ -407,6 +476,12 @@ const cardFields = [
 
 const createDialog = ref(false)
 const createForm = reactive({ call_sign: '', owner_name: '', card_type: 'QSO', scene_type: 'QSO', card_version: '', business_remarks: '', mail_type: 'REGISTERED', mail_target_email: '' })
+
+// 编辑卡片：字段清单与后端 PUT 白名单（backend/internal/handler/patch.go
+// 的 cardEditableFields）对齐，多传的字段会被服务端直接丢弃。
+const editDialog = ref(false)
+const editForm = reactive({ id: null, card_code: '', call_sign: '', owner_name: '', card_type: 'QSO', scene_type: 'QSO', card_version: '', business_remarks: '', card_remarks: '', mail_type: 'REGISTERED', mail_target_email: '' })
+
 const sentDialog = ref(false)
 const sentForm = reactive({ id: null, sent_remarks: '', mail_type: 'REGISTERED', tracking_number: '', tracking_carrier: 'CHINA_POST', mail_target_email: '' })
 const receivedDialog = ref(false)
@@ -456,6 +531,37 @@ async function handleCreateCard() {
     await api.post('/card-records', createForm)
     ElMessage.success('创建成功')
     createDialog.value = false
+    loadData()
+  } finally { saving.value = false }
+}
+
+// 打开编辑弹窗：只带出白名单里的字段（状态类字段由流程按钮推进）
+function showEditDialog(row) {
+  Object.assign(editForm, {
+    id: row.id,
+    card_code: row.card_code,
+    call_sign: row.call_sign || '',
+    owner_name: row.owner_name || '',
+    card_type: row.card_type || 'QSO',
+    scene_type: row.scene_type || 'QSO',
+    card_version: row.card_version || '',
+    business_remarks: row.business_remarks || '',
+    card_remarks: row.card_remarks || '',
+    mail_type: row.mail_type || 'REGISTERED',
+    mail_target_email: row.mail_target_email || '',
+  })
+  editDialog.value = true
+}
+
+async function handleSaveEdit() {
+  if (!editForm.call_sign) { ElMessage.warning('呼号必填'); return }
+  saving.value = true
+  try {
+    // card_code 只用于展示，后端白名单里也没它；解构选出去就不往后传了
+    const { id, card_code: _ignored, ...payload } = editForm
+    await api.put('/card-records/' + id, payload)
+    ElMessage.success('已保存')
+    editDialog.value = false
     loadData()
   } finally { saving.value = false }
 }
@@ -540,8 +646,8 @@ const fromQso = reactive({ qso_record_id: null, card_version: '', mail_type: 'RE
 
 async function showFromQso() {
   try {
-    const res = await api.get('/qso-records', { params: { page: 1, size: 100, scene_type: 'QSO' } })
-    qsoOptions.value = (res.items || []).filter(q => !q.has_card)
+    const res = await api.get('/qso-records', { params: { page: 1, size: 100, scene_type: 'QSO', has_card: false } })
+    qsoOptions.value = res.items || []
   } catch (e) { /* 拦截器已提示 */ }
   fromQso.qso_record_id = null
   fromQso.card_version = ''

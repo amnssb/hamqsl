@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net"
 	"net/smtp"
 	"strings"
-	"crypto/tls"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -97,6 +97,19 @@ var cstZone = time.FixedZone("UTC+8", 8*3600)
 
 // cstNow 当前东八区时间
 func cstNow() time.Time { return time.Now().In(cstZone) }
+
+// cstLayout 入库时间字符串的统一格式（东八区墙钟，不含时区信息）。
+const cstLayout = "2006-01-02 15:04:05"
+
+// parseCST 把"东八区墙钟字符串"解析回时间。
+//
+// 必须用 ParseInLocation：这些字符串落库时是 cstNow().Format(...)，本身不带时区。
+// 用 time.Parse 会按 UTC 解释，比真实时刻晚 8 小时——快递轨迹缓存判断
+// （ensureTrackingFresh 的 10 分钟窗口）就是这样一直判定"还没过期"，
+// 首次刷新后 8 小时内再也不刷新。
+func parseCST(s string) (time.Time, error) {
+	return time.ParseInLocation(cstLayout, s, cstZone)
+}
 
 // htmlEscape 转义插入 HTML 的动态文本
 func htmlEscape(s string) string {

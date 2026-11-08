@@ -41,13 +41,19 @@ func (h *ExchangeHandler) uniqueCode(prefix, seqKey, table, column string) strin
 func (h *ExchangeHandler) ListRequests(c *gin.Context) {
 	page, size := pageParams(c)
 	q := h.db.Model(&model.ExchangeRequest{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
-	if v := c.Query("review_status"); v != "" { q = q.Where("review_status = ?", v) }
-	if v := c.Query("scene_type"); v != "" { q = q.Where("scene_type = ?", v) }
+	if v := c.Query("call_sign"); v != "" {
+		q = q.Where("call_sign LIKE ?", callSignPattern(v))
+	}
+	if v := c.Query("review_status"); v != "" {
+		q = q.Where("review_status = ?", v)
+	}
+	if v := c.Query("scene_type"); v != "" {
+		q = q.Where("scene_type = ?", v)
+	}
 	var total int64
 	q.Count(&total)
 	var items []model.ExchangeRequest
-	q.Order("id DESC").Offset((page-1)*size).Limit(size).Find(&items)
+	q.Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&items)
 	response.Page(c, items, total, page, size)
 }
 
@@ -103,13 +109,13 @@ func (h *ExchangeHandler) sendReturnAddressMail(c *gin.Context, ex *model.Exchan
 	link := siteURL(h.db, c) + "/status/" + ex.RequestCode
 	subject := "QSL 换卡：回寄地址与寄出登记"
 	body := fmt.Sprintf(
-		"<p>您好 <b>%s</b>（%s）：</p>" +
-		"<p>请将您的卡片寄至以下地址：</p>" +
-		"<div style=\"background:#f8f7f2;border:1px dashed #d8d2c6;border-radius:6px;padding:14px 18px;margin:14px 0;white-space:pre-wrap;font-size:14px;line-height:1.8;\">%s</div>" +
-		"<p>寄出后请点击下方按钮登记您的邮寄方式（挂号信填单号 / 平信免填），我们会即时收到记录：</p>" +
-		"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">登记寄出信息</a></p>" +
-		"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>" +
-		"<p style=\"margin-bottom:0;\">73！</p>",
+		"<p>您好 <b>%s</b>（%s）：</p>"+
+			"<p>请将您的卡片寄至以下地址：</p>"+
+			"<div style=\"background:#f8f7f2;border:1px dashed #d8d2c6;border-radius:6px;padding:14px 18px;margin:14px 0;white-space:pre-wrap;font-size:14px;line-height:1.8;\">%s</div>"+
+			"<p>寄出后请点击下方按钮登记您的邮寄方式（挂号信填单号 / 平信免填），我们会即时收到记录：</p>"+
+			"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">登记寄出信息</a></p>"+
+			"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
+			"<p style=\"margin-bottom:0;\">73！</p>",
 		htmlEscape(ex.Name), htmlEscape(ex.CallSign), htmlEscape(ex.ReturnAddressText), link, link)
 	if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 		log.Printf("发送回寄地址邮件失败(%s): %v", ex.Email, err)
@@ -121,10 +127,12 @@ func (h *ExchangeHandler) sendReturnAddressMail(c *gin.Context, ex *model.Exchan
 func (h *ExchangeHandler) Approve(c *gin.Context) {
 	var item model.ExchangeRequest
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "申请不存在"); return
+		response.NotFound(c, "申请不存在")
+		return
 	}
 	if item.ReviewStatus != "PENDING" {
-		response.Fail(c, 422, "该申请已处理"); return
+		response.Fail(c, 422, "该申请已处理")
+		return
 	}
 	item.ReviewStatus = "APPROVED"
 	item.ReviewedBy = c.GetString("username")
@@ -175,11 +183,17 @@ func (h *ExchangeHandler) Approve(c *gin.Context) {
 func (h *ExchangeHandler) Reject(c *gin.Context) {
 	var item model.ExchangeRequest
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "申请不存在"); return
+		response.NotFound(c, "申请不存在")
+		return
 	}
-	var req struct{ ReviewReason string `json:"review_reason"` }
+	var req struct {
+		ReviewReason string `json:"review_reason"`
+	}
 	c.ShouldBindJSON(&req)
-	if item.ReviewStatus == "REJECTED" { response.Fail(c, 422, "该申请已是拒绝状态"); return }
+	if item.ReviewStatus == "REJECTED" {
+		response.Fail(c, 422, "该申请已是拒绝状态")
+		return
+	}
 	item.ReviewStatus = "REJECTED"
 	item.ReviewReason = req.ReviewReason
 	item.ReviewedAt = cstNow().Format("2006-01-02 15:04:05")
@@ -193,12 +207,12 @@ func (h *ExchangeHandler) Reject(c *gin.Context) {
 		link := siteURL(h.db, c) + "/apply"
 		subject := "您的换卡申请未通过"
 		body := fmt.Sprintf(
-			"<p>您好 <b>%s</b>（%s）：</p>" +
-			"<p>很遗憾，您的换卡申请<b style=\"color:#c0392b;\">未通过审核</b>。</p>" +
-			"<div style=\"background:#fdf3f2;border-left:3px solid #c0392b;padding:12px 16px;margin:14px 0;\"><b>拒绝原因：</b>%s</div>" +
-			"<p>欢迎核对信息后重新提交申请。</p>" +
-			"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">重新申请</a></p>" +
-			"<p style=\"margin-bottom:0;\">73！</p>",
+			"<p>您好 <b>%s</b>（%s）：</p>"+
+				"<p>很遗憾，您的换卡申请<b style=\"color:#c0392b;\">未通过审核</b>。</p>"+
+				"<div style=\"background:#fdf3f2;border-left:3px solid #c0392b;padding:12px 16px;margin:14px 0;\"><b>拒绝原因：</b>%s</div>"+
+				"<p>欢迎核对信息后重新提交申请。</p>"+
+				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">重新申请</a></p>"+
+				"<p style=\"margin-bottom:0;\">73！</p>",
 			htmlEscape(item.Name), htmlEscape(item.CallSign), htmlEscape(reason), link)
 		if err := sendMail(h.db, item.Email, subject, body); err != nil {
 			log.Printf("拒绝通知邮件发送失败(%s): %v", item.Email, err)
@@ -263,10 +277,17 @@ func (h *ExchangeHandler) buildCardForExchange(ex *model.ExchangeRequest) model.
 func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 	var ex model.ExchangeRequest
 	if err := h.db.First(&ex, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "申请不存在"); return
+		response.NotFound(c, "申请不存在")
+		return
 	}
-	if ex.ReviewStatus != "APPROVED" { response.Fail(c, 422, "只有已通过的申请才能创建卡片"); return }
-	if ex.CardCreated { response.Fail(c, 422, "该申请已创建卡片"); return }
+	if ex.ReviewStatus != "APPROVED" {
+		response.Fail(c, 422, "只有已通过的申请才能创建卡片")
+		return
+	}
+	if ex.CardCreated {
+		response.Fail(c, 422, "该申请已创建卡片")
+		return
+	}
 
 	card := h.buildCardForExchange(&ex)
 	if err := h.db.Create(&card).Error; err != nil {
@@ -283,12 +304,12 @@ func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 		link := siteURL(h.db, c) + "/status/" + ex.RequestCode
 		subject := "您的回寄卡片已建单"
 		body := fmt.Sprintf(
-			"<p>您好 <b>%s</b>（%s）：</p>" +
-			"<p>您的回寄卡片已完成建单（卡片编号 <b>%s</b>），后续将打包寄出到您预留的地址。</p>" +
-			"<p>寄出后您可在下方链接查看申请进度与物流信息：</p>" +
-			"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>" +
-			"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>" +
-			"<p style=\"margin-bottom:0;\">73！</p>",
+			"<p>您好 <b>%s</b>（%s）：</p>"+
+				"<p>您的回寄卡片已完成建单（卡片编号 <b>%s</b>），后续将打包寄出到您预留的地址。</p>"+
+				"<p>寄出后您可在下方链接查看申请进度与物流信息：</p>"+
+				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>"+
+				"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
+				"<p style=\"margin-bottom:0;\">73！</p>",
 			htmlEscape(ex.Name), htmlEscape(ex.CallSign), card.CardCode, link, link)
 		if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 			log.Printf("SWL 回寄卡建卡通知邮件发送失败(%s): %v", ex.Email, err)
@@ -302,13 +323,16 @@ func (h *ExchangeHandler) ListActivities(c *gin.Context) {
 	var total int64
 	h.db.Model(&model.OfflineActivity{}).Count(&total)
 	var items []model.OfflineActivity
-	h.db.Order("id DESC").Offset((page-1)*size).Limit(size).Find(&items)
+	h.db.Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&items)
 	response.Page(c, items, total, page, size)
 }
 
 func (h *ExchangeHandler) CreateActivity(c *gin.Context) {
 	var req model.OfflineActivity
-	if err := c.ShouldBindJSON(&req); err != nil { response.Fail(c, 400, "参数错误"); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, 400, "参数错误")
+		return
+	}
 	req.ActivityCode = h.uniqueCode("ACT-", "offline_activity_sequence", "offline_activities", "activity_code")
 	h.db.Create(&req)
 	response.OK(c, req)
@@ -316,10 +340,19 @@ func (h *ExchangeHandler) CreateActivity(c *gin.Context) {
 
 func (h *ExchangeHandler) UpdateActivity(c *gin.Context) {
 	var item model.OfflineActivity
-	if err := h.db.First(&item, c.Param("id")).Error; err != nil { response.NotFound(c, "活动不存在"); return }
-	var req map[string]interface{}
-	if err := c.ShouldBindJSON(&req); err != nil { response.Fail(c, 400, "参数错误"); return }
-	h.db.Model(&item).Updates(req)
+	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
+		response.NotFound(c, "活动不存在")
+		return
+	}
+	// 白名单见 patch.go：activity_code 由发号器生成，不接受外部改写
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), activityEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 
@@ -391,12 +424,12 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 			cardLine = "，回寄卡片已完成建单（卡片编号 <b>" + card.CardCode + "</b>）"
 		}
 		body := fmt.Sprintf(
-			"<p>您好 <b>%s</b>（%s）：</p>" +
-			"<p>我们已<b style=\"color:#1f8f5f;\">收到您寄出的卡片</b>%s，收卡记录编号 <b>%s</b>%s。</p>" +
-			"<p>回寄卡片制卡寄出后，您可在下方链接查看申请进度与物流信息。</p>" +
-			"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>" +
-			"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>" +
-			"<p style=\"margin-bottom:0;\">73！</p>",
+			"<p>您好 <b>%s</b>（%s）：</p>"+
+				"<p>我们已<b style=\"color:#1f8f5f;\">收到您寄出的卡片</b>%s，收卡记录编号 <b>%s</b>%s。</p>"+
+				"<p>回寄卡片制卡寄出后，您可在下方链接查看申请进度与物流信息。</p>"+
+				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>"+
+				"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
+				"<p style=\"margin-bottom:0;\">73！</p>",
 			htmlEscape(ex.Name), htmlEscape(ex.CallSign), tracking, code, cardLine, link, link)
 		if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 			mailErr = err.Error()

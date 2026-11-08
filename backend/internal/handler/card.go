@@ -4,13 +4,13 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log"
-	"strings"
-	"time"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"log"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
+	"strings"
+	"time"
 )
 
 type CardHandler struct{ db *gorm.DB }
@@ -40,22 +40,37 @@ func randomCode(db *gorm.DB, table, column, prefix string) string {
 func refreshStatus(c *model.CardRecord) {
 	if c.CardType != "" && len(c.CardType) > 6 && c.CardType[len(c.CardType)-6:] == "(ERROR)" {
 		c.FlowStatus = "ERROR"
-	} else if c.ReceiptConfirmed { c.FlowStatus = "SIGNED"
-	} else if c.CardReceived { c.FlowStatus = "RECEIVED"
-	} else if c.CardSent { c.FlowStatus = "SENT"
-	} else if c.EnvelopePrinted { c.FlowStatus = "PACKED"
-	} else if c.CardIssued { c.FlowStatus = "ISSUED"
-	} else { c.FlowStatus = "PENDING_ISSUE" }
+	} else if c.ReceiptConfirmed {
+		c.FlowStatus = "SIGNED"
+	} else if c.CardReceived {
+		c.FlowStatus = "RECEIVED"
+	} else if c.CardSent {
+		c.FlowStatus = "SENT"
+	} else if c.EnvelopePrinted {
+		c.FlowStatus = "PACKED"
+	} else if c.CardIssued {
+		c.FlowStatus = "ISSUED"
+	} else {
+		c.FlowStatus = "PENDING_ISSUE"
+	}
 }
 
 func (h *CardHandler) List(c *gin.Context) {
 	page, size := pageParams(c)
 
 	q := h.db.Model(&model.CardRecord{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
-	if v := c.Query("scene_type"); v != "" { q = q.Where("scene_type = ?", v) }
-	if v := c.Query("flow_status"); v != "" { q = q.Where("flow_status = ?", v) }
-	if v := c.Query("mail_type"); v != "" { q = q.Where("mail_type = ?", v) }
+	if v := c.Query("call_sign"); v != "" {
+		q = q.Where("call_sign LIKE ?", callSignPattern(v))
+	}
+	if v := c.Query("scene_type"); v != "" {
+		q = q.Where("scene_type = ?", v)
+	}
+	if v := c.Query("flow_status"); v != "" {
+		q = q.Where("flow_status = ?", v)
+	}
+	if v := c.Query("mail_type"); v != "" {
+		q = q.Where("mail_type = ?", v)
+	}
 	// 回寄状态筛选：enabled=已开启待对方寄回 / mailed=对方已寄出待我签收 / received=回寄已收
 	switch c.Query("return_status") {
 	case "enabled":
@@ -95,7 +110,7 @@ func (h *CardHandler) Create(c *gin.Context) {
 	card := model.CardRecord{
 		CardCode: cardCode, CallSign: req.CallSign,
 		OwnerName: req.OwnerName,
-		CardType: req.CardType, SceneType: req.SceneType, CardVersion: req.CardVersion,
+		CardType:  req.CardType, SceneType: req.SceneType, CardVersion: req.CardVersion,
 		QsoRecordID: req.QsoRecordID, MailType: req.MailType, MailTargetEmail: req.MailTargetEmail,
 		BusinessRemarks: req.BusinessRemarks, CardRemarks: req.CardRemarks,
 		CardDate: now.Format("2006-01-02"), CardTime: now.Format("15:04"),
@@ -120,6 +135,7 @@ func (h *CardHandler) Create(c *gin.Context) {
 			h.db.Save(&ex)
 		}
 	}
+	invalidatePublicStatsCache()
 	response.OK(c, card)
 }
 
@@ -138,11 +154,24 @@ func (h *CardHandler) Update(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	// 只允许改非流程字段（白名单见 patch.go）：卡片状态必须走 issue/sent/received 端点，
+	// 否则一个 PUT 就能把 flow_status 直接改成 SIGNED。
+	ok, err := applyPatch(c, h.db, &item, c.Param("id"), cardEditableFields)
+	if !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
+	// 白名单里不含状态字段，但各布尔位（已发/已收/已签）可能被历史数据打乱，
+	// 重算一次派生状态，保证 flow_status 与各布尔字段始终对得上。
+	before := item.FlowStatus
 	refreshStatus(&item)
-	h.db.Save(&item)
+	if item.FlowStatus != before {
+		h.db.Model(&item).Update("flow_status", item.FlowStatus)
+	}
 	response.OK(c, item)
 }
 
@@ -163,6 +192,7 @@ func (h *CardHandler) Delete(c *gin.Context) {
 		response.Error(c, "删除失败")
 		return
 	}
+	invalidatePublicStatsCache()
 	response.OKMsg(c, "删除成功")
 }
 
@@ -195,9 +225,15 @@ func (h *CardHandler) ConfirmSent(c *gin.Context) {
 	item.CardSent = true
 	item.SentAt = cstNow().Format("2006-01-02 15:04:05")
 	item.SentRemarks = req.SentRemarks
-	if req.MailType != "" { item.MailType = req.MailType }
-	if req.TrackingNumber != "" { item.TrackingNumber = req.TrackingNumber }
-	if req.TrackingCarrier != "" { item.TrackingCarrier = req.TrackingCarrier }
+	if req.MailType != "" {
+		item.MailType = req.MailType
+	}
+	if req.TrackingNumber != "" {
+		item.TrackingNumber = req.TrackingNumber
+	}
+	if req.TrackingCarrier != "" {
+		item.TrackingCarrier = req.TrackingCarrier
+	}
 	refreshStatus(&item)
 
 	// 发卡后自动邮件提醒收卡人（配置了邮箱或关联换卡申请时）
@@ -217,6 +253,7 @@ func (h *CardHandler) ConfirmSent(c *gin.Context) {
 	}
 
 	h.db.Save(&item)
+	invalidatePublicStatsCache()
 	response.OK(c, item)
 }
 
@@ -236,6 +273,7 @@ func (h *CardHandler) ConfirmReceived(c *gin.Context) {
 	item.ReceivedRemarks = req.ReceivedRemarks
 	refreshStatus(&item)
 	h.db.Save(&item)
+	invalidatePublicStatsCache()
 	response.OK(c, item)
 }
 
@@ -269,7 +307,9 @@ func (h *CardHandler) GetTracking(c *gin.Context) {
 	}
 	details := []gin.H{}
 	if item.TrackingDetail != "" {
-		if err := json.Unmarshal([]byte(item.TrackingDetail), &details); err != nil { details = []gin.H{{"time": item.TrackingUpdatedAt, "status": item.TrackingDetail}} }
+		if err := json.Unmarshal([]byte(item.TrackingDetail), &details); err != nil {
+			details = []gin.H{{"time": item.TrackingUpdatedAt, "status": item.TrackingDetail}}
+		}
 	}
 	response.OK(c, gin.H{
 		"tracking_number": item.TrackingNumber, "carrier": item.TrackingCarrier,
@@ -346,9 +386,17 @@ func cardMailContent(item *model.CardRecord, ex *model.ExchangeRequest, link, sc
 // SendMail 手动发送卡片状态通知邮件（真实发送）
 func (h *CardHandler) SendMail(c *gin.Context) {
 	var item model.CardRecord
-	if err := h.db.First(&item, c.Param("id")).Error; err != nil { response.NotFound(c, "卡片不存在"); return }
-	var req struct { Scene string `json:"scene"` }
-	if err := c.ShouldBindJSON(&req); err != nil { response.Fail(c, 400, "参数错误"); return }
+	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
+		response.NotFound(c, "卡片不存在")
+		return
+	}
+	var req struct {
+		Scene string `json:"scene"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, 400, "参数错误")
+		return
+	}
 	scene := req.Scene
 	if scene == "" {
 		scene = "sent"
@@ -401,7 +449,9 @@ func (h *CardHandler) FromQso(c *gin.Context) {
 	if req.MailType != "ORDINARY" {
 		req.MailType = "REGISTERED"
 	}
-	now := time.Now()
+	// 统一走东八区：这里是唯一一处用 time.Now() 写 card_date/card_time 的地方，
+	// 服务器 TZ 不是东八区时（比如裸机 UTC 部署）会和其它记录混进不同日期。
+	now := cstNow()
 	card := model.CardRecord{
 		CardCode:        randomCode(h.db, "card_records", "card_code", "C"),
 		CallSign:        qso.CallSign,
@@ -429,7 +479,7 @@ func (h *CardHandler) FromQso(c *gin.Context) {
 // BatchTrackingUpdate 把"已挂号寄出但还没有快递状态"的卡片批量标记为查询中。
 //
 // 原来是 Find 出全部行再逐条 Save（N 条 UPDATE，每条都回写整行）。
-// 改单条 UPDATE：条件里带上 tracking_status = ''，语义等价但只有 1 次写。
+// 改单条 UPDATE：条件里带上 tracking_status = ”，语义等价但只有 1 次写。
 func (h *CardHandler) BatchTrackingUpdate(c *gin.Context) {
 	res := h.db.Model(&model.CardRecord{}).
 		Where("card_sent = ? AND mail_type = ? AND tracking_number <> '' AND tracking_status = ''",
@@ -458,7 +508,9 @@ func (h *CardHandler) UpdateTracking(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	item.TrackingNumber = req.TrackingNumber
 	item.TrackingCarrier = req.TrackingCarrier
-	item.TrackingUpdatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
+	// 与 ensureTrackingFresh 写入同一口径（东八区墙钟）：
+	// 这里原来是 time.Now().UTC()，比 cstNow() 早 8 小时，导致缓存判断自己跟自己打架。
+	item.TrackingUpdatedAt = cstNow().Format(cstLayout)
 	h.db.Save(&item)
 	response.OK(c, item)
 }

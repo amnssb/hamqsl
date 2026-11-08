@@ -51,31 +51,55 @@ func (p *StatsDaily) summary(c *gin.Context) {
 	if d, err := strconv.Atoi(c.DefaultQuery("days", "14")); err == nil && d >= 1 && d <= 90 {
 		days = d
 	}
-
-	now := time.Now().In(cstZone)
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, cstZone)
-
-	items := make([]dayRow, 0, days)
-	for i := days - 1; i >= 0; i-- {
-		start := todayStart.AddDate(0, 0, -i)
-		end := start.AddDate(0, 0, 1)
-		items = append(items, dayRow{
-			Day:     start.Format("2006-01-02"),
-			Created: countRange(p.db, start, end, ""),
-			Issued:  countRange(p.db, start, end, "card_issued = ?", true),
-			Sent:    countRange(p.db, start, end, "card_sent = ?", true),
-			Signed:  countRange(p.db, start, end, "receipt_confirmed = ?", true),
-		})
-	}
-	response.OK(c, gin.H{"days": days, "items": items})
+	response.OK(c, gin.H{"days": days, "items": aggregateCardDays(p.db, days, time.Now())})
 }
 
-func countRange(db *gorm.DB, start, end time.Time, extra string, arg ...interface{}) int64 {
-	q := db.Model(&model.CardRecord{}).Where("created_at >= ? AND created_at < ?", start, end)
-	if extra != "" {
-		q = q.Where(extra, arg...)
+// aggregateCardDays 统计最近 days 天（含今天，东八区）的建卡/已制卡/已寄出/已签收。
+//
+// 计数口径和以前的逐日 COUNT 一样：按 created_at 落入哪一天来分桶，
+// 制卡/寄出/签收看的是这批卡现在的布尔位，不是状态变更发生在哪一天。
+// 以前 14 天 × 4 个 COUNT = 56 次扫描；现在窗口内的行只读一次，再在内存里分桶。
+func aggregateCardDays(db *gorm.DB, days int, now time.Time) []dayRow {
+	now = now.In(cstZone)
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, cstZone)
+	rangeStart := todayStart.AddDate(0, 0, -(days - 1))
+	rangeEnd := todayStart.AddDate(0, 0, 1)
+
+	items := make([]dayRow, 0, days)
+	index := make(map[string]int, days)
+	for i := days - 1; i >= 0; i-- {
+		start := todayStart.AddDate(0, 0, -i)
+		index[start.Format("2006-01-02")] = len(items)
+		items = append(items, dayRow{Day: start.Format("2006-01-02")})
 	}
-	var n int64
-	q.Count(&n)
-	return n
+
+	var rows []struct {
+		CreatedAt        time.Time
+		CardIssued       bool
+		CardSent         bool
+		ReceiptConfirmed bool
+	}
+	db.Model(&model.CardRecord{}).
+		Select("created_at, card_issued, card_sent, receipt_confirmed").
+		Where("created_at >= ? AND created_at < ?", rangeStart, rangeEnd).
+		Find(&rows)
+
+	for _, r := range rows {
+		day := r.CreatedAt.In(cstZone).Format("2006-01-02")
+		i, ok := index[day]
+		if !ok {
+			continue // 落在窗口外（驱动解析时区有偏差时宁可丢掉，也不串到别的天）
+		}
+		items[i].Created++
+		if r.CardIssued {
+			items[i].Issued++
+		}
+		if r.CardSent {
+			items[i].Sent++
+		}
+		if r.ReceiptConfirmed {
+			items[i].Signed++
+		}
+	}
+	return items
 }

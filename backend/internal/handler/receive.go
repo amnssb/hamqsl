@@ -14,11 +14,13 @@ func NewReceiveHandler(db *gorm.DB) *ReceiveHandler { return &ReceiveHandler{db:
 func (h *ReceiveHandler) List(c *gin.Context) {
 	page, size := pageParams(c)
 	q := h.db.Model(&model.ReceiveRecord{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", callSignPattern(v)) }
+	if v := c.Query("call_sign"); v != "" {
+		q = q.Where("call_sign LIKE ?", callSignPattern(v))
+	}
 	var total int64
 	q.Count(&total)
 	var items []model.ReceiveRecord
-	q.Order("id DESC").Offset((page-1)*size).Limit(size).Find(&items)
+	q.Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&items)
 	response.Page(c, items, total, page, size)
 }
 

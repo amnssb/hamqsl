@@ -37,10 +37,15 @@ func main() {
 	var db *gorm.DB
 	var err error
 
+	// 单条 INSERT/UPDATE 在 SQLite 和 PostgreSQL 里本身就是原子的。
+	// GORM 默认再套一层事务，每次写入变成 BEGIN + 语句 + COMMIT。
+	// 要好几步一起成功的地方（删卡、导入备份）已经显式用了 Transaction。
+	gormCfg := &gorm.Config{SkipDefaultTransaction: true}
+
 	if cfg.DBDriver == "postgres" {
 		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
 			cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(postgres.Open(dsn), gormCfg)
 	} else {
 		dir := filepath.Dir(cfg.DBPath)
 		if dir != "." && dir != "" {
@@ -63,7 +68,7 @@ func main() {
 			"&_busy_timeout=5000" +
 			"&_synchronous=NORMAL" +
 			"&_cache_size=-20000"
-		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(sqlite.Open(dsn), gormCfg)
 	}
 
 	if err != nil {
@@ -119,10 +124,17 @@ func main() {
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.SecurityHeadersMiddleware())
 
-	// 图片上传目录与静态访问
+	// 图片上传目录与静态访问。
+	//
+	// 文件名是随机 hex + 原扩展名（见 handler.UploadImage），内容永不变更，
+	// 所以可以给一年强缓存——卡片版本图与缩略图在列表页里会反复出现，
+	// 不给缓存头等于每次翻页都重新下载。
 	os.MkdirAll("uploads", 0755)
 	r.MaxMultipartMemory = 8 << 20
-	r.Static("/uploads", "./uploads")
+	r.Group("/uploads", func(c *gin.Context) {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Next()
+	}).Static("", "./uploads")
 
 	// 生产模式托管前端：存在 ./web/dist 时由后端直接提供页面（单容器/单二进制部署无需 Nginx）
 	webDir := "./web/dist"

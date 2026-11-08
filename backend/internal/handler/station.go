@@ -26,7 +26,10 @@ func (h *StationHandler) CreateProfile(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	var count int64
 	h.db.Model(&model.StationProfile{}).Count(&count)
-	if count > 0 { response.Fail(c, 422, "通信地址已存在"); return }
+	if count > 0 {
+		response.Fail(c, 422, "通信地址已存在")
+		return
+	}
 	h.db.Create(&req)
 	response.OK(c, req)
 }
@@ -34,11 +37,17 @@ func (h *StationHandler) CreateProfile(c *gin.Context) {
 func (h *StationHandler) UpdateProfile(c *gin.Context) {
 	var item model.StationProfile
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "不存在"); return
+		response.NotFound(c, "不存在")
+		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), stationProfileEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 
@@ -58,11 +67,17 @@ func (h *StationHandler) CreateCard(c *gin.Context) {
 func (h *StationHandler) UpdateCard(c *gin.Context) {
 	var item model.StationCard
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "不存在"); return
+		response.NotFound(c, "不存在")
+		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), stationCardEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 
@@ -74,7 +89,10 @@ func (h *StationHandler) ListEquipments(c *gin.Context) {
 
 func (h *StationHandler) CreateEquipment(c *gin.Context) {
 	var req model.StationEquipment
-	if err := c.ShouldBindJSON(&req); err != nil { response.Fail(c, 400, "参数错误"); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, 400, "参数错误")
+		return
+	}
 	h.db.Create(&req)
 	response.OK(c, req)
 }

@@ -1,15 +1,22 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>线上换卡</h1>
+        <p>审核公开申请。通过之后建卡、把回寄地址发给对方、再登记收到的卡。</p>
+      </div>
+    </div>
+
     <el-card>
       <template #header>
-        <el-tabs v-model="sceneTab" style="margin-top:-8px;">
+        <el-tabs v-model="sceneTab" class="scene-tabs">
           <el-tab-pane label="QSL 通联" name="QSO" />
           <el-tab-pane label="SWL 收听" name="SWL" />
           <el-tab-pane label="EYEBALL 见面" name="EYEBALL" />
         </el-tabs>
       </template>
 
-      <el-form :inline="true" style="margin-bottom:16px;">
+      <el-form class="filter-bar" :inline="true">
         <el-form-item label="呼号">
           <el-input v-model="query.call_sign" placeholder="对方呼号" clearable style="width:160px" @clear="loadData" />
         </el-form-item>
@@ -22,8 +29,16 @@
       </el-form>
 
       <el-table :data="list" border stripe v-loading="loading" @row-click="showDetail">
-        <el-table-column prop="request_code" label="申请编号" width="110" />
-        <el-table-column prop="call_sign" label="对方呼号" width="110" />
+        <el-table-column prop="request_code" label="申请编号" width="125">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.request_code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="call_sign" label="对方呼号" width="120">
+          <template #default="{ row }">
+            <span class="callsign-badge">{{ row.call_sign }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="证据摘要" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag :type="sceneTagType(row.scene_type)" size="small" style="margin-right:6px;">{{ sceneLabel(row.scene_type) }}</el-tag>{{ evidenceSummary(row) }}

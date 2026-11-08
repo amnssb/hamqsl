@@ -10,6 +10,10 @@
             <p class="subtitle">{{ t('apply.subtitle') }}</p>
           </div>
         </div>
+        <button class="home-back-link" @click="$router.push('/')">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ t('common.backHome') }}</span>
+        </button>
       </header>
 
       <!-- Main Content -->

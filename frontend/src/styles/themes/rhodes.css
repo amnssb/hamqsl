@@ -25,7 +25,8 @@ html[data-theme="theme_rhodes"] .brand-sub {
 
 /* 2. 工业斜纹警戒条（Card Header / Section Heading 点睛） */
 html[data-theme="theme_rhodes"] .card-header::after,
-html[data-theme="theme_rhodes"] .section-heading::after {
+html[data-theme="theme_rhodes"] .section-heading::after,
+html[data-theme="theme_rhodes"] .page-heading h1::after {
   content: '';
   display: block;
   height: 3px;
@@ -84,13 +85,9 @@ html[data-theme="theme_rhodes"] .side-menu .el-menu-item {
   border-radius: 2px !important;
 }
 html[data-theme="theme_rhodes"] .side-menu .el-menu-item.is-active {
-  background: #2FA6DE !important;
-  color: #FFFFFF !important;
-  border-radius: 2px !important;
-}
-html[data-theme="theme_rhodes"] .layout-header {
-  background: #FFFFFF !important;
-  border-bottom: 1px solid #D0D4DA !important;
+  background: color-mix(in srgb, var(--qsl-primary) 22%, transparent) !important;
+  color: var(--qsl-chrome-text) !important;
+  box-shadow: inset 3px 0 0 var(--qsl-primary) !important;
 }
 html[data-theme="theme_rhodes"] .brand-mark,
 html[data-theme="theme_rhodes"] .logo-icon {

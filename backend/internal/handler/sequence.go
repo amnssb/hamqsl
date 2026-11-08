@@ -22,31 +22,42 @@ import (
 // （PG: UPDATE ... RETURNING；SQLite: 单写者 + busy_timeout 排队）。
 var seqMu sync.Mutex
 
+// reserveSequence 一次领走 n 个连续序号，返回其中的第一个（含）。
+// n <= 0 时不写库，返回 0。
+//
+// 和 nextSequence 共用一把锁：导入一整批和同时新建一条卡不会领到同一个号。
+// 号码在返回前已经落库。调用方若随后插入失败，这些号就空着——和以前
+// 「先取号再插入、插入失败号也不回收」是同一行为，唯一索引仍会挡住重复。
+func reserveSequence(db *gorm.DB, key string, n int64) int64 {
+	if n <= 0 {
+		return 0
+	}
+	seqMu.Lock()
+	var setting model.SystemSetting
+	if err := db.Where("key = ?", key).First(&setting).Error; err != nil {
+		setting = model.SystemSetting{Key: key, Value: "0"}
+	}
+	seq, _ := strconv.ParseInt(setting.Value, 10, 64) // 脏值（非数字）从 0 重新数，不 panic
+	start := seq + 1
+	setting.Value = strconv.FormatInt(seq+n, 10)
+	// 不能一律 db.Save：ID=0 的新 struct，Save 走 INSERT，
+	// 撞上已有同名 key 会静默失败（历史踩过的坑）。
+	if setting.ID == 0 {
+		db.Create(&setting)
+	} else {
+		db.Model(&setting).Update("value", setting.Value)
+	}
+	seqMu.Unlock()
+	invalidateSettingsCache() // 序号存在 system_settings 里，快照要跟着失效
+	return start
+}
+
 // nextSequence 取下一个序号并格式化。
 //
 //	prefix 前缀，如 "QSO-" / "R" / "EX"
 //	width  数字补零宽度，如 6 → 000123
 //	suffix 追加在数字后面的固定串，如 "-20260131"；为空表示不加
 func nextSequence(db *gorm.DB, key, prefix string, width int, suffix string) string {
-	seqMu.Lock()
-	defer seqMu.Unlock()
-
-	var setting model.SystemSetting
-	loadErr := db.Where("key = ?", key).First(&setting).Error
-	if loadErr != nil {
-		setting = model.SystemSetting{Key: key, Value: "0"}
-	}
-	seq, _ := strconv.ParseInt(setting.Value, 10, 64)
-	seq++
-	setting.Value = strconv.FormatInt(seq, 10)
-
-	// 注意：不能一律 db.Save —— 对 ID=0 的新 struct，Save 走 INSERT，
-	// 遇到已有同名 key 会撞唯一索引并静默失败（历史踩过的坑）。
-	if setting.ID == 0 {
-		db.Create(&setting)
-	} else {
-		db.Model(&setting).Update("value", setting.Value)
-	}
-
-	return fmt.Sprintf("%s%0*d%s", prefix, width, seq, suffix)
+	start := reserveSequence(db, key, 1)
+	return fmt.Sprintf("%s%0*d%s", prefix, width, start, suffix)
 }

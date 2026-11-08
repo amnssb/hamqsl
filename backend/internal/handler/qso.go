@@ -22,6 +22,11 @@ func (h *QsoHandler) List(c *gin.Context) {
 	if st := c.Query("scene_type"); st != "" {
 		q = q.Where("scene_type = ?", st)
 	}
+	// 通联换卡只要还没建卡的。不在这里滤，前端只能把已建卡的也拉下来再丢掉，
+	// 最近 100 条都建过卡时，更早的未建卡记录根本出不来。
+	if v := c.Query("has_card"); v == "true" || v == "false" {
+		q = q.Where("has_card = ?", v == "true")
+	}
 
 	var total int64
 	q.Count(&total)
@@ -63,9 +68,15 @@ func (h *QsoHandler) Update(c *gin.Context) {
 		response.NotFound(c, "通联记录不存在")
 		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	// 白名单见 patch.go：record_code 与 has_card 不接受外部写入
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), qsoEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 

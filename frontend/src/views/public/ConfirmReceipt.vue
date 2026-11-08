@@ -9,6 +9,10 @@
             <p class="subtitle">{{ t('confirm.subtitle') }}</p>
           </div>
         </div>
+        <button class="home-back-link" @click="$router.push('/')">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>{{ t('common.backHome') }}</span>
+        </button>
       </header>
 
       <main class="public-main">
@@ -58,11 +62,11 @@
           <div class="card-details">
             <div class="detail-row">
               <span class="label">{{ t('confirm.labelCode') }}</span>
-              <span class="value highlight">{{ cardInfo.card_code }}</span>
+              <span class="value highlight mono-val">{{ cardInfo.card_code }}</span>
             </div>
             <div class="detail-row">
               <span class="label">{{ t('confirm.labelCall') }}</span>
-              <span class="value">{{ cardInfo.call_sign }}</span>
+              <span class="value"><span class="callsign-badge">{{ cardInfo.call_sign }}</span></span>
             </div>
             <div class="detail-row">
               <span class="label">{{ t('confirm.labelVersion') }}</span>

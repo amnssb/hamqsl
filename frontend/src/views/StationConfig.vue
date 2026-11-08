@@ -1,22 +1,38 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>卡片版本</h1>
+        <p>对外可选的卡片样子。公开申请页按这里的图片来选。</p>
+      </div>
+      <div class="page-actions">
+        <el-button type="primary" @click="showAddCard">新增版本</el-button>
+      </div>
+    </div>
+
     <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>本台卡片版本</span>
-          <el-button type="primary" @click="showAddCard">新增版本</el-button>
-        </div>
-      </template>
       <el-table :data="cards" border stripe>
-        <el-table-column prop="card_version" label="版本名称" width="150" />
+        <el-table-column prop="card_version" label="版本名称" width="160">
+          <template #default="{ row }">
+            <strong style="color:var(--qsl-heading);">{{ row.card_version }}</strong>
+          </template>
+        </el-table-column>
         <el-table-column label="图片" width="70">
           <template #default="{ row }">
             <el-image v-if="row.image_path" :src="row.image_path" fit="cover" style="width:40px;height:40px;border-radius:8px;" :preview-src-list="[row.image_path]" preview-teleported />
             <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="available_inventory" label="库存" width="80" />
-        <el-table-column prop="version_total" label="总量" width="80" />
+        <el-table-column prop="available_inventory" label="库存" width="90">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.available_inventory }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="version_total" label="总量" width="90">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.version_total }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="qso_only" label="仅QSO" width="80">
           <template #default="{ row }"><el-tag :type="row.qso_only ? 'warning' : 'info'" size="small">{{ row.qso_only ? '是' : '否' }}</el-tag></template>
         </el-table-column>

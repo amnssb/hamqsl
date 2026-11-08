@@ -53,9 +53,12 @@ const cardFields = computed(() => props.fields.slice(1))
   border: 1px solid var(--qsl-line);
   background: var(--qsl-card-bg);
   border-radius: var(--qsl-radius-card);
-  padding: 16px;
+  padding: 16px 18px;
   box-shadow: var(--qsl-shadow-1);
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.rcard:active {
+  background: var(--qsl-panel-2);
 }
 .rcard-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

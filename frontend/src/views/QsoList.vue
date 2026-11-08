@@ -1,17 +1,18 @@
 <template>
   <div>
-    <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>通联日志</span>
-          <div>
-            <el-button type="success" @click="importDialog = true">导入 ADIF</el-button>
-            <el-button type="primary" @click="showAdd">新增通联</el-button>
-          </div>
-        </div>
-      </template>
+    <div class="page-heading">
+      <div>
+        <h1>通联日志</h1>
+        <p>记下每一次通联。已有日志可以整份 ADIF 导入，重复的会自动跳过。</p>
+      </div>
+      <div class="page-actions">
+        <el-button @click="importDialog = true">导入 ADIF</el-button>
+        <el-button type="primary" @click="showAdd">新增通联</el-button>
+      </div>
+    </div>
 
-      <el-form :inline="true" style="margin-bottom:16px;">
+    <el-card>
+      <el-form class="filter-bar" :inline="true">
         <el-form-item label="呼号">
           <el-input v-model="query.call_sign" placeholder="对方呼号" clearable @clear="loadData" />
         </el-form-item>
@@ -29,15 +30,51 @@
       <ResponsiveTable :data="list" row-key="id" :fields="qsoFields" v-loading="loading">
         <template #default>
       <el-table :data="list" border stripe>
-        <el-table-column prop="record_code" label="编号" width="120" />
-        <el-table-column prop="date" label="日期" width="110" />
-        <el-table-column prop="time" label="时间" width="80" />
-        <el-table-column prop="call_sign" label="对方呼号" width="120" />
-        <el-table-column prop="freq" label="频率" width="100" />
-        <el-table-column prop="band" label="频段" width="80" />
-        <el-table-column prop="mode" label="模式" width="80" />
-        <el-table-column prop="rst_sent" label="RST发送" width="90" />
-        <el-table-column prop="rst_rcvd" label="RST接收" width="90" />
+        <el-table-column prop="record_code" label="编号" width="130">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.record_code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="date" label="日期" width="115">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.date }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="time" label="时间" width="80">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.time }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="call_sign" label="对方呼号" width="125">
+          <template #default="{ row }">
+            <span class="callsign-badge">{{ row.call_sign }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="freq" label="频率" width="105">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.freq }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="band" label="频段" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ row.band }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="mode" label="模式" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" type="warning" effect="plain">{{ row.mode }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="rst_sent" label="RST发送" width="90">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.rst_sent }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="rst_rcvd" label="RST接收" width="90">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.rst_rcvd }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="qth" label="对方QTH" min-width="120" show-overflow-tooltip />
         <el-table-column label="建卡" width="70" align="center">
           <template #default="{ row }">
@@ -55,6 +92,10 @@
           </template>
         </el-table-column>
       </el-table>
+        </template>
+        <template #card-title="{ row }">
+          <span class="mono-val">{{ row.record_code }}</span>
+          <span class="callsign-badge" style="margin-left:8px;">{{ row.call_sign }}</span>
         </template>
         <template #card-has_card="{ row }">
           <el-tag :type="row.has_card ? 'success' : 'info'" size="small">{{ row.has_card ? '是' : '否' }}</el-tag>

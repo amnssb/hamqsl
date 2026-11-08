@@ -32,7 +32,6 @@ html[data-theme="theme_paper"] .el-table th.el-table__cell {
   border-bottom-color: #cfc2a4 !important;
 }
 html[data-theme="theme_paper"] .el-table td.el-table__cell {
-  background-color: #faf5e8 !important;
   border-bottom-color: #cfc2a4 !important;
   color: #2b2317 !important;
 }
@@ -57,17 +56,14 @@ html[data-theme="theme_paper"] .el-card__header {
 }
 
 /* 顶栏与侧栏 */
-html[data-theme="theme_paper"] .layout-header {
-  background: #faf5e8 !important;
-  border-bottom-color: #cfc2a4 !important;
-}
 html[data-theme="theme_paper"] .layout-aside {
   background: #362a1c !important;
   border-right-color: #cfc2a4 !important;
 }
 html[data-theme="theme_paper"] .side-menu .el-menu-item.is-active {
-  background: #b4552d !important;
-  color: #ffffff !important;
+  background: color-mix(in srgb, var(--qsl-primary) 22%, transparent) !important;
+  color: var(--qsl-chrome-text) !important;
+  box-shadow: inset 3px 0 0 var(--qsl-primary) !important;
 }
 
 html[data-theme="theme_paper"] .user-chip,

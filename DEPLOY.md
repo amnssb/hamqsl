@@ -179,8 +179,17 @@ cd ../frontend && npm ci && npm run build && sudo cp -r dist/* /var/www/qsl/
 
 ## 10. 备份策略
 
-- 定期后台导出 JSON 备份（人肉即可），或
-- 直接拷库：`cp /opt/qsl/data/qsl.db /备份目录/qsl-$(date +%F).db`（可加 crontab 每日一次，拷前 `systemctl stop qsl` 或接受极小概率写瞬间的误差）
+- 后台「设置 → 数据备份」一键导出/导入 JSON（换机恢复用这个最省事），或
+- 命令行（推荐）：`bash scripts/backup.sh /备份目录`
+  用 `sqlite3 .backup` 做**在线一致快照**（WAL 模式下直接 `cp` 可能拷到半个事务），
+  连 `uploads/` 一起打包，自动只保留最近 30 份。
+- 手工兜底：`cp /opt/qsl/data/qsl.db /备份目录/qsl-$(date +%F).db`（拷前 `systemctl stop qsl` 最稳）
+
+crontab 每日 3 点：
+
+```bash
+0 3 * * * cd /opt/qsl && bash scripts/backup.sh /备份目录 >> /var/log/qsl-backup.log 2>&1
+```
 
 ---
 
@@ -245,7 +254,7 @@ cd /opt/qsl && bash deploy.sh    # 自动拉基础镜像 → 构建 → 启动 �
 | `./data` | `/app/data` | **qsl.db 数据库**——备份/迁移拷这个 |
 | `./uploads` | `/app/uploads` | 上传文件 |
 
-每日备份一行：`cp data/qsl.db backups/qsl-$(date +%F).db`
+每日备份一行：`bash scripts/backup.sh /备份目录`（在线一致快照 + 打包 uploads + 自动保留 30 份）
 
 ## 常用运维
 

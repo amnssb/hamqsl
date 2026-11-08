@@ -1,14 +1,17 @@
 <template>
   <div>
-    <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>收卡记录</span>
-          <el-button type="primary" @click="showAdd">收卡确认</el-button>
-        </div>
-      </template>
+    <div class="page-heading">
+      <div>
+        <h1>收卡记录</h1>
+        <p>对方寄来的卡片记在这里，方便和已经发出去的那张对上。</p>
+      </div>
+      <div class="page-actions">
+        <el-button type="primary" @click="showAdd">收卡确认</el-button>
+      </div>
+    </div>
 
-      <el-form :inline="true" style="margin-bottom:16px;">
+    <el-card>
+      <el-form class="filter-bar" :inline="true">
         <el-form-item label="呼号">
           <el-input v-model="query.call_sign" placeholder="对方呼号" clearable @clear="loadData" />
         </el-form-item>
@@ -16,11 +19,23 @@
       </el-form>
 
       <el-table :data="list" border stripe v-loading="loading">
-        <el-table-column prop="receive_code" label="收卡编号" width="160" />
-        <el-table-column prop="call_sign" label="对方呼号" width="110" />
+        <el-table-column prop="receive_code" label="收卡编号" width="165">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.receive_code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="call_sign" label="对方呼号" width="120">
+          <template #default="{ row }">
+            <span class="callsign-badge">{{ row.call_sign }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="card_type" label="卡片类型" width="90" />
         <el-table-column prop="business_type" label="业务类型" width="110" />
-        <el-table-column prop="received_date" label="收卡日期" width="110" />
+        <el-table-column prop="received_date" label="收卡日期" width="115">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.received_date }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="匹配状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.match_status === 'MATCHED' ? 'success' : 'warning'" size="small">

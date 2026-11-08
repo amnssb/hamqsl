@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"strconv"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
+	"strconv"
 )
 
 type AddressHandler struct{ db *gorm.DB }
@@ -16,11 +16,13 @@ func (h *AddressHandler) ListBook(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
 	q := h.db.Model(&model.AddressBookEntry{})
-	if v := c.Query("call_sign"); v != "" { q = q.Where("call_sign LIKE ?", "%"+v+"%") }
+	if v := c.Query("call_sign"); v != "" {
+		q = q.Where("call_sign LIKE ?", "%"+v+"%")
+	}
 	var total int64
 	q.Count(&total)
 	var items []model.AddressBookEntry
-	q.Order("id DESC").Offset((page-1)*size).Limit(size).Find(&items)
+	q.Order("id DESC").Offset((page - 1) * size).Limit(size).Find(&items)
 	response.Page(c, items, total, page, size)
 }
 
@@ -34,11 +36,17 @@ func (h *AddressHandler) CreateBook(c *gin.Context) {
 func (h *AddressHandler) UpdateBook(c *gin.Context) {
 	var item model.AddressBookEntry
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "地址不存在"); return
+		response.NotFound(c, "地址不存在")
+		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), addressBookEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 
@@ -63,11 +71,17 @@ func (h *AddressHandler) CreateBureau(c *gin.Context) {
 func (h *AddressHandler) UpdateBureau(c *gin.Context) {
 	var item model.BureauEntry
 	if err := h.db.First(&item, c.Param("id")).Error; err != nil {
-		response.NotFound(c, "卡片局不存在"); return
+		response.NotFound(c, "卡片局不存在")
+		return
 	}
-	var req map[string]interface{}
-	c.ShouldBindJSON(&req)
-	h.db.Model(&item).Updates(req)
+	if ok, err := applyPatch(c, h.db, &item, c.Param("id"), bureauEditableFields); !ok {
+		if err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
+		response.Fail(c, 400, "没有可更新的字段")
+		return
+	}
 	response.OK(c, item)
 }
 

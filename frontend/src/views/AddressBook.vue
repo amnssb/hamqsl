@@ -1,12 +1,16 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>我的地址</h1>
+        <p>自己的回寄地址。SWL 申请通过后，从这里挑一条发给对方。</p>
+      </div>
+      <div class="page-actions">
+        <el-button type="primary" @click="showAdd">新增地址</el-button>
+      </div>
+    </div>
+
     <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>我的地址</span>
-          <el-button type="primary" @click="showAdd">新增地址</el-button>
-        </div>
-      </template>
 
       <el-alert type="info" :closable="false" style="margin-bottom:16px;">
         这里维护您自己的回寄地址（可添加多条）。在线上换卡的 SWL 申请中，可多选地址发送到对方邮箱，对方寄出后在进度页登记单号即可留档。
@@ -15,9 +19,17 @@
       <el-table :data="list" border stripe v-loading="loading">
         <el-table-column prop="name" label="地址名称" width="140" />
         <el-table-column prop="address" label="详细地址" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="postal_code" label="邮编" width="90" />
+        <el-table-column prop="postal_code" label="邮编" width="95">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.postal_code || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="destination_country" label="国家/地区" width="100" />
-        <el-table-column prop="telephone" label="电话" width="130" />
+        <el-table-column prop="telephone" label="电话" width="130">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.telephone || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="email" label="邮箱" width="180" show-overflow-tooltip />
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">

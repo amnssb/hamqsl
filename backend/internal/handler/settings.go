@@ -45,12 +45,20 @@ func (h *SettingsHandler) SaveSmtp(c *gin.Context) {
 	for k, v := range req {
 		// 密码留空（或旧版掩码）表示不修改，避免误存空值覆盖真实密码
 		if k == "smtp_password" {
-			if sv, ok := v.(string); ok && sv != "" && sv != "***" { h.setSetting(k, sv) }
+			if sv, ok := v.(string); ok && sv != "" && sv != "***" {
+				h.setSetting(k, sv)
+			}
 			continue
 		}
-		if sv, ok := v.(string); ok { h.setSetting(k, sv) }
+		if sv, ok := v.(string); ok {
+			h.setSetting(k, sv)
+		}
 		if bv, ok := v.(bool); ok {
-			if bv { h.setSetting(k, "true") } else { h.setSetting(k, "false") }
+			if bv {
+				h.setSetting(k, "true")
+			} else {
+				h.setSetting(k, "false")
+			}
 		}
 	}
 	response.OKMsg(c, "SMTP配置已保存")
@@ -59,7 +67,7 @@ func (h *SettingsHandler) SaveSmtp(c *gin.Context) {
 func (h *SettingsHandler) GetTracking(c *gin.Context) {
 	response.OK(c, gin.H{
 		"kuaidi100_customer": h.getSetting("kuaidi100_customer"),
-		"kuaidi100_key": "***", "kuaidi100_secret": "***",
+		"kuaidi100_key":      "***", "kuaidi100_secret": "***",
 	})
 }
 
@@ -88,7 +96,9 @@ func (h *SettingsHandler) SaveTracking(c *gin.Context) {
 	var req map[string]interface{}
 	c.ShouldBindJSON(&req)
 	for k, v := range req {
-		if sv, ok := v.(string); ok && sv != "***" { h.setSetting(k, sv) }
+		if sv, ok := v.(string); ok && sv != "***" {
+			h.setSetting(k, sv)
+		}
 	}
 	response.OKMsg(c, "快递追踪配置已保存")
 }
@@ -101,7 +111,9 @@ func (h *SettingsHandler) SaveSite(c *gin.Context) {
 	var req map[string]interface{}
 	c.ShouldBindJSON(&req)
 	for k, v := range req {
-		if sv, ok := v.(string); ok { h.setSetting(k, sv) }
+		if sv, ok := v.(string); ok {
+			h.setSetting(k, sv)
+		}
 	}
 	response.OKMsg(c, "站点设置已保存")
 }

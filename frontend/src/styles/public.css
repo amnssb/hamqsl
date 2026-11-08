@@ -11,11 +11,42 @@
 }
 
 .public-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 0 24px;
+  padding: 20px 0 16px;
+  background: color-mix(in srgb, var(--qsl-bg) 86%, transparent);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--qsl-line);
+}
+
+.home-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qsl-heading);
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--qsl-shadow-1);
+}
+.home-back-link:hover {
+  color: var(--qsl-primary);
+  border-color: var(--qsl-primary);
+  background: var(--qsl-hover-tint);
+  transform: translateX(-2px);
+}
+.home-back-link .el-icon {
+  font-size: 14px;
 }
 
 .logo-section {
@@ -58,12 +89,13 @@
 
 .modern-card {
   margin-bottom: 24px;
-  padding: 28px;
+  padding: 32px;
   border: 1px solid var(--qsl-line);
-  border-radius: 16px;
+  border-radius: var(--qsl-radius-card);
   background: var(--qsl-card-bg);
   color: var(--qsl-ink);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--qsl-shadow-1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-header {
@@ -157,10 +189,10 @@
 }
 
 .record-item:hover, .card-item:hover {
-  border-color: var(--el-color-primary, #2563eb);
+  border-color: var(--qsl-primary);
   background: var(--qsl-panel-2);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--qsl-shadow-2);
 }
 
 .record-code, .card-code {

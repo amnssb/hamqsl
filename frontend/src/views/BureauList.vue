@@ -1,17 +1,33 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>卡片局</h1>
+        <p>卡片局的名称和地址。申请选择走卡片局时用这里的记录。</p>
+      </div>
+      <div class="page-actions">
+        <el-button type="primary" @click="showAdd">新增卡片局</el-button>
+      </div>
+    </div>
+
     <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>卡片局管理</span>
-          <el-button type="primary" @click="showAdd">新增卡片局</el-button>
-        </div>
-      </template>
 
       <el-table :data="list" border stripe v-loading="loading">
-        <el-table-column prop="bureau_name" label="卡片局名称" width="150" />
-        <el-table-column prop="telephone" label="电话" width="120" />
-        <el-table-column prop="postal_code" label="邮编" width="80" />
+        <el-table-column prop="bureau_name" label="卡片局名称" width="160">
+          <template #default="{ row }">
+            <strong style="color:var(--qsl-heading);">{{ row.bureau_name }}</strong>
+          </template>
+        </el-table-column>
+        <el-table-column prop="telephone" label="电话" width="125">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.telephone || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="postal_code" label="邮编" width="90">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.postal_code || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="destination_country" label="去向国" width="80" />
         <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
         <el-table-column label="操作" width="120">

@@ -27,7 +27,10 @@
       <!-- 首屏：左文案 + 右数据面板 -->
       <section class="hero">
         <div class="hero-copy">
-          <div class="eyebrow">AMATEUR RADIO QSL PORTAL</div>
+          <div class="telemetry-pill hero-telemetry">
+            <span class="pulse-indicator"></span>
+            <span>AMATEUR RADIO DX SERVICE · UTC+8</span>
+          </div>
           <h1 class="hero-title">
             {{ t('home.heroTitle1') }}<br>
             <span class="highlight">{{ t('home.heroTitle2') }}</span>
@@ -97,6 +100,49 @@
           </div>
           <el-icon class="service-arrow"><ArrowRight /></el-icon>
         </button>
+        <button class="service-card" @click="$router.push('/confirm')">
+          <div class="service-icon amber"><el-icon><Check /></el-icon></div>
+          <div class="service-text">
+            <b>{{ t('home.svcConfirm') }}</b>
+            <small>{{ t('home.svcConfirmDesc') }}</small>
+          </div>
+          <el-icon class="service-arrow"><ArrowRight /></el-icon>
+        </button>
+      </section>
+
+      <!-- 换卡全流程说明 -->
+      <section class="workflow-section">
+        <div class="section-title-wrap">
+          <span class="telemetry-pill">HOW IT WORKS</span>
+          <h2>{{ t('home.workflowTitle') }}</h2>
+          <p>{{ t('home.workflowSub') }}</p>
+        </div>
+        <div class="workflow-grid">
+          <div class="workflow-step">
+            <div class="step-num">01</div>
+            <div class="step-icon blue"><el-icon><Document /></el-icon></div>
+            <b>{{ t('home.step1Title') }}</b>
+            <p>{{ t('home.step1Desc') }}</p>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">02</div>
+            <div class="step-icon indigo"><el-icon><CircleCheck /></el-icon></div>
+            <b>{{ t('home.step2Title') }}</b>
+            <p>{{ t('home.step2Desc') }}</p>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">03</div>
+            <div class="step-icon amber"><el-icon><Postcard /></el-icon></div>
+            <b>{{ t('home.step3Title') }}</b>
+            <p>{{ t('home.step3Desc') }}</p>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">04</div>
+            <div class="step-icon emerald"><el-icon><Box /></el-icon></div>
+            <b>{{ t('home.step4Title') }}</b>
+            <p>{{ t('home.step4Desc') }}</p>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -120,23 +166,22 @@ const stats = reactive({ cards_sent: 0, cards_signed: 0, pending_requests: 0 })
 const statsLoaded = ref(false)
 
 onMounted(async () => {
-  try {
-    const res = await api.get('/public/site-info')
-    if (res?.site_name) {
-      siteName.value = res.site_name
-      document.title = res.site_name
-    }
-    siteNotice.value = (res && res.site_notice) || ''
-  } catch (e) { /* 使用默认名称 */ }
-  try {
-    const s = await api.get('/public/stats')
-    if (s) {
-      stats.cards_sent = s.cards_sent ?? 0
-      stats.cards_signed = s.cards_signed ?? 0
-      stats.pending_requests = s.pending_requests ?? 0
-      statsLoaded.value = true
-    }
-  } catch (e) { /* 统计面板缺省隐藏 */ }
+  // 站名和统计互不依赖，一起发。其中一个失败不挡住另一个。
+  const [info, s] = await Promise.all([
+    api.get('/public/site-info').catch(() => null),
+    api.get('/public/stats').catch(() => null),
+  ])
+  if (info?.site_name) {
+    siteName.value = info.site_name
+    document.title = info.site_name
+  }
+  siteNotice.value = (info && info.site_notice) || ''
+  if (s) {
+    stats.cards_sent = s.cards_sent ?? 0
+    stats.cards_signed = s.cards_signed ?? 0
+    stats.pending_requests = s.pending_requests ?? 0
+    statsLoaded.value = true
+  }
 })
 </script>
 
@@ -158,6 +203,9 @@ onMounted(async () => {
 }
 
 .portal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   height: 72px;
   display: flex;
   align-items: center;
@@ -166,6 +214,8 @@ onMounted(async () => {
   width: 100%;
   margin: 0 auto;
   padding: 0 24px;
+  background: color-mix(in srgb, var(--qsl-bg) 84%, transparent);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--qsl-line);
 }
 
@@ -179,12 +229,12 @@ onMounted(async () => {
   place-items: center;
   width: 36px;
   height: 36px;
-  color: #ffffff;
-  background: var(--el-color-primary, #2563eb);
+  color: var(--qsl-on-primary);
+  background: var(--qsl-primary);
   border-radius: 10px;
   font-size: 18px;
   font-weight: 850;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--qsl-ink) 20%, transparent);
 }
 .brand-info strong {
   display: block;
@@ -279,6 +329,10 @@ onMounted(async () => {
   font-weight: 800;
   letter-spacing: 0.16em;
 }
+.hero-telemetry {
+  margin-bottom: 16px;
+}
+
 .hero-title {
   margin: 14px 0 18px;
   color: var(--qsl-navy);
@@ -371,8 +425,8 @@ onMounted(async () => {
   border: 1px solid var(--qsl-line);
 }
 @keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
-  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1); }
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--qsl-green) 25%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--qsl-green) 10%, transparent); }
 }
 
 .stats-grid {
@@ -390,6 +444,7 @@ onMounted(async () => {
 .stat-item b {
   display: block;
   color: var(--qsl-navy);
+  font-family: var(--qsl-font-mono);
   font-size: 28px;
   font-weight: 850;
   line-height: 1.1;
@@ -412,7 +467,7 @@ onMounted(async () => {
 /* 服务入口 */
 .services {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   padding-top: 36px;
   border-top: 1px solid var(--qsl-line);
@@ -452,9 +507,87 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 18px;
 }
-.service-icon.blue { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
-.service-icon.indigo { color: #4f46e5; background: rgba(79, 70, 229, 0.12); }
-.service-icon.emerald { color: #059669; background: rgba(5, 150, 105, 0.12); }
+.service-icon.blue { color: var(--qsl-tone-blue); background: color-mix(in srgb, var(--qsl-tone-blue) 12%, transparent); }
+.service-icon.indigo { color: var(--qsl-tone-indigo); background: color-mix(in srgb, var(--qsl-tone-indigo) 12%, transparent); }
+.service-icon.emerald { color: var(--qsl-tone-emerald); background: color-mix(in srgb, var(--qsl-tone-emerald) 12%, transparent); }
+.service-icon.amber { color: var(--qsl-tone-amber); background: color-mix(in srgb, var(--qsl-tone-amber) 12%, transparent); }
+
+/* 换卡全流程说明 */
+.workflow-section {
+  margin-top: 48px;
+  padding-top: 36px;
+  border-top: 1px solid var(--qsl-line);
+}
+.section-title-wrap {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.section-title-wrap h2 {
+  margin: 10px 0 6px;
+  color: var(--qsl-heading);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.section-title-wrap p {
+  margin: 0;
+  color: var(--qsl-muted);
+  font-size: 14px;
+}
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.workflow-step {
+  position: relative;
+  padding: 24px 20px;
+  border-radius: 14px;
+  background: var(--qsl-panel);
+  border: 1px solid var(--qsl-line);
+  box-shadow: var(--qsl-shadow-1);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.workflow-step:hover {
+  transform: translateY(-2px);
+  border-color: var(--el-color-primary);
+  box-shadow: var(--qsl-shadow-2);
+}
+.step-num {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  font-family: var(--qsl-font-mono);
+  font-size: 15px;
+  font-weight: 850;
+  color: color-mix(in srgb, var(--qsl-muted) 40%, transparent);
+}
+.step-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+.step-icon.blue { color: var(--qsl-tone-blue); background: color-mix(in srgb, var(--qsl-tone-blue) 12%, transparent); }
+.step-icon.indigo { color: var(--qsl-tone-indigo); background: color-mix(in srgb, var(--qsl-tone-indigo) 12%, transparent); }
+.step-icon.amber { color: var(--qsl-tone-amber); background: color-mix(in srgb, var(--qsl-tone-amber) 12%, transparent); }
+.step-icon.emerald { color: var(--qsl-tone-emerald); background: color-mix(in srgb, var(--qsl-tone-emerald) 12%, transparent); }
+.workflow-step b {
+  display: block;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--qsl-heading);
+  margin-bottom: 6px;
+}
+.workflow-step p {
+  margin: 0;
+  color: var(--qsl-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 
 .service-text {
   flex: 1;
@@ -498,6 +631,10 @@ onMounted(async () => {
   letter-spacing: 0.06em;
 }
 
+@media (max-width: 990px) {
+  .services { grid-template-columns: repeat(2, 1fr); }
+  .workflow-grid { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 880px) {
   .hero { grid-template-columns: 1fr; gap: 36px; padding-bottom: 36px; }
   .stats-panel { max-width: 100%; }
@@ -506,5 +643,6 @@ onMounted(async () => {
 @media (max-width: 720px) {
   .portal-main { padding-top: 24px; }
   .services { grid-template-columns: 1fr; }
+  .workflow-grid { grid-template-columns: 1fr; }
 }
 </style>

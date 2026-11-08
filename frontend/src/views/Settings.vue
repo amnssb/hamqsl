@@ -1,5 +1,12 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>设置</h1>
+        <p>站点对外怎么显示、邮件从哪个邮箱出去、整库怎么备份，以及这台账号的安全。</p>
+      </div>
+    </div>
+
     <el-card style="margin-bottom:20px;">
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center;">

@@ -107,53 +107,55 @@ type StationEquipment struct {
 }
 
 type QsoRecord struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	RecordCode string    `gorm:"size:30;uniqueIndex;not null" json:"record_code"`
-	SceneType  string    `gorm:"size:20;default:QSO" json:"scene_type"`
-	Date       string    `gorm:"size:10;not null;index:idx_qso_date" json:"date"`
-	Time       string    `gorm:"size:10" json:"time"`
-	Timezone   string    `gorm:"size:10;default:UTC+8" json:"timezone"`
-	Freq       string    `gorm:"size:30" json:"freq"`
-	Band       string    `gorm:"size:20" json:"band"`
-	Mode       string    `gorm:"size:20" json:"mode"`
-	MyRig      string    `gorm:"size:100" json:"my_rig"`
-	MyRigMode  string    `gorm:"size:20" json:"my_rig_mode"`
-	MyRigAnt   string    `gorm:"size:100" json:"my_rig_ant"`
-	MyRigPwr   string    `gorm:"size:20" json:"my_rig_pwr"`
-	MyQTH      string    `gorm:"size:200" json:"my_qth"`
-	Operator   string    `gorm:"size:50" json:"operator"`
-	CallSign   string    `gorm:"size:20;not null;index" json:"call_sign"`
-	Rig        string    `gorm:"size:100" json:"rig"`
-	Ant        string    `gorm:"size:100" json:"ant"`
-	Pwr        string    `gorm:"size:20" json:"pwr"`
-	QTH        string    `gorm:"size:200" json:"qth"`
-	RstSent    string    `gorm:"size:10" json:"rst_sent"`
-	RstRcvd    string    `gorm:"size:10" json:"rst_rcvd"`
-	Remarks    string    `gorm:"type:text" json:"remarks"`
-	HasCard    bool      `gorm:"default:false" json:"has_card"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	RecordCode string `gorm:"size:30;uniqueIndex;not null" json:"record_code"`
+	SceneType  string `gorm:"size:20;default:QSO" json:"scene_type"`
+	// 列表默认按日期+时间倒序；呼号前缀过滤和 ADIF 去重（呼号+日期）走另一组。
+	// 复合索引的第一列仍能单独服务「只按呼号」或「只按日期」的查询。
+	Date      string    `gorm:"size:10;not null;index:idx_qso_call_date,priority:2;index:idx_qso_date_time,priority:1" json:"date"`
+	Time      string    `gorm:"size:10;index:idx_qso_date_time,priority:2" json:"time"`
+	Timezone  string    `gorm:"size:10;default:UTC+8" json:"timezone"`
+	Freq      string    `gorm:"size:30" json:"freq"`
+	Band      string    `gorm:"size:20" json:"band"`
+	Mode      string    `gorm:"size:20" json:"mode"`
+	MyRig     string    `gorm:"size:100" json:"my_rig"`
+	MyRigMode string    `gorm:"size:20" json:"my_rig_mode"`
+	MyRigAnt  string    `gorm:"size:100" json:"my_rig_ant"`
+	MyRigPwr  string    `gorm:"size:20" json:"my_rig_pwr"`
+	MyQTH     string    `gorm:"size:200" json:"my_qth"`
+	Operator  string    `gorm:"size:50" json:"operator"`
+	CallSign  string    `gorm:"size:20;not null;index:idx_qso_call_date,priority:1" json:"call_sign"`
+	Rig       string    `gorm:"size:100" json:"rig"`
+	Ant       string    `gorm:"size:100" json:"ant"`
+	Pwr       string    `gorm:"size:20" json:"pwr"`
+	QTH       string    `gorm:"size:200" json:"qth"`
+	RstSent   string    `gorm:"size:10" json:"rst_sent"`
+	RstRcvd   string    `gorm:"size:10" json:"rst_rcvd"`
+	Remarks   string    `gorm:"type:text" json:"remarks"`
+	HasCard   bool      `gorm:"default:false" json:"has_card"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type CardRecord struct {
-	ID                 uint   `gorm:"primaryKey" json:"id"`
-	CardCode           string `gorm:"size:30;uniqueIndex;not null" json:"card_code"`
-	CallSign           string `gorm:"size:20;not null;index" json:"call_sign"`
-	OwnerName          string `gorm:"size:100" json:"owner_name"`
-	CardType           string `gorm:"size:30;default:QSO" json:"card_type"`
-	SceneType          string `gorm:"size:30;default:QSO" json:"scene_type"`
-	CardVersion        string `gorm:"size:100" json:"card_version"`
-	QsoRecordID        *uint  `json:"qso_record_id"`
-	OfflineActivityID  *uint  `json:"offline_activity_id"`
-	AddressEntryID     *uint  `json:"address_entry_id"`
-	BureauID           *uint  `json:"bureau_id"`
-	CardDate           string `gorm:"size:10" json:"card_date"`
-	CardTime           string `gorm:"size:10" json:"card_time"`
-	BusinessRemarks    string `gorm:"type:text" json:"business_remarks"`
-	CardRemarks        string `gorm:"type:text" json:"card_remarks"`
-	SentRemarks        string `gorm:"type:text" json:"sent_remarks"`
-	ReceivedRemarks    string `gorm:"type:text" json:"received_remarks"`
-	MailType           string `gorm:"size:20;default:REGISTERED" json:"mail_type"`
+	ID                uint   `gorm:"primaryKey" json:"id"`
+	CardCode          string `gorm:"size:30;uniqueIndex;not null" json:"card_code"`
+	CallSign          string `gorm:"size:20;not null;index" json:"call_sign"`
+	OwnerName         string `gorm:"size:100" json:"owner_name"`
+	CardType          string `gorm:"size:30;default:QSO" json:"card_type"`
+	SceneType         string `gorm:"size:30;default:QSO;index:idx_card_scene" json:"scene_type"`
+	CardVersion       string `gorm:"size:100" json:"card_version"`
+	QsoRecordID       *uint  `json:"qso_record_id"`
+	OfflineActivityID *uint  `json:"offline_activity_id"`
+	AddressEntryID    *uint  `json:"address_entry_id"`
+	BureauID          *uint  `json:"bureau_id"`
+	CardDate          string `gorm:"size:10" json:"card_date"`
+	CardTime          string `gorm:"size:10" json:"card_time"`
+	BusinessRemarks   string `gorm:"type:text" json:"business_remarks"`
+	CardRemarks       string `gorm:"type:text" json:"card_remarks"`
+	SentRemarks       string `gorm:"type:text" json:"sent_remarks"`
+	ReceivedRemarks   string `gorm:"type:text" json:"received_remarks"`
+	MailType          string `gorm:"size:20;default:REGISTERED" json:"mail_type"`
 	// tracking_number 是公开未鉴权端点（/api/public/tracking）的查询条件，必须走索引，
 	// 否则一次请求就是一次全表扫。
 	TrackingNumber     string `gorm:"size:50;index:idx_card_tracking" json:"tracking_number"`
@@ -185,7 +187,8 @@ type CardRecord struct {
 	ReturnReceivedAt  string `gorm:"size:30" json:"return_received_at"`
 	ReturnRecordCode  string `gorm:"size:50" json:"return_record_code"`
 
-	CreatedAt time.Time `json:"created_at"`
+	// 每日统计按创建时间划窗，没有这列索引就是每天全表扫。
+	CreatedAt time.Time `gorm:"index:idx_card_created" json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 

@@ -1,0 +1,86 @@
+# 质量门禁：格式 / 静态检查 / 单元测试 / 前端构建与样式规范
+#
+# 为什么单独一个 workflow：release.yml 只做 docker build + push，
+# go vet 红了、npm build 挂了、lint:css 有报错，镜像照样发出去。
+# 这个 workflow 在同一个 PR / push 上先把这些都跑一遍。
+#
+# 两个 workflow 都监听 push main，互不依赖：发布不等门禁，门禁红了自己看得出来。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go · fmt / vet / test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      # gofmt 必须零输出。项目里曾经有 11 个文件不合规，
+      # 因为没有门禁就一直没人管，最后 diff 噪音盖过了真正的改动。
+      - name: gofmt
+        working-directory: backend
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "以下文件未格式化，请运行 gofmt -w .："
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        working-directory: backend
+        run: go vet ./...
+
+      # SQLite 驱动需要 CGO；ubuntu-latest 自带 gcc，无需额外安装
+      - name: go test
+        working-directory: backend
+        env:
+          CGO_ENABLED: '1'
+        run: go test ./... -count=1
+
+      - name: build
+        working-directory: backend
+        env:
+          CGO_ENABLED: '1'
+        run: go build -o /tmp/qsl-server ./cmd/server
+
+  frontend:
+    name: Vue · build / stylelint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # 必须 npm ci：有 lock 却用 npm install 会让 CI 和镜像构建装到不同版本，
+      # "本地能过、CI 过不了"这类问题大多来自这里。
+      - name: install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      # color-no-hex：主题系统的防回退机制。组件里写裸十六进制会让
+      # 暗色主题盖不上，这是"主题只是蒙版"的根源。
+      - name: stylelint
+        working-directory: frontend
+        run: npm run lint:css
+
+      - name: build
+        working-directory: frontend
+        run: npm run build

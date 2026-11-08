@@ -2,12 +2,12 @@ package handler
 
 import (
 	"fmt"
-	"log"
-	"strings"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"log"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
+	"strings"
 )
 
 type PublicHandler struct{ db *gorm.DB }
@@ -26,21 +26,21 @@ func (h *PublicHandler) GetCardByCode(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{
-		"card_code":          card.CardCode,
-		"call_sign":          card.CallSign,
-		"card_type":          card.CardType,
-		"card_version":       card.CardVersion,
-		"flow_status":        card.FlowStatus,
-		"mail_type":          card.MailType,
-		"tracking_number":    card.TrackingNumber,
-		"card_sent":          card.CardSent,
-		"card_received":      card.CardReceived,
-		"receipt_confirmed":  card.ReceiptConfirmed,
-		"card_date":          card.CardDate,
+		"card_code":           card.CardCode,
+		"call_sign":           card.CallSign,
+		"card_type":           card.CardType,
+		"card_version":        card.CardVersion,
+		"flow_status":         card.FlowStatus,
+		"mail_type":           card.MailType,
+		"tracking_number":     card.TrackingNumber,
+		"card_sent":           card.CardSent,
+		"card_received":       card.CardReceived,
+		"receipt_confirmed":   card.ReceiptConfirmed,
+		"card_date":           card.CardDate,
 		"return_mail_enabled": card.ReturnMailEnabled,
-		"return_mail_type":   card.ReturnMailType,
-		"return_tracking":    card.ReturnTracking,
-		"return_mailed_at":   card.ReturnMailedAt,
+		"return_mail_type":    card.ReturnMailType,
+		"return_tracking":     card.ReturnTracking,
+		"return_mailed_at":    card.ReturnMailedAt,
 	})
 }
 
@@ -113,10 +113,10 @@ func (h *PublicHandler) ReturnMail(c *gin.Context) {
 	}
 
 	response.OK(c, gin.H{
-		"card_code":         card.CardCode,
-		"return_mail_type":  card.ReturnMailType,
-		"return_tracking":   card.ReturnTracking,
-		"return_mailed_at":  card.ReturnMailedAt,
+		"card_code":        card.CardCode,
+		"return_mail_type": card.ReturnMailType,
+		"return_tracking":  card.ReturnTracking,
+		"return_mailed_at": card.ReturnMailedAt,
 	})
 }
 
@@ -193,16 +193,16 @@ func (h *PublicHandler) ExchangeStatus(c *gin.Context) {
 	response.OK(c, out)
 }
 
-// PublicStats 公开统计（仅聚合数量，不含任何个人信息）：首页实时数据面板
+// PublicStats 公开统计（仅聚合数量，不含任何个人信息）：首页实时数据面板。
+//
+// 三条 COUNT(*) 全表扫，而首页最容易被反复刷，所以走 60 秒内存快照
+// （见 stats_cache.go）。数字晚一分钟没人看得出来，但数据库少扫几百遍。
 func (h *PublicHandler) PublicStats(c *gin.Context) {
-	var sent, signed, pending int64
-	h.db.Model(&model.CardRecord{}).Where("card_sent = ?", true).Count(&sent)
-	h.db.Model(&model.CardRecord{}).Where("receipt_confirmed = ?", true).Count(&signed)
-	h.db.Model(&model.ExchangeRequest{}).Where("review_status = ?", "PENDING").Count(&pending)
+	s := publicStats(h.db)
 	response.OK(c, gin.H{
-		"cards_sent":       sent,
-		"cards_signed":     signed,
-		"pending_requests": pending,
+		"cards_sent":       s.CardsSent,
+		"cards_signed":     s.CardsSigned,
+		"pending_requests": s.PendingRequests,
 	})
 }
 
@@ -364,16 +364,17 @@ func (h *PublicHandler) SubmitExchange(c *gin.Context) {
 		}
 		subject := "新换卡申请：" + ex.CallSign + "（" + sceneName + "）"
 		body := fmt.Sprintf(
-			"<p>收到一条新的换卡申请：</p>" +
-			"<div style=\"background:#f8f7f2;border-left:3px solid #f5a623;padding:12px 16px;margin:14px 0;line-height:2;\">" +
-			"申请编号：<b>%s</b><br>呼号：<b>%s</b>%s<br>场景：%s<br>姓名：%s<br>邮箱：%s<br>" +
-			"申请理由：%s</div>" +
-			"<p>请登录管理后台及时处理。</p>",
+			"<p>收到一条新的换卡申请：</p>"+
+				"<div style=\"background:#f8f7f2;border-left:3px solid #f5a623;padding:12px 16px;margin:14px 0;line-height:2;\">"+
+				"申请编号：<b>%s</b><br>呼号：<b>%s</b>%s<br>场景：%s<br>姓名：%s<br>邮箱：%s<br>"+
+				"申请理由：%s</div>"+
+				"<p>请登录管理后台及时处理。</p>",
 			ex.RequestCode, htmlEscape(ex.CallSign), eyeballTag, htmlEscape(sceneName), htmlEscape(ex.Name), htmlEscape(ex.Email), htmlEscape(ex.ApplicationReason))
 		if err := sendMail(h.db, notifyEmail, subject, body); err != nil {
 			log.Printf("新申请通知邮件发送失败(%s): %v", notifyEmail, err)
 		}
 	}
+	invalidatePublicStatsCache()
 	response.OK(c, ex)
 }
 
@@ -408,11 +409,11 @@ func (h *PublicHandler) ConfirmReceipt(c *gin.Context) {
 	card.ReceiptConfirmed = true
 	card.ReceivedAt = req.ReceivedDate
 	card.ReceivedRemarks = req.Remarks
-	if card.CardType != "" && len(card.CardType) > 6 && card.CardType[len(card.CardType)-6:] == "(ERROR)" {
-		card.FlowStatus = "ERROR"
-	} else if card.ReceiptConfirmed { card.FlowStatus = "SIGNED"
-	} else { card.FlowStatus = "RECEIVED" }
+	// 本函数与 refreshStatus 是同一套判定，但这里不能直接复查整个结构体里的
+	// CardIssued/CardSent（可能是历史脏数据），所以保留就地判决。
+	refreshStatus(&card)
 	h.db.Save(&card)
+	invalidatePublicStatsCache()
 
 	// "我发出的卡"由对方签收确认：仅推进卡片状态（SIGNED），不再生成收卡记录——
 	// 收卡记录只登记对方主动寄来的卡（SWL 反寄收卡 / 手动登记）
@@ -465,7 +466,7 @@ func (h *PublicHandler) SubmitReturnMail(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{
-		"request_code":    ex.RequestCode,
+		"request_code":     ex.RequestCode,
 		"return_mail_type": ex.ReturnMailType,
 		"return_tracking":  ex.ReturnTracking,
 		"return_mailed_at": ex.ReturnMailedAt,
@@ -474,7 +475,9 @@ func (h *PublicHandler) SubmitReturnMail(c *gin.Context) {
 
 func (h *PublicHandler) QueryTracking(c *gin.Context) {
 	trackingNumber := c.Query("tracking_number")
-	if trackingNumber == "" { trackingNumber = c.Param("tracking_number") }
+	if trackingNumber == "" {
+		trackingNumber = c.Param("tracking_number")
+	}
 	if trackingNumber == "" {
 		response.Fail(c, 400, "请输入单号")
 		return
@@ -489,11 +492,11 @@ func (h *PublicHandler) QueryTracking(c *gin.Context) {
 	note := ensureTrackingFresh(h.db, &card)
 	response.OK(c, gin.H{
 		"tracking_number": card.TrackingNumber,
-		"carrier": card.TrackingCarrier,
-		"status": card.TrackingStatus,
-		"details": parseTrackingDetail(card.TrackingDetail),
-		"updated_at": card.TrackingUpdatedAt,
-		"auto": kuaidi100Configured(h.db),
-		"note": note,
+		"carrier":         card.TrackingCarrier,
+		"status":          card.TrackingStatus,
+		"details":         parseTrackingDetail(card.TrackingDetail),
+		"updated_at":      card.TrackingUpdatedAt,
+		"auto":            kuaidi100Configured(h.db),
+		"note":            note,
 	})
 }

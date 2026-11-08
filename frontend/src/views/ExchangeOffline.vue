@@ -1,19 +1,35 @@
 <template>
   <div>
+    <div class="page-heading">
+      <div>
+        <h1>线下换卡</h1>
+        <p>聚会、现场换卡，按一场活动归在一起。</p>
+      </div>
+      <div class="page-actions">
+        <el-button type="primary" @click="showAdd">创建活动</el-button>
+      </div>
+    </div>
+
     <el-card>
-      <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span>线下换卡活动</span>
-          <el-button type="primary" @click="showAdd">创建活动</el-button>
-        </div>
-      </template>
 
       <el-table :data="list" border stripe v-loading="loading">
-        <el-table-column prop="activity_code" label="活动编号" width="120" />
+        <el-table-column prop="activity_code" label="活动编号" width="130">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.activity_code }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="activity_name" label="活动名称" min-width="150" />
         <el-table-column prop="activity_location" label="地点" width="150" show-overflow-tooltip />
-        <el-table-column prop="activity_date" label="日期" width="110" />
-        <el-table-column prop="activity_time" label="时间" width="80" />
+        <el-table-column prop="activity_date" label="日期" width="115">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.activity_date || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="activity_time" label="时间" width="85">
+          <template #default="{ row }">
+            <span class="mono-val">{{ row.activity_time || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="workflow_status" label="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.workflow_status === 'ACTIVE' ? 'success' : 'info'" size="small">{{ row.workflow_status }}</el-tag>

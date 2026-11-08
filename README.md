@@ -9,7 +9,7 @@
 | 后端 | Go 1.25 + Gin + GORM |
 | 数据库 | **SQLite（默认，单文件 `backend/data/qsl.db`）**，可通过环境变量切换 PostgreSQL |
 | 前端 | Vue 3 + Vite + Element Plus |
-| 认证 | JWT（Bearer 双令牌：2 小时访问令牌 + 7 天刷新令牌，密钥自动生成） |
+| 认证 | JWT（Bearer 双令牌：15 分钟访问令牌 + 7 天刷新令牌，密钥自动生成）+ 可选二步验证 / 通行密钥 |
 | 容器 | Docker 单容器一键部署（宿主端口 3073，见下方"容器部署"） |
 
 ## 功能模块
@@ -54,8 +54,8 @@
 
 ### 安全特性
 
-- **双令牌认证** - 访问令牌 2 小时 + 刷新令牌 7 天（`POST /api/auth/refresh` 自动续期）；修改密码后旧刷新令牌立即失效；刷新令牌不可充当访问令牌；签名算法固定校验防算法混淆
-- **速率限制** - 登录/刷新 5 次/分钟（防暴力破解）、公开接口 60 次/分钟、后台 API 600 次/分钟，超限返回 429
+- **双令牌认证** - 访问令牌 15 分钟 + 刷新令牌 7 天（`POST /api/auth/refresh` 自动续期）；令牌带 `ver` 版本号，改密/改名/解绑第二因子后旧令牌立刻失效；刷新令牌不可充当访问令牌；签名算法固定校验防算法混淆
+- **速率限制** - 登录链路按 **IP 5 次/分钟 + 账号 5 次/5 分钟** 双维度限速（伪造 `X-Forwarded-For` 只能换掉 IP 那一半）、验证码单独 5 次/5 分钟、`/api` 统一 600 次/分钟，超限返回 429 并带 `Retry-After`
 - **CORS 白名单** - 仅放行配置的前端来源，替代通配 `*`
 - **安全响应头** - CSP（脚本仅同源、禁止内嵌框架）、nosniff、Referrer-Policy、HSTS（HTTPS 部署后自动生效）
 - **审计日志** - 登录成功/失败、修改密码自动记录（含来源 IP），随数据备份导出
@@ -97,7 +97,7 @@ npm run dev
 # 监听 :3000，/api 与 /uploads 代理到 :8000
 ```
 
-**默认账号**：admin / admin123（上线后请立即修改）
+**初始账号**：用户名 `admin`，口令由 `ADMIN_PASS` 指定；**留空则首次启动随机生成，只在后端日志里打印一次**（不再有 `admin123` 这种写死的默认口令）。
 
 访问入口：公开门户 `http://localhost:3000/`，后台 `http://localhost:3000/admin/dashboard`。
 
@@ -110,7 +110,10 @@ npm run dev
 | DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME | localhost/5432/qsl/qsl_secret_2024/qsl_management | 仅 postgres 模式使用 |
 | JWT_SECRET | 自动生成 | 留空时首次启动随机生成并持久化到数据目录（`data/.jwt_secret`） |
 | SERVER_PORT | 8000 | 后端监听端口 |
-| ADMIN_USER / ADMIN_PASS | admin / admin123 | 首次启动自动创建管理员 |
+| ADMIN_USER / ADMIN_PASS | admin / （随机生成） | 首次启动创建管理员；`ADMIN_PASS` 留空则生成 20 位随机口令并只打印一次日志 |
+| WEBAUTHN_RP_ID / WEBAUTHN_ORIGINS | 空 | 通行密钥（WebAuthn）。两者都留空则功能关闭，其余不受影响 |
+| REQUIRE_MFA | false | true 时未绑定第二因子禁止导出备份、改 SMTP 等敏感操作 |
+| ADMIN_RESET | 空 | 设为 1 启动会清空管理员的通行密钥与二步验证并重置成一次性口令（逃生开关，用完删除） |
 
 ## API 文档
 
@@ -130,8 +133,11 @@ npm run dev
 | GET | /api/public/cards/:card_code | 按编号查卡片状态 |
 | GET | /api/public/tracking?tracking_number=NUM | 快递追踪（未找到返回 404；配置快递100 后自动拉取轨迹） |
 | GET | /api/public/tracking/:tracking_number | 同上（路径参数形式） |
-| GET | /api/public/site-info | 站点名称（公开门户标题；未配置返回默认值） |
+| GET | /api/public/site-info | 站点名称 / 发件邮箱 / 站点公告（未配置返回默认值） |
+| GET | /api/public/stats | 首页实时数据面板（发卡数/签收数/待审核数，60 秒内存缓存） |
+| POST | /api/public/return-mail | 确认收件后登记回寄（需管理员已按卡开启回寄） |
 | GET | /api/public/plugins | 已启用的主题插件列表（公开页据此应用皮肤） |
+| GET | /api/public/theme.css | 当前主题的配色变量（`index.html` 用 `<link>` 预置，消除首帧闪烁） |
 
 > 注：旧版 `/api/public/qso-query` 与 `/api/public/card-query` 已在 v1.1 中删除。
 
@@ -142,9 +148,9 @@ npm run dev
 | 认证 | POST /api/auth/login，GET /api/auth/me，POST /api/auth/refresh（刷新令牌续期），POST /api/auth/change-password |
 | 插件 | GET /api/plugins（列表），POST /api/plugins/:name/enable、:name/disable（即时生效）；功能插件路由挂 /api/ext/<name>/... |
 | 总览 | GET /api/dashboard/summary |
-| 通联 | GET/POST /api/qso-records，GET/PUT/DELETE /api/qso-records/:id，POST /api/qso-records/import（ADIF 导入） |
-| 卡片 | GET/POST /api/card-records，GET/PUT/DELETE /api/card-records/:id |
-| 卡片流程 | POST /api/card-records/:id/issue, :id/sent, :id/received, :id/resend，POST /api/card-records/from-qso（通联换卡） |
+| 通联 | GET/POST /api/qso-records（列表可加 `has_card=true\|false`），GET/PUT/DELETE /api/qso-records/:id，POST /api/qso-records/import（ADIF 导入） |
+| 卡片 | GET/POST /api/card-records，GET/PUT/DELETE /api/card-records/:id（PUT 只接受非流程字段，`flow_status` / `card_sent` 等必须走流程端点） |
+| 卡片流程 | POST /api/card-records/:id/issue, :id/sent, :id/received, :id/resend，POST /api/card-records/:id/return-toggle（按卡开启回寄）、:id/return-receive（确认收到回寄 → 自动生成收卡记录），POST /api/card-records/from-qso（通联换卡） |
 | 快递 | GET/POST /api/card-records/:id/tracking，POST /api/card-records/batch-tracking-update |
 | 邮件 | POST /api/card-records/:id/send-mail（按 scene 发送建卡/发信/收卡/快递更新通知） |
 | 上传 | POST /api/upload/image（multipart，5MB 限制） |
@@ -157,7 +163,7 @@ npm run dev
 
 ## E2E 验证
 
-`scripts/e2e_verify.ps1`（需先启动后端与前端），**116 项检查全部通过**，覆盖：
+`scripts/e2e_verify.ps1`（需先启动后端与前端，Windows PowerShell），**121 项检查全部通过**，覆盖：
 登录（含双令牌签发）、三场景申请（含负例与 EYEBALL 细分类型）、场景筛选、审核+审核人、拒绝（含原因与防重复）、随机编号建卡、卡片流程、公开查询回归、确认收件、SWL/EYEBALL 映射、换卡进度接口、图片上传（含静态访问与负例）、已删接口 404、追踪未找到 404、修改密码负例、站点设置（公告栏/回寄地址，测试后恢复原值）、QSO 序列单调性、ADIF 导入与去重、SWL 反寄全流程、发送我的地址、通联换卡、**回寄闭环（按卡开启 → 对方登记回寄 → 后台确认收到 → 自动收卡记录）**、测试邮件守卫、**数据备份导出与导入回灌**、**插件系统（列表/未认证 401/默认全禁用/主题启停即时生效/功能路由守卫 404/未知插件 404）**。
 
 ```powershell
@@ -187,16 +193,59 @@ docker compose up -d
 
 1Panel / 宝塔用户：创建编排粘贴 `docker-compose.yml`（工作目录选项目根目录），安装后把域名反代到 `http://127.0.0.1:3073` 即可。完整说明见 [DEPLOY.md](DEPLOY.md)。
 
+## 测试与质量门禁
+
+CI（`.github/workflows/ci.yml`）在每次 push / PR 上跑完下面四项，任一失败即红：
+
+```bash
+# 后端
+cd backend
+gofmt -l .              # 必须零输出
+go vet ./...
+CGO_ENABLED=1 go test ./...        # 76 个单元测试
+CGO_ENABLED=1 go build -o server ./cmd/server
+
+# 前端
+cd frontend
+npm ci
+npm run lint:css        # stylelint color-no-hex：禁止组件里写裸十六进制
+npm run build
+```
+
+单元测试覆盖的是"改错了不会报错、只会静默出错"的地方：
+
+| 文件 | 覆盖 |
+|---|---|
+| `handler/patch_test.go` | PUT 字段白名单——流程字段（`flow_status`/`card_sent`）不能被直接改写 |
+| `handler/params_test.go` | 分页上界（`?size=1000000` 会被夹到 200）、呼号前缀匹配 |
+| `handler/qso_import_test.go` | ADIF 解析（长度越界、无长度标签、截断输入、日期/时间归一化）；导入去重、跨批写入、`has_card=false` 过滤 |
+| `handler/export_test.go` | 备份分批恢复、冲突时整单回滚、空密码不覆盖现有 SMTP 密码 |
+| `handler/sequence_test.go` | 发号器并发不重号（30 协程 × 20 次取号）、单调递增、脏值恢复、一次领一段号之后单取接着数 |
+| `internal/plugins/stats_daily/stats_daily_test.go` | 每日统计按东八区把窗口内的卡片一次读完再分桶 |
+| `handler/timezone_test.go` | 东八区墙钟字符串解析（快递缓存 10 分钟窗口的时区回归） |
+| `internal/config/config_test.go` | 密钥文件生成/持久化/0600 权限/损坏兜底 |
+| `internal/model/tables_test.go` | 表清单唯一性、"参与导入的表必须也进备份"、密钥表不进备份 |
+
+E2E（需先起前后端，Windows PowerShell）另外覆盖 121 项接口级检查，见上一节。
+
 ## 数据备份
 
 SQLite（默认）：后台「设置 → 数据备份」一键导出/导入 JSON；或直接复制 `data/qsl.db`。
+
+命令行备份（含上传目录、自动保留最近 30 份）：
+
+```bash
+bash scripts/backup.sh              # → ./backups/
+bash scripts/backup.sh /mnt/nas/qsl # 指定目录
+```
 
 PostgreSQL（可选模式）：`pg_dump` / `psql` 常规流程。
 
 ## 已知限制
 
-- 快递100 自动轨迹为可选配置，未配置 key 时交互以跳转快递100 官网为主
+- 快递100 自动轨迹为可选配置，未配置 key 时交互以跳转快递100 官网为主；配置后轨迹缓存 10 分钟
 - 确认收件二维码物流依赖承运商官网/快递100，本系统不内置轨迹爬取
+- 通行密钥必须 HTTPS，且绑定 `WEBAUTHN_RP_ID`；换域名后已有密钥全部失效（WebAuthn 硬约束）
 
 ## 许可证
 
