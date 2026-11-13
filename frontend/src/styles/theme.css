@@ -47,7 +47,7 @@ body {
 
 /* 现代卡片：磨砂/圆角/阴影全部来自 token，主题不需要再覆写。
    注意：这里刻意不写 backdrop-filter —— 只有真正需要磨砂的主题（glass）才加，
-   由 src/styles/themes/glass.css 统一挂上。否则 blur(0px) 也会让浏览器
+   由 src/styles/themes/theme_glass.css 统一挂上。否则 blur(0px) 也会让浏览器
    为每张卡片建立合成层，白白吃移动端 GPU。 */
 .el-card,
 .stat-card,

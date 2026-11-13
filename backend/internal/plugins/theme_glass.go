@@ -1,4 +1,4 @@
-package themeglass
+package plugins
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,31 +7,31 @@ import (
 	"qsl-management/internal/plugin"
 )
 
-// ThemeGlass 鸣门鱼板主题插件：鸣门卷鱼板 × 磨砂玻璃拟态 + 梦幻粉蓝白渐变 + 🍥 鱼板漩涡装饰。
-//
-// 配色与"玻璃质感"（--p-glass-bg / --p-glass-blur）都由后端下发，
-// 前端 theme.css 统一用 var(--qsl-card-bg) + blur(var(--qsl-blur)) 消费，
-// 所以这里只需要给出原语值，不用再逐个选择器写 backdrop-filter。
-type ThemeGlass struct{}
+// themeGlass 鸣门鱼板主题。配色和玻璃质感都由后端下发，前端用变量消费，不用逐个选择器写 backdrop-filter。
+// 纹理在 frontend/src/styles/themes/theme_glass.css。
+type themeGlass struct{}
 
-func New() *ThemeGlass { return &ThemeGlass{} }
+func init() {
+	plugin.Add(30, func(*gorm.DB) plugin.Plugin { return &themeGlass{} }) // 排在纸墨之后；两个都开着时鱼板盖住纸墨
+}
 
-func (t *ThemeGlass) Meta() plugin.Info {
+func (t *themeGlass) Meta() plugin.Info {
 	return plugin.Info{
 		Name:        "theme_glass",
 		Title:       "鸣门鱼板 🍥",
 		Version:     "2.0.0",
 		Description: "鸣门鱼板 × 磨砂玻璃拟态：纯正粉白漩涡质感、梦幻蓝粉光晕、通透毛玻璃卡片。",
 		Kind:        "theme",
+		Swatches:    []string{"#f1f5fd", "#ec5f8f", "#ffb3cf", "#5b8ff9"},
 	}
 }
 
-func (t *ThemeGlass) Init(db *gorm.DB) error { return nil }
+func (t *themeGlass) Init(db *gorm.DB) error { return nil }
 
-func (t *ThemeGlass) Routes(rg *gin.RouterGroup) {}
+func (t *themeGlass) Routes(rg *gin.RouterGroup) {}
 
 // ThemeCSS 返回该主题的 CSS 自定义属性声明（不含选择器）。
-func (t *ThemeGlass) ThemeCSS() string {
+func (t *themeGlass) ThemeCSS() string {
 	return `
 color-scheme:light;
 --p-bg:#f1f5fd;

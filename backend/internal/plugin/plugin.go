@@ -3,6 +3,7 @@ package plugin
 import (
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,11 +21,12 @@ const pluginStateTTL = 5 * time.Second
 
 // Info 插件元数据
 type Info struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Version     string `json:"version"`
-	Description string `json:"description"`
-	Kind        string `json:"kind"` // feature = 功能插件（注入路由）| theme = 主题插件（前端皮肤，后端只管启停）
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Version     string   `json:"version"`
+	Description string   `json:"description"`
+	Kind        string   `json:"kind"`               // feature = 功能插件（注入路由）| theme = 主题插件（前端皮肤，后端只管启停）
+	Swatches    []string `json:"swatches,omitempty"` // 插件页色点；只有主题填，和配色写在同一个文件里
 }
 
 // Plugin 插件接口。
@@ -90,6 +92,37 @@ func (m *Manager) Register(p Plugin) {
 	}
 	m.items[meta.Name] = p
 	m.order = append(m.order, meta.Name)
+}
+
+// Factory 是插件文件在 init 里交出来的构造方法。这时还没接上数据库。
+type Factory func(db *gorm.DB) Plugin
+
+type candidate struct {
+	order int     // 小的先装上。几个主题同时开着时，后装上的盖住先装上的
+	new   Factory // 拿到数据库再生成插件
+}
+
+var candidates []candidate // 各插件文件的 init 往这里追加；main 启动时一次性装上
+
+// Add 登记一个插件。
+//
+// order 小的先装上。多个主题同时开着时，后装上的盖住先装上的，
+// 这和以前写在 main.go 里的 Register 先后是同一套规则。
+// 现有主题用 10、20、30…，中间留空；新主题要插队就挑一个空档，不用改已经在用的数字。
+// 两个插件用了同一个数字时，先 Add 的排前面（init 按文件名跑）。
+func Add(order int, new Factory) {
+	candidates = append(candidates, candidate{order: order, new: new}) // 文件在，插件就在；删掉文件，这一行不再跑
+}
+
+// Install 按 order 把已经登记的插件装进管理器。
+func (m *Manager) Install(db *gorm.DB) {
+	sorted := append([]candidate(nil), candidates...) // 拷一份再排，同数字时仍按登记先后
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].order < sorted[j].order
+	})
+	for _, c := range sorted {
+		m.Register(c.new(db)) // 重名会被 Register 丢掉并记一条日志
+	}
 }
 
 func (m *Manager) settingKey(name string) string { return "plugin_enabled_" + name }
@@ -234,14 +267,18 @@ func (m *Manager) handleList(c *gin.Context) {
 	items := make([]gin.H, 0, len(m.order))
 	for _, name := range m.order {
 		meta := m.items[name].Meta()
-		items = append(items, gin.H{
+		row := gin.H{
 			"name":        meta.Name,
 			"title":       meta.Title,
 			"version":     meta.Version,
 			"description": meta.Description,
 			"kind":        meta.Kind,
 			"enabled":     enabled[name],
-		})
+		}
+		if len(meta.Swatches) > 0 {
+			row["swatches"] = meta.Swatches // 插件页色点；功能插件没有这一项
+		}
+		items = append(items, row)
 	}
 	response.OK(c, gin.H{"items": items})
 }

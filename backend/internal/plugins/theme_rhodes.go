@@ -1,4 +1,4 @@
-package themerhodes
+package plugins
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,29 +7,30 @@ import (
 	"qsl-management/internal/plugin"
 )
 
-// ThemeRhodes 罗德岛终端（明日方舟 / 舟味）主题插件：
-// 浅色纸感基座 × 品牌青操作条 × 工业信息设计骨架，带黑底 chip 铭牌与工业警示质感。
-// 配色由后端下发，装饰层在前端 src/styles/themes/rhodes.css。
-type ThemeRhodes struct{}
+// themeRhodes 罗德岛终端主题。配色经 /api/public/theme.css 下发；标线和铭牌在 frontend/src/styles/themes/theme_rhodes.css。
+type themeRhodes struct{}
 
-func New() *ThemeRhodes { return &ThemeRhodes{} }
+func init() {
+	plugin.Add(50, func(*gorm.DB) plugin.Plugin { return &themeRhodes{} }) // 五个主题里最后登记；和别的主题同时开着时它盖住前面的
+}
 
-func (t *ThemeRhodes) Meta() plugin.Info {
+func (t *themeRhodes) Meta() plugin.Info {
 	return plugin.Info{
 		Name:        "theme_rhodes",
 		Title:       "罗德岛终端 📐",
 		Version:     "2.0.0",
 		Description: "明日方舟官方 UI 工业美学：纸感浅灰基座、精密标线、品牌青操作面板、黑底 chip 铭牌与工业警示质感。",
 		Kind:        "theme",
+		Swatches:    []string{"#F4F5F6", "#171B26", "#2FA6DE", "#E14A4A"},
 	}
 }
 
-func (t *ThemeRhodes) Init(db *gorm.DB) error { return nil }
+func (t *themeRhodes) Init(db *gorm.DB) error { return nil }
 
-func (t *ThemeRhodes) Routes(rg *gin.RouterGroup) {}
+func (t *themeRhodes) Routes(rg *gin.RouterGroup) {}
 
 // ThemeCSS 返回该主题的 CSS 自定义属性声明（不含选择器）。
-func (t *ThemeRhodes) ThemeCSS() string {
+func (t *themeRhodes) ThemeCSS() string {
 	return `
 color-scheme:light;
 --p-bg:#f4f5f6;

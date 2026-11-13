@@ -1,4 +1,4 @@
-package themedark
+package plugins
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,31 +7,30 @@ import (
 	"qsl-management/internal/plugin"
 )
 
-// ThemeDark 暗色主题插件。
-//
-// 配色（Layer 0 的 --p-* 原语）由后端提供，经 /api/public/theme.css 下发，
-// 这样 index.html 里的 <link> 在首帧就能命中正确配色，不会有主题闪烁。
-// 装饰层（Layer 3）在前端 src/styles/themes/。
-type ThemeDark struct{}
+// themeDark 暗色主题。配色经 /api/public/theme.css 下发；纹理在 frontend/src/styles/themes/theme_dark.css。
+type themeDark struct{}
 
-func New() *ThemeDark { return &ThemeDark{} }
+func init() {
+	plugin.Add(10, func(*gorm.DB) plugin.Plugin { return &themeDark{} }) // 五个主题里最先登记；数字更大的同时开着时盖住它
+}
 
-func (t *ThemeDark) Meta() plugin.Info {
+func (t *themeDark) Meta() plugin.Info {
 	return plugin.Info{
 		Name:        "theme_dark",
 		Title:       "暗色主题",
 		Version:     "2.0.0",
 		Description: "深色工作台皮肤：深蓝黑底、暖橙点缀，后台与公开页同步生效。",
 		Kind:        "theme",
+		Swatches:    []string{"#0f151c", "#16202b", "#ff7a45", "#3aa396"},
 	}
 }
 
-func (t *ThemeDark) Init(db *gorm.DB) error { return nil }
+func (t *themeDark) Init(db *gorm.DB) error { return nil }
 
-func (t *ThemeDark) Routes(rg *gin.RouterGroup) {}
+func (t *themeDark) Routes(rg *gin.RouterGroup) {}
 
 // ThemeCSS 返回该主题的 CSS 自定义属性声明（不含选择器）。
-func (t *ThemeDark) ThemeCSS() string {
+func (t *themeDark) ThemeCSS() string {
 	return `
 color-scheme:dark;
 --p-bg:#0f151c;

@@ -84,7 +84,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../api'
-import { themeRegistry, applyEnabledThemes, reloadThemeCSS } from '../plugins/registry'
+import { applyEnabledThemes, reloadThemeCSS } from '../plugins/registry'
 import { ElMessage } from 'element-plus'
 
 const items = ref([])
@@ -105,7 +105,7 @@ async function load() {
 }
 
 function swatchesOf(p) {
-  return (themeRegistry[p.name] || {}).swatches || null
+  return p.swatches && p.swatches.length ? p.swatches : null // 色点随插件清单一起来，不再在前端单独记一份
 }
 
 async function toggle(p, on) {

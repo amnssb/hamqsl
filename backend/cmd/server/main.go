@@ -21,13 +21,7 @@ import (
 	"qsl-management/internal/middleware"
 	"qsl-management/internal/model"
 	"qsl-management/internal/plugin"
-	pluginshowcase "qsl-management/internal/plugins/showcase"
-	pluginstatsdaily "qsl-management/internal/plugins/stats_daily"
-	pluginthemeba "qsl-management/internal/plugins/theme_ba"
-	pluginthemedark "qsl-management/internal/plugins/theme_dark"
-	pluginthemeglass "qsl-management/internal/plugins/theme_glass"
-	pluginthemepaper "qsl-management/internal/plugins/theme_paper"
-	pluginthemerhodes "qsl-management/internal/plugins/theme_rhodes"
+	"qsl-management/internal/plugins"
 	"qsl-management/pkg/response"
 )
 
@@ -105,15 +99,9 @@ func main() {
 	bootstrapAdmin(cfg, db)
 	escapeHatch(cfg, db)
 
-	// 插件系统：注册 → 初始化已启用插件 → 之后挂载管理端点与功能路由。
+	// 插件在 internal/plugins 里自己登记。这里按登记顺序装上，再初始化已经启用的。
 	pm := plugin.NewManager(db)
-	pm.Register(pluginthemedark.New())
-	pm.Register(pluginthemepaper.New())
-	pm.Register(pluginthemeglass.New())
-	pm.Register(pluginthemeba.New())
-	pm.Register(pluginthemerhodes.New())
-	pm.Register(pluginstatsdaily.New(db))
-	pm.Register(pluginshowcase.New(db))
+	plugins.Install(pm, db)
 	pm.InitEnabled()
 
 	r := gin.Default()

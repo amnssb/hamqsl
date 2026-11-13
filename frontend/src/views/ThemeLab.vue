@@ -238,7 +238,7 @@
 import { computed, reactive, ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
-import { applyTheme, themeRegistry } from '../plugins/registry'
+import { applyTheme } from '../plugins/registry'
 import api from '../api'
 
 const DEFAULT_LABEL = '默认主题'
@@ -246,15 +246,12 @@ const DEFAULT_SWATCHES = ['#f8fafc', '#ffffff', '#2563eb', '#10b981']
 
 // 巡检页自己的预览态：只改 <html data-theme> 与皮肤，不碰后端开关
 const current = ref('')
-const serverTheme = ref('') // 进页面时服务端生效的主题，用于"退出并恢复"
+const serverTheme = ref('') // 进页面时服务端生效的主题，用于退出并恢复
+const themes = ref([]) // 全部主题，含还没启用的，好在这一页逐个看
 
 const themeOptions = computed(() => [
   { name: '', title: DEFAULT_LABEL, swatches: DEFAULT_SWATCHES },
-  ...Object.values(themeRegistry).map(t => ({
-    name: t.name,
-    title: t.title,
-    swatches: t.swatches || DEFAULT_SWATCHES,
-  })),
+  ...themes.value,
 ])
 
 const previewName = computed(
@@ -301,11 +298,19 @@ function openMessage() {
 }
 
 onMounted(async () => {
-  // 记录服务端当前主题，方便退出时恢复；拿不到就按默认处理
+  // 名单、标题、色点都从插件接口来。公开接口只给已启用的，巡检要把没启用的也摆出来。
   try {
-    const res = await api.get('/public/plugins')
-    const names = (res?.items || []).map(i => i.name)
-    serverTheme.value = names.length ? names[names.length - 1] : ''
+    const res = await api.get('/plugins')
+    const items = res?.items || []
+    themes.value = items
+      .filter(p => p.kind === 'theme')
+      .map(p => ({
+        name: p.name,
+        title: p.title,
+        swatches: p.swatches && p.swatches.length ? p.swatches : DEFAULT_SWATCHES,
+      }))
+    const enabled = items.filter(p => p.kind === 'theme' && p.enabled).map(p => p.name)
+    serverTheme.value = enabled.length ? enabled[enabled.length - 1] : '' // 和服务端一样，后登记的生效
   } catch {
     serverTheme.value = ''
   }

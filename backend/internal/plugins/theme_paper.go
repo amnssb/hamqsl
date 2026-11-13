@@ -1,4 +1,4 @@
-package themepaper
+package plugins
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,28 +7,30 @@ import (
 	"qsl-management/internal/plugin"
 )
 
-// ThemePaper 纸墨主题插件：仿老式 QSL 卡的暖黄纸面 + 墨黑文字。
-// 配色由后端下发（plugin.SkinProvider），装饰层在前端 src/styles/themes/。
-type ThemePaper struct{}
+// themePaper 纸墨主题。配色经 /api/public/theme.css 下发；纹理在 frontend/src/styles/themes/theme_paper.css。
+type themePaper struct{}
 
-func New() *ThemePaper { return &ThemePaper{} }
+func init() {
+	plugin.Add(20, func(*gorm.DB) plugin.Plugin { return &themePaper{} }) // 排在暗色之后；两个都开着时纸墨盖住暗色
+}
 
-func (t *ThemePaper) Meta() plugin.Info {
+func (t *themePaper) Meta() plugin.Info {
 	return plugin.Info{
 		Name:        "theme_paper",
 		Title:       "纸墨主题",
 		Version:     "2.0.0",
 		Description: "仿老式 QSL 卡片质感：暖黄纸面、墨黑文字、砖红点缀，适合打印与怀旧风格。",
 		Kind:        "theme",
+		Swatches:    []string{"#efe6d0", "#faf5e8", "#b4552d", "#5e7d4e"},
 	}
 }
 
-func (t *ThemePaper) Init(db *gorm.DB) error { return nil }
+func (t *themePaper) Init(db *gorm.DB) error { return nil }
 
-func (t *ThemePaper) Routes(rg *gin.RouterGroup) {}
+func (t *themePaper) Routes(rg *gin.RouterGroup) {}
 
 // ThemeCSS 返回该主题的 CSS 自定义属性声明（不含选择器）。
-func (t *ThemePaper) ThemeCSS() string {
+func (t *themePaper) ThemeCSS() string {
 	return `
 color-scheme:light;
 --p-bg:#efe6d0;

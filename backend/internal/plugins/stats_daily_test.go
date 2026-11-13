@@ -1,4 +1,4 @@
-package statsdaily
+package plugins
 
 import (
 	"testing"

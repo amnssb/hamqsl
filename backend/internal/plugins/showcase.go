@@ -1,19 +1,14 @@
-// Package showcase 对外展示插件。
-//
-// 启用后多出三条出口。前两条不要登录，给别人的网页用；第三条要登录，给站长复制代码：
+package plugins
+
+// 对外展示。启用后多出三条出口。前两条不要登录，给别人的网页用；第三条要登录，给站长复制代码：
 //
 //	GET /api/public/ext/showcase            JSON：呼号、计数、最近通联、卡片图
 //	GET /api/public/ext/showcase/badge.svg  同一份计数画成 SVG，用 <img> 引用
 //	GET /api/ext/showcase/embed             返回上面两条的绝对地址和一段 HTML
 //
-// 公开页 /showcase 读第一条，给人看。
-//
-// QRZ 简介是网页，会丢掉 script 和 iframe，图片和链接留得住。
-// 本站响应头也不允许被嵌进别人的 iframe，所以对外只给 <img> + <a>。
-//
+// 公开页 /showcase 读第一条。QRZ 简介和博客会丢掉 script 和 iframe，所以对外只给图片和链接。
 // 不公开：地址、电话、邮箱、备注、QTH、设备、申请正文。
 // 数字和列表共用一份 60 秒快照，徽章和 JSON 不会各算各的。
-package showcase
 
 import (
 	"net/url"
@@ -39,7 +34,10 @@ const (
 // Showcase 只读展示。不建表，直接读通联、卡片和本台呼号。
 type Showcase struct{ db *gorm.DB }
 
-func New(db *gorm.DB) *Showcase { return &Showcase{db: db} }
+func init() {
+	// 70：排在每日统计后面。这个数字只决定插件页上的先后。
+	plugin.Add(70, func(db *gorm.DB) plugin.Plugin { return &Showcase{db: db} })
+}
 
 func (p *Showcase) Meta() plugin.Info {
 	return plugin.Info{
@@ -289,6 +287,55 @@ func settingValue(db *gorm.DB, key string) string {
 }
 
 func htmlEscape(s string) string {
+	return strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&#34;",
+		"'", "&#39;",
+	).Replace(s)
+}
+
+// badgeSVG 画一张 480×132 的徽章。颜色写死：它显示在别人的网页上，读不到本站主题变量。
+// 文字只用 XML 转义后的呼号和数字，不插入任何标记。
+func badgeSVG(s snapshot) string {
+	call := s.CallSign
+	if call == "" {
+		call = "QSL"
+	}
+	var b strings.Builder
+	b.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" width="480" height="132" viewBox="0 0 480 132" role="img">`)
+	b.WriteString(`<title>` + xmlEscape(call) + ` QSL</title>`)
+	b.WriteString(`<rect width="480" height="132" rx="16" fill="#1a2d3d"/>`)
+	b.WriteString(`<rect width="8" height="132" fill="#f5a623"/>`)
+	b.WriteString(`<text x="28" y="52" fill="#ffffff" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="700">`)
+	b.WriteString(xmlEscape(call))
+	b.WriteString(`</text>`)
+	b.WriteString(`<text x="452" y="46" fill="#f5a623" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="13" font-weight="700" text-anchor="end">QSL</text>`)
+	writeStat(&b, 28, "QSO", s.QSO)
+	writeStat(&b, 140, "SENT", s.Sent)
+	writeStat(&b, 252, "SIGNED", s.Signed)
+	writeStat(&b, 364, "RX", s.Received)
+	b.WriteString(`</svg>`)
+	return b.String()
+}
+
+func writeStat(b *strings.Builder, x int, label string, n int64) {
+	b.WriteString(`<text x="` + strconv.Itoa(x) + `" y="84" fill="#9c978d" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="11">`)
+	b.WriteString(label)
+	b.WriteString(`</text>`)
+	b.WriteString(`<text x="` + strconv.Itoa(x) + `" y="110" fill="#ffffff" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="700">`)
+	b.WriteString(strconv.FormatInt(n, 10))
+	b.WriteString(`</text>`)
+}
+
+func xmlEscape(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1 // 控制字符不能出现在 XML 文本里
+		}
+		return r
+	}, s)
 	return strings.NewReplacer(
 		"&", "&amp;",
 		"<", "&lt;",

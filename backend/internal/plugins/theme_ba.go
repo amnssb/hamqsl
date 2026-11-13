@@ -1,4 +1,4 @@
-package themeba
+package plugins
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,29 +7,30 @@ import (
 	"qsl-management/internal/plugin"
 )
 
-// ThemeBA 蔚蓝档案（Blue Archive）主题插件：
-// 晨光蔚蓝基调 × 暖黄点缀 × 赛璐璐减法美学，带平行四边形斜切按键与菱形折射网格。
-// 配色由后端下发，装饰层在前端 src/styles/themes/ba.css。
-type ThemeBA struct{}
+// themeBA 蔚蓝档案主题。配色经 /api/public/theme.css 下发；斜切按键和菱形网格在 frontend/src/styles/themes/theme_ba.css。
+type themeBA struct{}
 
-func New() *ThemeBA { return &ThemeBA{} }
+func init() {
+	plugin.Add(40, func(*gorm.DB) plugin.Plugin { return &themeBA{} }) // 排在鱼板之后；两个都开着时蔚蓝档案盖住鱼板
+}
 
-func (t *ThemeBA) Meta() plugin.Info {
+func (t *themeBA) Meta() plugin.Info {
 	return plugin.Info{
 		Name:        "theme_ba",
 		Title:       "蔚蓝档案 📘",
 		Version:     "2.0.0",
 		Description: "基底蔚蓝 × 晨光白 × 暖黄点缀：平行四边形斜切按键、极淡折射菱形网格、清透赛璐璐柔光质感。",
 		Kind:        "theme",
+		Swatches:    []string{"#E8F4FD", "#45AFFF", "#006EB0", "#FFD700"},
 	}
 }
 
-func (t *ThemeBA) Init(db *gorm.DB) error { return nil }
+func (t *themeBA) Init(db *gorm.DB) error { return nil }
 
-func (t *ThemeBA) Routes(rg *gin.RouterGroup) {}
+func (t *themeBA) Routes(rg *gin.RouterGroup) {}
 
 // ThemeCSS 返回该主题的 CSS 自定义属性声明（不含选择器）。
-func (t *ThemeBA) ThemeCSS() string {
+func (t *themeBA) ThemeCSS() string {
 	return `
 color-scheme:light;
 --p-bg:#e8f4fd;

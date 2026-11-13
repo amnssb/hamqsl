@@ -1,4 +1,4 @@
-package showcase
+package plugins
 
 import (
 	"net/http"
@@ -58,7 +58,7 @@ func TestBuildSnapshotOmitsPrivateFields(t *testing.T) {
 		t.Fatalf("卡片图路径放行不对: %+v", s.Cards)
 	}
 
-	p := New(db)
+	p := &Showcase{db: db}
 	resetCache()
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -115,7 +115,7 @@ func TestEmbedRequiresHTTPSSite(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-	New(db).embed(c)
+	(&Showcase{db: db}).embed(c)
 	body := w.Body.String()
 	if !strings.Contains(body, "https://radio.example/api/public/ext/showcase/badge.svg") {
 		t.Fatalf("徽章地址应拼在站点地址后面: %s", body)

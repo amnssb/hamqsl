@@ -1,4 +1,4 @@
-package statsdaily
+package plugins
 
 import (
 	"strconv"
@@ -16,7 +16,10 @@ import (
 // 返回最近 N 天的卡片建卡/发卡/寄出/签收计数（东八区按天聚合）。
 type StatsDaily struct{ db *gorm.DB }
 
-func New(db *gorm.DB) *StatsDaily { return &StatsDaily{db: db} }
+func init() {
+	// 60：排在五个主题后面。数字只决定插件页上的先后，不参与主题谁盖住谁。
+	plugin.Add(60, func(db *gorm.DB) plugin.Plugin { return &StatsDaily{db: db} })
+}
 
 func (p *StatsDaily) Meta() plugin.Info {
 	return plugin.Info{
