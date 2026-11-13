@@ -51,6 +51,12 @@ const routes = [
     component: () => import('../views/public/TrackCard.vue'),
     meta: { public: true, title: '快递追踪' }
   },
+  {
+    path: '/showcase',
+    name: 'PublicShowcase',
+    component: () => import('../views/public/Showcase.vue'),
+    meta: { public: true, title: '电台展示' }
+  },
 
   // 兼容旧版后台链接，避免服务器升级后已有书签失效
   { path: '/dashboard', redirect: '/admin/dashboard' },

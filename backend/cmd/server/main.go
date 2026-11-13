@@ -21,6 +21,7 @@ import (
 	"qsl-management/internal/middleware"
 	"qsl-management/internal/model"
 	"qsl-management/internal/plugin"
+	pluginshowcase "qsl-management/internal/plugins/showcase"
 	pluginstatsdaily "qsl-management/internal/plugins/stats_daily"
 	pluginthemeba "qsl-management/internal/plugins/theme_ba"
 	pluginthemedark "qsl-management/internal/plugins/theme_dark"
@@ -112,6 +113,7 @@ func main() {
 	pm.Register(pluginthemeba.New())
 	pm.Register(pluginthemerhodes.New())
 	pm.Register(pluginstatsdaily.New(db))
+	pm.Register(pluginshowcase.New(db))
 	pm.InitEnabled()
 
 	r := gin.Default()
@@ -318,7 +320,9 @@ func main() {
 	auth.POST("/settings/site", setH.SaveSite)
 
 	// 插件系统端点与功能插件路由：/api/plugins（列表/开关）、/api/ext/<name>/...
+	// 对外只读展示挂在 /api/public/ext/<name>，不要求登录。
 	pm.Mount(api)
+	pm.MountOpen(pub)
 
 	log.Printf("QSL 管理系统启动 http://localhost:%s", cfg.ServerPort)
 	log.Printf("数据库: %s", cfg.DBDriver)

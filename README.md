@@ -49,7 +49,8 @@
 
 - **主题插件** - 磨砂漩涡 🍥（磨砂玻璃拟态 × 蓝粉白渐变 × 漩涡切片虚化装饰）、暗色主题、纸墨主题（仿老式 QSL 卡暖黄纸面），后台与公开门户同步换肤；启停状态持久化，升级默认全部禁用（零行为变化）
 - **功能插件** - 每日统计（`stats_daily`）：按东八区逐天聚合建卡/发卡/寄出/签收计数，插件页内查看最近 14 天趋势柱状图
-- **扩展机制** - 后端 `internal/plugin` 注册表：功能插件向 `/api/ext/<name>/...` 注入路由（自带认证与启停守卫，禁用时 404）；启停持久化在 `system_settings`；主题插件皮肤本体定义在前端 `src/plugins/registry.js`（CSS 变量 + 附加样式表）
+- **对外展示**（`showcase`）：只读公开呼号、通联计数、最近通联和卡片图。启用后插件页给出一段 `<img>` + 链接：QRZ 简介和博客都只留得住图片和链接（脚本和 iframe 会被丢掉，本站也不允许被嵌入）。自己排版时 GET `/api/public/ext/showcase`。禁用时这些地址 404
+- **扩展机制** - 后端 `internal/plugin` 注册表：功能插件向 `/api/ext/<name>/...` 注入路由（自带认证与启停守卫，禁用时 404）；需要给外部网页看的只读接口再实现 `OpenReader`，挂到 `/api/public/ext/<name>`（不要登录，仍受启停守卫）；启停持久化在 `system_settings`；主题插件皮肤本体定义在前端 `src/plugins/registry.js`（CSS 变量 + 附加样式表）
 - 新增插件三步：后端建包实现 `plugin.Plugin` 接口并注册 → 主题在前端 registry 补条目 → 按需在插件页加专属动作
 
 ### 安全特性
@@ -138,6 +139,8 @@ npm run dev
 | POST | /api/public/return-mail | 确认收件后登记回寄（需管理员已按卡开启回寄） |
 | GET | /api/public/plugins | 已启用的主题插件列表（公开页据此应用皮肤） |
 | GET | /api/public/theme.css | 当前主题的配色变量（`index.html` 用 `<link>` 预置，消除首帧闪烁） |
+| GET | /api/public/ext/showcase | 展示插件启用后的只读 JSON（呼号、计数、最近通联、卡片图，60 秒缓存）。禁用返回 404。不含地址、邮箱、备注 |
+| GET | /api/public/ext/showcase/badge.svg | 同一份计数的 SVG 徽章，给 QRZ 简介和博客的 `<img>` 用 |
 
 > 注：旧版 `/api/public/qso-query` 与 `/api/public/card-query` 已在 v1.1 中删除。
 
@@ -146,7 +149,7 @@ npm run dev
 | 分组 | 接口 |
 |------|------|
 | 认证 | POST /api/auth/login，GET /api/auth/me，POST /api/auth/refresh（刷新令牌续期），POST /api/auth/change-password |
-| 插件 | GET /api/plugins（列表），POST /api/plugins/:name/enable、:name/disable（即时生效）；功能插件路由挂 /api/ext/<name>/... |
+| 插件 | GET /api/plugins（列表），POST /api/plugins/:name/enable、:name/disable（即时生效）；功能插件路由挂 /api/ext/<name>/...；展示插件另有 GET /api/ext/showcase/embed（登录后取贴到 QRZ / 博客的 HTML） |
 | 总览 | GET /api/dashboard/summary |
 | 通联 | GET/POST /api/qso-records（列表可加 `has_card=true\|false`），GET/PUT/DELETE /api/qso-records/:id，POST /api/qso-records/import（ADIF 导入） |
 | 卡片 | GET/POST /api/card-records，GET/PUT/DELETE /api/card-records/:id（PUT 只接受非流程字段，`flow_status` / `card_sent` 等必须走流程端点） |
@@ -163,8 +166,8 @@ npm run dev
 
 ## E2E 验证
 
-`scripts/e2e_verify.ps1`（需先启动后端与前端，Windows PowerShell），**121 项检查全部通过**，覆盖：
-登录（含双令牌签发）、三场景申请（含负例与 EYEBALL 细分类型）、场景筛选、审核+审核人、拒绝（含原因与防重复）、随机编号建卡、卡片流程、公开查询回归、确认收件、SWL/EYEBALL 映射、换卡进度接口、图片上传（含静态访问与负例）、已删接口 404、追踪未找到 404、修改密码负例、站点设置（公告栏/回寄地址，测试后恢复原值）、QSO 序列单调性、ADIF 导入与去重、SWL 反寄全流程、发送我的地址、通联换卡、**回寄闭环（按卡开启 → 对方登记回寄 → 后台确认收到 → 自动收卡记录）**、测试邮件守卫、**数据备份导出与导入回灌**、**插件系统（列表/未认证 401/默认全禁用/主题启停即时生效/功能路由守卫 404/未知插件 404）**。
+`scripts/e2e_verify.ps1`（需先启动后端与前端，Windows PowerShell），**126 项检查全部通过**，覆盖：
+登录（含双令牌签发）、三场景申请（含负例与 EYEBALL 细分类型）、场景筛选、审核+审核人、拒绝（含原因与防重复）、随机编号建卡、卡片流程、公开查询回归、确认收件、SWL/EYEBALL 映射、换卡进度接口、图片上传（含静态访问与负例）、已删接口 404、追踪未找到 404、修改密码负例、站点设置（公告栏/回寄地址，测试后恢复原值）、QSO 序列单调性、ADIF 导入与去重、SWL 反寄全流程、发送我的地址、通联换卡、**回寄闭环（按卡开启 → 对方登记回寄 → 后台确认收到 → 自动收卡记录）**、测试邮件守卫、**数据备份导出与导入回灌**、**插件系统（列表/未认证 401/默认全禁用/主题启停即时生效/功能路由守卫 404/未知插件 404/展示接口启停与徽章）**。
 
 ```powershell
 & ./scripts/e2e_verify.ps1
@@ -226,7 +229,7 @@ npm run build
 | `internal/config/config_test.go` | 密钥文件生成/持久化/0600 权限/损坏兜底 |
 | `internal/model/tables_test.go` | 表清单唯一性、"参与导入的表必须也进备份"、密钥表不进备份 |
 
-E2E（需先起前后端，Windows PowerShell）另外覆盖 121 项接口级检查，见上一节。
+E2E（需先起前后端，Windows PowerShell）另外覆盖 126 项接口级检查，见上一节。
 
 ## 数据备份
 

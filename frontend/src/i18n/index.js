@@ -14,10 +14,12 @@ import confirmZh from './pages/confirm.zh'
 import confirmEn from './pages/confirm.en'
 import trackZh from './pages/track.zh'
 import trackEn from './pages/track.en'
+import showcaseZh from './pages/showcase.zh'
+import showcaseEn from './pages/showcase.en'
 
 export const messages = {
-  zh: { ...commonZh, ...homeZh, ...applyZh, ...statusZh, ...confirmZh, ...trackZh },
-  en: { ...commonEn, ...homeEn, ...applyEn, ...statusEn, ...confirmEn, ...trackEn }
+  zh: { ...commonZh, ...homeZh, ...applyZh, ...statusZh, ...confirmZh, ...trackZh, ...showcaseZh },
+  en: { ...commonEn, ...homeEn, ...applyEn, ...statusEn, ...confirmEn, ...trackEn, ...showcaseEn }
 }
 
 const saved = (() => { try { return localStorage.getItem('qsl_lang') } catch (e) { return null } })()

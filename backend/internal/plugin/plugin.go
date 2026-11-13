@@ -34,8 +34,15 @@ type Plugin interface {
 	Meta() Info
 	// Init 启动时对已启用插件调用一次（建表/迁移/预热），失败仅记日志不阻塞启动
 	Init(db *gorm.DB) error
-	// Routes 向 /api/ext/<name> 组注册路由（主题类留空）
+	// Routes 向 /api/ext/<name> 组注册路由（主题类留空）。这组要登录。
 	Routes(rg *gin.RouterGroup)
+}
+
+// OpenReader 可选。功能插件再实现它，就会多一组无需登录的只读路由
+// /api/public/ext/<name>，仍受启停守卫（禁用返回 404）。
+// 给博客、QRZ 简介这种外部页面取展示数据。不要在这里放写操作。
+type OpenReader interface {
+	OpenRoutes(rg *gin.RouterGroup)
 }
 
 // SkinProvider 由主题类插件可选实现：返回该主题的 CSS 自定义属性声明（不含选择器）。
@@ -193,6 +200,20 @@ func (m *Manager) Mount(api *gin.RouterGroup) {
 		}
 		g := api.Group("/ext/"+name, middleware.AuthRequired(m.db), m.enabledGuard(name))
 		p.Routes(g)
+	}
+}
+
+// MountOpen 把实现了 OpenReader 的插件挂到 /api/public/ext/<name>。
+// pub 是已经建好的 /api/public 组。不挂认证：调用方是别人的网页，没有本站令牌。
+func (m *Manager) MountOpen(pub *gin.RouterGroup) {
+	for _, name := range m.order {
+		p := m.items[name]
+		op, ok := p.(OpenReader)
+		if !ok {
+			continue
+		}
+		g := pub.Group("/ext/"+name, m.enabledGuard(name))
+		op.OpenRoutes(g)
 	}
 }
 

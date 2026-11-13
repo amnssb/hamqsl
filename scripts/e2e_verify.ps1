@@ -433,7 +433,7 @@ $plg = D $r
 $plgItems = @($plg.data.items)
 Check "plugins list 200 + items" ($r.StatusCode -eq 200 -and $plgItems.Count -ge 5)
 $plgNames = ($plgItems | ForEach-Object { $_.name }) -join ','
-Check "plugins list has 5 themes + feature" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*theme_glass*' -and $plgNames -like '*theme_ba*' -and $plgNames -like '*theme_rhodes*' -and $plgNames -like '*stats_daily*')
+Check "plugins list has 5 themes + features" ($plgNames -like '*theme_dark*' -and $plgNames -like '*theme_paper*' -and $plgNames -like '*theme_glass*' -and $plgNames -like '*theme_ba*' -and $plgNames -like '*theme_rhodes*' -and $plgNames -like '*stats_daily*' -and $plgNames -like '*showcase*')
 Check "plugins unauth -> 401" ((Req 'GET' "$Base/api/plugins" $null $null).StatusCode -eq 401)
 $r = Req 'GET' "$Base/api/public/plugins" $null $null
 Check "public plugins default none" ($r.StatusCode -eq 200 -and @((D $r).data.items).Count -eq 0)
@@ -471,6 +471,19 @@ $r = Req 'GET' "$Base/api/public/plugins" $null $null
 Check "plugins disabled back -> public empty" ($r.StatusCode -eq 200 -and @((D $r).data.items).Count -eq 0)
 $r = Req 'GET' "$Base/api/ext/stats_daily/summary?days=3" $null $tok
 Check "stats_daily disabled again -> 404" ($r.StatusCode -eq 404)
+
+$r = Req 'GET' "$Base/api/public/ext/showcase" $null $null
+Check "showcase disabled -> 404" ($r.StatusCode -eq 404)
+Check "showcase embed unauth -> 401" ((Req 'GET' "$Base/api/ext/showcase/embed" $null $null).StatusCode -eq 401)
+Req 'POST' "$Base/api/plugins/showcase/enable" @{} $tok | Out-Null
+$r = Req 'GET' "$Base/api/public/ext/showcase" $null $null
+$show = D $r
+Check "showcase feed 200" ($r.StatusCode -eq 200 -and $null -ne $show.data.counts -and $null -ne $show.data.recent)
+$r = Req 'GET' "$Base/api/public/ext/showcase/badge.svg" $null $null
+Check "showcase badge svg" ($r.StatusCode -eq 200 -and $r.Content.StartsWith('<svg'))
+Req 'POST' "$Base/api/plugins/showcase/disable" @{} $tok | Out-Null
+$r = Req 'GET' "$Base/api/public/ext/showcase" $null $null
+Check "showcase disabled again -> 404" ($r.StatusCode -eq 404)
 $r = Req 'POST' "$Base/api/plugins/no_such_plugin/enable" @{} $tok
 Check "enable unknown plugin -> 404" ($r.StatusCode -eq 404)
 
