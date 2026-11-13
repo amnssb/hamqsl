@@ -76,29 +76,35 @@ func (h *ExchangeHandler) CreateRequest(c *gin.Context) {
 	response.OK(c, req)
 }
 
-// defaultAddressText 自动回寄地址文本（只取一条）：优先台站档案地址（本台正式
-// 回寄地址，可在"卡片版本/台站资料"维护），未配置时回退地址簿第一条；
-// 两者皆无则不自动发送（保留管理员"重发地址"手动发送）
+// defaultAddressText 审批通过时自动附上的那一条回寄地址。
+// 只从「我的地址」取：卡片详情里选中的那条优先，没选就用地址簿第一条。
+// 本台资料只有呼号和名称，不是回寄地址。
 func (h *ExchangeHandler) defaultAddressText() (string, bool) {
-	var p model.StationProfile
-	if err := h.db.First(&p).Error; err == nil && strings.TrimSpace(p.Address) != "" {
-		name := p.Name
-		if strings.TrimSpace(name) == "" {
-			name = p.CallSign
+	if idStr := strings.TrimSpace(getSettingValue(h.db, "return_address_id")); idStr != "" {
+		var picked model.AddressBookEntry
+		if err := h.db.Where("id = ?", idStr).First(&picked).Error; err == nil {
+			if text, ok := formatAddressBook(picked); ok {
+				return text, true
+			}
 		}
-		text := fmt.Sprintf("%s 收\n%s %s\n%s", name, p.PostalCode, "China", strings.TrimSpace(p.Address))
-		return strings.TrimSpace(text), true
 	}
 	var first model.AddressBookEntry
-	if err := h.db.Order("id ASC").First(&first).Error; err == nil && strings.TrimSpace(first.Address) != "" {
-		name := first.Name
-		if strings.TrimSpace(name) == "" {
-			name = first.CallSign
-		}
-		text := fmt.Sprintf("%s 收\n%s %s\n%s", name, first.PostalCode, first.DestinationCountry, strings.TrimSpace(first.Address))
-		return strings.TrimSpace(text), true
+	if err := h.db.Order("id ASC").First(&first).Error; err == nil {
+		return formatAddressBook(first)
 	}
 	return "", false
+}
+
+func formatAddressBook(e model.AddressBookEntry) (string, bool) {
+	if strings.TrimSpace(e.Address) == "" {
+		return "", false
+	}
+	name := strings.TrimSpace(e.Name)
+	if name == "" {
+		name = e.CallSign
+	}
+	text := fmt.Sprintf("%s 收\n%s %s\n%s", name, e.PostalCode, e.DestinationCountry, strings.TrimSpace(e.Address))
+	return strings.TrimSpace(text), true
 }
 
 // sendReturnAddressMail 发送回寄地址邮件（附进度/登记链接），返回错误文本（空串为成功）
@@ -140,8 +146,8 @@ func (h *ExchangeHandler) Approve(c *gin.Context) {
 
 	link := siteURL(h.db, c) + "/status/" + item.RequestCode
 
-	// SWL 场景：对方先寄卡给我。审批通过即自动发送回寄地址（默认单条：台站
-	// 档案优先，未配置时地址簿第一条）并合并进审批邮件，对方一封信即可完成寄件与登记。
+	// SWL 场景：对方先寄卡给我。审批通过即自动附上「我的地址」里的一条
+	//（选中的优先，否则第一条）并合并进审批邮件。
 	swl := strings.ToUpper(item.SceneType) == "SWL"
 	addrAuto := ""
 	if swl && item.ReturnAddressText == "" {

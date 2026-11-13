@@ -120,35 +120,26 @@ func (h *PublicHandler) ReturnMail(c *gin.Context) {
 	})
 }
 
-// StationMailInfo 公开返回本台回寄地址（仅限寄件所需字段；空配置返回空对象不 404）。
-// 地址来源：后台勾选的地址簿条目（设置 return_address_id）优先，其次台站信息。
+// StationMailInfo 公开返回对方回寄时要寄到的地址（只含寄件字段；没选地址返回空对象，不 404）。
+// 只认「我的地址」里选中的那一条。本台资料不参与。
 func (h *PublicHandler) StationMailInfo(c *gin.Context) {
-	if idStr := strings.TrimSpace(getSettingValue(h.db, "return_address_id")); idStr != "" {
-		var ab model.AddressBookEntry
-		if err := h.db.Where("id = ?", idStr).First(&ab).Error; err == nil {
-			response.OK(c, gin.H{
-				"call_sign":   ab.CallSign,
-				"name":        ab.Name,
-				"name_en":     "",
-				"postal_code": ab.PostalCode,
-				"address":     ab.Address,
-				"address_en":  "",
-			})
-			return
-		}
+	idStr := strings.TrimSpace(getSettingValue(h.db, "return_address_id"))
+	if idStr == "" {
+		response.OK(c, gin.H{})
+		return
 	}
-	var p model.StationProfile
-	if err := h.db.First(&p).Error; err != nil {
+	var ab model.AddressBookEntry
+	if err := h.db.Where("id = ?", idStr).First(&ab).Error; err != nil {
 		response.OK(c, gin.H{})
 		return
 	}
 	response.OK(c, gin.H{
-		"call_sign":   p.CallSign,
-		"name":        p.Name,
-		"name_en":     p.NameEn,
-		"postal_code": p.PostalCode,
-		"address":     p.Address,
-		"address_en":  p.AddressEn,
+		"call_sign":   ab.CallSign,
+		"name":        ab.Name,
+		"name_en":     "",
+		"postal_code": ab.PostalCode,
+		"address":     ab.Address,
+		"address_en":  "",
 	})
 }
 

@@ -186,7 +186,7 @@
     <!-- 发送我的地址对话框（SWL 反寄） -->
     <el-dialog v-model="addrDialog" title="发送我的地址到对方邮箱" width="640px" destroy-on-close>
       <el-alert type="info" :closable="false" style="margin-bottom:12px;">
-        审批通过时系统已自动发送一条默认回寄地址（台站档案地址优先，未配置时取地址簿第一条）到对方邮箱并显示在公开进度页。此处可重新勾选地址再次发送，覆盖此前内容（{{ currentRow?.email }}）。
+        审批通过时，如果还没发过地址，会自动带上「我的地址」里的一条：卡片详情里选中的优先，没选就用第一条。这里可以改选几条再发一次，覆盖此前内容（{{ currentRow?.email }}）。
       </el-alert>
       <el-table ref="addrTableRef" :data="myAddresses" border stripe max-height="320" @selection-change="addrSel = $event">
         <el-table-column type="selection" width="45" />

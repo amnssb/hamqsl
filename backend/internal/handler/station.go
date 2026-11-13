@@ -27,7 +27,7 @@ func (h *StationHandler) CreateProfile(c *gin.Context) {
 	var count int64
 	h.db.Model(&model.StationProfile{}).Count(&count)
 	if count > 0 {
-		response.Fail(c, 422, "通信地址已存在")
+		response.Fail(c, 422, "本台资料已存在")
 		return
 	}
 	h.db.Create(&req)

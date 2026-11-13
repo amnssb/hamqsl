@@ -374,11 +374,10 @@
         </div>
         <div class="return-admin-row">
           <span class="ra-label">回寄地址</span>
-          <el-select v-model="returnAddressId" placeholder="选择回寄地址来源" style="min-width:260px;" @change="saveReturnAddress" :loading="addrLoading">
-            <el-option label="台站信息（设置→台站信息）" value="" />
+          <el-select v-model="returnAddressId" placeholder="从我的地址里选一条" clearable style="min-width:260px;" @change="saveReturnAddress" :loading="addrLoading">
             <el-option v-for="a in addressBook" :key="a.id" :value="String(a.id)" :label="addressLabel(a)" />
           </el-select>
-          <span class="ra-hint">勾选后对方看到的回寄地址以此为准；没有合适的请先到「地址簿」添加</span>
+          <span class="ra-hint">对方确认收件后看到的回寄地址就是这一条。地址在「我的地址」里维护。</span>
         </div>
         <div v-if="detailCard.return_mailed_at && !detailCard.return_received_at" class="return-admin-row">
           <el-button type="success" @click="confirmReturnReceived">确认收到回寄（自动记入收卡记录）</el-button>
@@ -650,7 +649,7 @@ function showCardDetail(row) {
   loadReturnAddressOptions()
 }
 
-// ---- 回寄地址来源（全局配置：地址簿条目或台站信息） ----
+// ---- 回寄地址：我的地址里的一条，记在 return_address_id ----
 const addressBook = ref([])
 const returnAddressId = ref('')
 const addrLoading = ref(false)
