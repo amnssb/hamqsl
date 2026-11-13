@@ -32,6 +32,7 @@
 
       <div v-if="!(!isMobile && isCollapse)" class="nav-caption nav-caption-bottom">系统管理</div>
       <el-menu :default-active="route.path" router :collapse="!isMobile && isCollapse" class="side-menu">
+        <el-menu-item index="/admin/profile"><el-icon><OfficeBuilding /></el-icon><template #title>本台资料</template></el-menu-item>
         <el-menu-item index="/admin/address"><el-icon><Notebook /></el-icon><template #title>我的地址</template></el-menu-item>
         <el-menu-item index="/admin/station"><el-icon><Postcard /></el-icon><template #title>卡片版本</template></el-menu-item>
         <el-menu-item index="/admin/settings"><el-icon><Tools /></el-icon><template #title>设置</template></el-menu-item>
@@ -113,15 +114,23 @@ function openPortal() { window.open('/', '_blank') }
 <style scoped>
 /* 侧栏/品牌区用的是 --qsl-chrome-*（深色"外壳"），与页面正体的 --qsl-* 分开：
    这样玻璃/纸墨这类"深色侧栏 + 浅色正文"的主题不需要再硬编码侧栏文字颜色。 */
-.layout-container { min-height: 100vh; background: var(--qsl-bg); }
+.layout-container {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--qsl-bg);
+}
 .layout-aside {
   position: relative;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
   background: var(--qsl-chrome-bg);
   border-right: 1px solid color-mix(in srgb, var(--qsl-chrome-text) 10%, transparent);
   transition: width .25s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-shadow: 2px 0 12px color-mix(in srgb, var(--qsl-chrome-bg) 30%, transparent);
 }
 .brand {
@@ -237,11 +246,13 @@ function openPortal() { window.open('/', '_blank') }
 }
 
 .main-container {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   background:
     radial-gradient(at 0% 0%, color-mix(in srgb, var(--qsl-primary) 7%, transparent), transparent 46%),
     var(--qsl-bg);
   min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -254,8 +265,7 @@ function openPortal() { window.open('/', '_blank') }
   background: color-mix(in srgb, var(--qsl-panel) 84%, transparent);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--qsl-line);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
 }
 .header-left { display: flex; flex-direction: column; gap: 4px; }
@@ -335,10 +345,11 @@ function openPortal() { window.open('/', '_blank') }
 
 .layout-main {
   flex: 1;
+  min-height: 0;
   padding: 28px 32px;
   background: transparent;
   min-width: 0;
-  overflow-x: hidden;
+  overflow: auto;
   padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
 .content-shell {

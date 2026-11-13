@@ -84,12 +84,12 @@ html[data-theme="theme_paper"] .card-item:hover {
   border-color: #b4552d !important;
 }
 
-html[data-theme="theme_paper"] .el-button--primary {
+html[data-theme="theme_paper"] .el-button--primary:not(.is-link):not(.is-text) {
   background: #b4552d !important;
   border-color: #b4552d !important;
   color: #ffffff !important;
 }
-html[data-theme="theme_paper"] .el-button--primary:hover {
+html[data-theme="theme_paper"] .el-button--primary:not(.is-link):not(.is-text):hover {
   background: #9a4726 !important;
   border-color: #9a4726 !important;
 }

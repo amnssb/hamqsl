@@ -65,7 +65,7 @@ html[data-theme="theme_ba"] body::after {
 }
 
 /* 4. 平行四边形斜切按键（主按钮 skewX(-12deg)，内层文字反向回正） */
-html[data-theme="theme_ba"] .el-button--primary,
+html[data-theme="theme_ba"] .el-button--primary:not(.is-link):not(.is-text),
 html[data-theme="theme_ba"] .hero-btn-primary,
 html[data-theme="theme_ba"] .login-button {
   transform: skewX(-12deg) !important;
@@ -77,13 +77,13 @@ html[data-theme="theme_ba"] .login-button {
   letter-spacing: 0.02em !important;
   color: #ffffff !important;
 }
-html[data-theme="theme_ba"] .el-button--primary:hover,
+html[data-theme="theme_ba"] .el-button--primary:not(.is-link):not(.is-text):hover,
 html[data-theme="theme_ba"] .hero-btn-primary:hover,
 html[data-theme="theme_ba"] .login-button:hover {
   filter: brightness(1.08) !important;
   box-shadow: 0 6px 18px rgba(62, 158, 248, 0.45) !important;
 }
-html[data-theme="theme_ba"] .el-button--primary > *,
+html[data-theme="theme_ba"] .el-button--primary:not(.is-link):not(.is-text) > *,
 html[data-theme="theme_ba"] .hero-btn-primary > *,
 html[data-theme="theme_ba"] .login-button > * {
   transform: skewX(12deg) !important;

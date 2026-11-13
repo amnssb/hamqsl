@@ -124,12 +124,12 @@ html[data-theme="theme_dark"] .card-item:hover {
 }
 
 /* 主按钮 */
-html[data-theme="theme_dark"] .el-button--primary {
+html[data-theme="theme_dark"] .el-button--primary:not(.is-link):not(.is-text) {
   background: #ff7a45 !important;
   border-color: #ff7a45 !important;
   box-shadow: 0 2px 10px rgba(255, 122, 69, 0.3) !important;
 }
-html[data-theme="theme_dark"] .el-button--primary:hover {
+html[data-theme="theme_dark"] .el-button--primary:not(.is-link):not(.is-text):hover {
   background: #e9632b !important;
   border-color: #e9632b !important;
 }

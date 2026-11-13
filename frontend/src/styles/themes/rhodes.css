@@ -101,7 +101,7 @@ html[data-theme="theme_rhodes"] .logo-icon {
 html[data-theme="theme_rhodes"] .el-button {
   border-radius: 2px !important;
 }
-html[data-theme="theme_rhodes"] .el-button--primary,
+html[data-theme="theme_rhodes"] .el-button--primary:not(.is-link):not(.is-text),
 html[data-theme="theme_rhodes"] .hero-btn-primary,
 html[data-theme="theme_rhodes"] .login-button {
   background: #2FA6DE !important;
@@ -112,7 +112,7 @@ html[data-theme="theme_rhodes"] .login-button {
   border-radius: 2px !important;
   box-shadow: 0 2px 6px rgba(47, 166, 222, 0.25) !important;
 }
-html[data-theme="theme_rhodes"] .el-button--primary:hover,
+html[data-theme="theme_rhodes"] .el-button--primary:not(.is-link):not(.is-text):hover,
 html[data-theme="theme_rhodes"] .hero-btn-primary:hover,
 html[data-theme="theme_rhodes"] .login-button:hover {
   background: #238fc2 !important;

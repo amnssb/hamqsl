@@ -88,6 +88,7 @@ const routes = [
       { path: 'exchange/online', name: 'ExchangeOnline', component: () => import('../views/ExchangeOnline.vue'), meta: { title: '线上换卡' } },
       { path: 'exchange/offline', name: 'ExchangeOffline', component: () => import('../views/ExchangeOffline.vue'), meta: { title: '线下换卡' } },
       { path: 'receive', name: 'ReceiveList', component: () => import('../views/ReceiveList.vue'), meta: { title: '收卡记录' } },
+      { path: 'profile', name: 'StationProfile', component: () => import('../views/StationProfile.vue'), meta: { title: '本台资料' } },
       { path: 'address', name: 'AddressBook', component: () => import('../views/AddressBook.vue'), meta: { title: '地址管理' } },
       { path: 'bureau', name: 'BureauList', component: () => import('../views/BureauList.vue'), meta: { title: '卡片局' } },
       { path: 'station', name: 'StationConfig', component: () => import('../views/StationConfig.vue'), meta: { title: '卡片版本' } },

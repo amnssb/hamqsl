@@ -131,10 +131,9 @@ var bureauEditableFields = fieldSet(
 )
 
 // stationProfileEditableFields 台站档案允许通过 PUT 修改的字段。
-//
-// 不含 call_sign：它是唯一索引，也是公开页"回寄给谁"的依据。
+// 全库只有这一条本台资料，呼号写错了要能改。
 var stationProfileEditableFields = fieldSet(
-	"name", "name_en", "telephone", "postal_code", "address", "address_en",
+	"call_sign", "name", "name_en", "telephone", "postal_code", "address", "address_en",
 	"email", "remarks",
 )
 

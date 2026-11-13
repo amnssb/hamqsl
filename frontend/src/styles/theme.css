@@ -76,8 +76,9 @@ body {
   padding: 20px;
 }
 
-/* 现代按钮 */
-.el-button {
+/* 实心按钮。link / text 是表格里的操作字，不能套这套内边距和底色，
+   否则「详情」「编辑」会变成色块，一行放不下就折进旁边的格子。 */
+.el-button:not(.is-link):not(.is-text) {
   border-radius: var(--qsl-radius);
   font-weight: 600;
   font-size: 13px;
@@ -86,29 +87,29 @@ body {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.el-button--primary {
+.el-button--primary:not(.is-link):not(.is-text) {
   color: var(--qsl-on-primary);
   border-color: var(--qsl-primary);
   background: var(--qsl-primary);
   box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--qsl-ink) 12%, transparent);
 }
-.el-button--primary:hover {
+.el-button--primary:not(.is-link):not(.is-text):hover {
   border-color: var(--qsl-primary-2);
   background: var(--qsl-primary-2);
   box-shadow: 0 4px 8px -1px color-mix(in srgb, var(--qsl-ink) 18%, transparent);
   transform: translateY(-1px);
 }
-.el-button--primary:active {
+.el-button--primary:not(.is-link):not(.is-text):active {
   transform: translateY(0);
 }
 
-.el-button--success {
+.el-button--success:not(.is-link):not(.is-text) {
   color: var(--qsl-on-primary);
   border-color: var(--qsl-green);
   background: var(--qsl-green);
   box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--qsl-ink) 10%, transparent);
 }
-.el-button--success:hover {
+.el-button--success:not(.is-link):not(.is-text):hover {
   border-color: color-mix(in srgb, var(--qsl-green) 85%, #000);
   background: color-mix(in srgb, var(--qsl-green) 85%, #000);
   transform: translateY(-1px);
@@ -495,7 +496,7 @@ body {
   .el-card__body {
     padding: 10px;
   }
-  .el-button {
+  .el-button:not(.is-link):not(.is-text) {
     padding: 6px 10px;
     font-size: 12px;
   }

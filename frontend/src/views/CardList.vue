@@ -108,27 +108,9 @@
             <span v-else style="color:var(--qsl-muted);">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="188" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
-            <el-button link type="primary" size="small" @click="showEditDialog(row)">编辑</el-button>
-            <el-button link type="success" size="small" v-if="!row.card_issued" @click="handleIssue(row)">制卡</el-button>
-            <el-button link type="warning" size="small" v-if="row.card_issued && !row.card_sent" @click="showSentDialog(row)">发信</el-button>
-            <el-button link type="info" size="small" v-if="row.card_sent && !row.card_received" @click="showReceivedDialog(row)">对方收卡</el-button>
-            <el-button link size="small" v-if="row.mail_type === 'REGISTERED' && row.tracking_number" @click="openTracking(row)">快递</el-button>
-            <el-button link type="info" size="small" @click="showQRCode(row)">二维码</el-button>
-            <el-dropdown v-if="row.mail_target_email" trigger="click" @command="(cmd) => handleSendMail(row, cmd)">
-              <el-button link type="info" size="small">邮件<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="created">建卡通知</el-dropdown-item>
-                  <el-dropdown-item command="sent">发信通知</el-dropdown-item>
-                  <el-dropdown-item command="received">收卡通知</el-dropdown-item>
-                  <el-dropdown-item command="tracking">快递更新</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-            <el-button link type="danger" size="small" @click="handleDeleteCard(row)">删除</el-button>
+            <CardRowOps :row="row" @detail="showCardDetail" @edit="showEditDialog" @command="(cmd) => onCardCommand(row, cmd)" />
           </template>
         </el-table-column>
       </el-table>
@@ -152,25 +134,7 @@
           <span v-else style="color:var(--qsl-muted);">-</span>
         </template>
         <template #actions="{ row }">
-          <el-button link type="primary" size="small" @click="showCardDetail(row)">详情</el-button>
-          <el-button link type="primary" size="small" @click="showEditDialog(row)">编辑</el-button>
-          <el-button link type="success" size="small" v-if="!row.card_issued" @click="handleIssue(row)">制卡</el-button>
-          <el-button link type="warning" size="small" v-if="row.card_issued && !row.card_sent" @click="showSentDialog(row)">发信</el-button>
-          <el-button link type="info" size="small" v-if="row.card_sent && !row.card_received" @click="showReceivedDialog(row)">对方收卡</el-button>
-          <el-button link size="small" v-if="row.mail_type === 'REGISTERED' && row.tracking_number" @click="openTracking(row)">快递</el-button>
-          <el-button link type="info" size="small" @click="showQRCode(row)">二维码</el-button>
-          <el-dropdown v-if="row.mail_target_email" trigger="click" @command="(cmd) => handleSendMail(row, cmd)">
-            <el-button link type="info" size="small">邮件<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="created">建卡通知</el-dropdown-item>
-                <el-dropdown-item command="sent">发信通知</el-dropdown-item>
-                <el-dropdown-item command="received">收卡通知</el-dropdown-item>
-                <el-dropdown-item command="tracking">快递更新</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          <el-button link type="danger" size="small" @click="handleDeleteCard(row)">删除</el-button>
+          <CardRowOps :row="row" @detail="showCardDetail" @edit="showEditDialog" @command="(cmd) => onCardCommand(row, cmd)" />
         </template>
       </ResponsiveTable>
 
@@ -454,6 +418,7 @@ import api from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import QRCode from 'qrcode'
 import ResponsiveTable from '../components/ResponsiveTable.vue'
+import CardRowOps from '../components/CardRowOps.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -564,6 +529,16 @@ async function handleSaveEdit() {
     editDialog.value = false
     loadData()
   } finally { saving.value = false }
+}
+
+function onCardCommand(row, cmd) {
+  if (cmd === 'issue') return handleIssue(row)
+  if (cmd === 'sent') return showSentDialog(row)
+  if (cmd === 'received') return showReceivedDialog(row)
+  if (cmd === 'track') return openTracking(row)
+  if (cmd === 'qr') return showQRCode(row)
+  if (cmd === 'delete') return handleDeleteCard(row)
+  if (cmd.startsWith('mail-')) return handleSendMail(row, cmd.slice(5))
 }
 
 async function handleIssue(row) {
