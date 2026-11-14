@@ -2,7 +2,7 @@
 
 > 目标读者：接手本项目的开发 / AI。
 > 本文只讨论两件事：**（A）性能瓶颈在哪、怎么改**，**（B）"主题只是蒙版"的根因与根治方案**。
-> 状态：这是重构前的方案，文中的行号和 `extraCss` 登记方式已经过时。现在加插件看 README「插件系统」：一个插件一个文件，在 `backend/internal/plugins`；纹理文件名就是插件名。
+> 状态：这是重构前的方案，文中的行号和 `extraCss` 登记方式已经过时。现在加插件看 [docs/plugins.md](plugins.md)：一个插件一个文件，在 `backend/internal/plugins`；插件页界面在 `frontend/src/plugins/pages/<插件名>.vue`；纹理文件名就是插件名。
 
 ---
 

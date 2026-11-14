@@ -50,9 +50,9 @@
 
 - **主题插件** - 鸣门鱼板、蔚蓝档案、罗德岛终端、暗色、纸墨。配色写在各自的插件文件里，由 `/api/public/theme.css` 下发；纹理在 `frontend/src/styles/themes/<插件名>.css`。升级后默认全部禁用
 - **功能插件** - 每日统计（`stats_daily`）：按东八区逐天聚合建卡/发卡/寄出/签收计数，插件页内查看最近 14 天趋势柱状图
-- **对外展示**（`showcase`）：只读公开呼号、通联计数、最近通联和卡片图。启用后插件页给出一段 `<img>` + 链接：QRZ 简介和博客都只留得住图片和链接（脚本和 iframe 会被丢掉，本站也不允许被嵌入）。自己排版时 GET `/api/public/ext/showcase`。禁用时这些地址 404
-- **扩展机制** - `internal/plugins/` 里一个插件一个文件，进程启动时自己登记。功能路由在 `/api/ext/<name>/...`（要登录，关掉就是 404）；给外部网页看的只读接口再实现 `OpenReader`，挂到 `/api/public/ext/<name>`。启停记在 `system_settings`
-- 加一个插件：往 `internal/plugins/` 放一个 `.go` 文件，不用改 `main.go`。主题要纹理，再放一个同名 css。某个插件专属的按钮（例如「查看数据」）写在插件页里，那是它自己的界面
+- **对外展示**（`showcase`）：只读公开呼号、通联计数、最近通联和卡片图。启用后插件页给出一段 `<img>` + 链接：QRZ 简介和博客都只留得住图片和链接（脚本和 iframe 会被丢掉，本站也不允许被嵌入）。自己排版时 GET `/api/public/ext/showcase`。禁用时这些地址 404。**外部站点对接的字段契约与示例代码见 [docs/showcase-api.md](docs/showcase-api.md)**
+- **扩展机制** - `internal/plugins/` 里一个插件一个文件，进程启动时自己登记。功能路由在 `/api/ext/<name>/...`（要登录，关掉就是 404）；给外部网页看的只读接口再实现 `OpenReader`，挂到 `/api/public/ext/<name>`。启停记在 `system_settings`；启用时立刻跑 `Init`，失败自动回退开关
+- 加一个插件：往 `internal/plugins/` 放一个 `.go` 文件，不用改 `main.go`。插件自己的按钮/弹窗放 `frontend/src/plugins/pages/<插件名>.vue`，按文件名自动挂载。主题要纹理，再放一个同名 css。**完整步骤、接口说明与验证清单见 [docs/plugins.md](docs/plugins.md)**
 
 ### 安全特性
 
@@ -225,6 +225,7 @@ npm run build
 | `handler/qso_import_test.go` | ADIF 解析（长度越界、无长度标签、截断输入、日期/时间归一化）；导入去重、跨批写入、`has_card=false` 过滤 |
 | `handler/export_test.go` | 备份分批恢复、冲突时整单回滚、空密码不覆盖现有 SMTP 密码 |
 | `handler/sequence_test.go` | 发号器并发不重号（30 协程 × 20 次取号）、单调递增、脏值恢复、一次领一段号之后单取接着数 |
+| `internal/plugin/toggle_test.go` | 插件启用即跑 Init；Init 失败开关自动回退并返回 500；API 层错误透传 |
 | `internal/plugins/stats_daily_test.go` | 每日统计按东八区把窗口内的卡片一次读完再分桶 |
 | `handler/timezone_test.go` | 东八区墙钟字符串解析（快递缓存 10 分钟窗口的时区回归） |
 | `internal/config/config_test.go` | 密钥文件生成/持久化/0600 权限/损坏兜底 |

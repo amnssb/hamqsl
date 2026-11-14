@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -129,13 +130,13 @@ func (m *Manager) settingKey(name string) string { return "plugin_enabled_" + na
 
 // setSetting 先加载再更新的 upsert 模式：
 // db.Save 对 ID=0 的 struct 走 INSERT，会撞 key 唯一索引并静默失败（见 HANDOFF 坑记录）
-func (m *Manager) setSetting(key, val string) {
+// 错误必须交回调用方：开关没写进去却报"已启用"，用户下次刷新会看到开关又弹回去。
+func (m *Manager) setSetting(key, val string) error {
 	var s model.SystemSetting
 	if err := m.db.Where("key = ?", key).First(&s).Error; err != nil {
-		m.db.Create(&model.SystemSetting{Key: key, Value: val})
-		return
+		return m.db.Create(&model.SystemSetting{Key: key, Value: val}).Error
 	}
-	m.db.Model(&s).Update("value", val)
+	return m.db.Model(&s).Update("value", val).Error
 }
 
 // IsEnabled 插件是否启用（未注册的插件恒为 false；未设置过开关的插件默认禁用 → 升级零行为变化）
@@ -195,13 +196,40 @@ func (m *Manager) invalidatePluginState() {
 	m.stateMu.Unlock()
 }
 
-func (m *Manager) SetEnabled(name string, on bool) {
+// SetEnabled 落盘开关。启用时立即跑一次 Init（建表/预热），
+// 失败则把开关回退——不能让用户以为启用成功、接口却一直 500。
+// Init 幂等（启动时已启用过的插件也会再跑），InitEnabled 与这里共用这一份。
+func (m *Manager) SetEnabled(name string, on bool) error {
 	v := "false"
 	if on {
 		v = "true"
 	}
-	m.setSetting(m.settingKey(name), v)
+	if err := m.setSetting(m.settingKey(name), v); err != nil {
+		return err
+	}
 	// 开关立即生效，不等 TTL
+	m.invalidatePluginState()
+
+	if on {
+		p, ok := m.items[name]
+		if !ok {
+			return nil
+		}
+		if err := p.Init(m.db); err != nil {
+			m.SetEnabledRollback(name)
+			return fmt.Errorf("插件 %s 初始化失败: %w", name, err)
+		}
+		log.Printf("[plugin] 已启用: %s", name)
+	}
+	return nil
+}
+
+// SetEnabledRollback 把开关写回 false。给 Init 失败的启用请求兜底；
+// 写不进去只能记日志，下次读快照会以库里为准。
+func (m *Manager) SetEnabledRollback(name string) {
+	if err := m.setSetting(m.settingKey(name), "false"); err != nil {
+		log.Printf("[plugin] %s 回退开关失败: %v", name, err)
+	}
 	m.invalidatePluginState()
 }
 
@@ -293,7 +321,10 @@ func (m *Manager) handleToggle(on bool) gin.HandlerFunc {
 			response.Fail(c, 404, "插件不存在")
 			return
 		}
-		m.SetEnabled(name, on)
+		if err := m.SetEnabled(name, on); err != nil {
+			response.Fail(c, 500, err.Error())
+			return
+		}
 		verb := "已禁用"
 		if on {
 			verb = "已启用"

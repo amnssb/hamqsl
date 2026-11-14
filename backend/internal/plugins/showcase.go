@@ -6,6 +6,7 @@ package plugins
 //	GET /api/public/ext/showcase/badge.svg  同一份计数画成 SVG，用 <img> 引用
 //	GET /api/ext/showcase/embed             返回上面两条的绝对地址和一段 HTML
 //
+// 外部站点对接的字段契约（实测响应、错误码、示例代码）见 docs/showcase-api.md。
 // 公开页 /showcase 读第一条。QRZ 简介和博客会丢掉 script 和 iframe，所以对外只给图片和链接。
 // 不公开：地址、电话、邮箱、备注、QTH、设备、申请正文。
 // 数字和列表共用一份 60 秒快照，徽章和 JSON 不会各算各的。
