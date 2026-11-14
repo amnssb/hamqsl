@@ -262,8 +262,36 @@ cd /opt/qsl && bash deploy.sh    # 自动拉基础镜像 → 构建 → 启动 �
 docker logs -f qsl              # 看日志
 docker compose restart          # 重启
 git pull && docker compose pull && docker compose up -d   # 更新到最新预构建镜像
+bash scripts/update.sh          # 同上，带健康检查与自动回退（自动更新也用它）
 docker compose down             # 停止（数据在 ./data，不会丢）
 ```
+
+## 自动更新（推荐开启）
+
+整条链路全自动：**push main → Actions 构建 `latest` 镜像 → Actions SSH 到服务器执行 `scripts/update.sh`**（拉镜像 → 滚动重启 → 健康检查 90s → 不就绪自动回退旧镜像）。
+
+一次性配置：
+
+1. **服务器**：按上文装好并跑通一次 `bash deploy.sh`，部署目录为 `/opt/qsl`（不同的话在 workflow 里改 `DEPLOY_DIR`）。然后把仓库里的 `scripts/update.sh` 放到服务器的 `/opt/qsl/scripts/update.sh`：
+   ```bash
+   # 在服务器上
+   mkdir -p /opt/qsl/scripts && curl -o /opt/qsl/scripts/update.sh <raw 地址> && chmod +x /opt/qsl/scripts/update.sh
+   ```
+2. **生成部署密钥**（本机执行，公钥追加到服务器）：
+   ```bash
+   ssh-keygen -t ed25519 -f qsl_deploy_key -N "" -C "hamqsl-actions"
+   ssh-copy-id -i qsl_deploy_key.pub user@服务器IP
+   ```
+3. **GitHub 仓库** Settings → Secrets and variables → Actions，添加三个 Secret：
+   | Secret | 值 |
+   |---|---|
+   | `DEPLOY_HOST` | 服务器 IP 或域名 |
+   | `DEPLOY_USER` | SSH 用户（需在 `docker` 组里：`sudo usermod -aG docker $USER`） |
+   | `DEPLOY_SSH_KEY` | `qsl_deploy_key` 私钥全文（`cat qsl_deploy_key`） |
+
+之后每次 push 到 main：镜像构建成功 → 自动部署；构建失败不会部署。手动更新随时可以在服务器跑 `bash scripts/update.sh`，行为和自动更新完全一致。
+
+> 安全说明：私钥只存在 GitHub Secrets；服务器上只有对应公钥。`update.sh` 幂等——重复跑、镜像没变时直接退出，不会无谓重启容器。
 
 ## 环境变量
 
