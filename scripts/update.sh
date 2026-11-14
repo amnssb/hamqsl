@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# 服务器端自动更新：拉最新镜像 → 滚动重启 → 健康检查 → 失败自动回退旧镜像。
+# 服务器端自动更新（拉模式）：拉最新镜像 → 有变化才滚动重启 → 健康检查 → 失败自动回退旧镜像。
 #
 # 被谁调用：
-#   - GitHub Actions 构建新镜像成功后 SSH 过来执行（见 .github/workflows/deploy.yml）
+#   - 服务器 cron 定时跑（推荐，见 DEPLOY.md「自动更新」）：
+#       */10 * * * * /bin/bash /opt/qsl/scripts/update.sh >> /opt/qsl/update.log 2>&1
 #   - 也可以人肉跑：bash scripts/update.sh
 #
-# 前提：部署目录里有 docker-compose.yml（image: ghcr.io/amnssb/hamqsl:latest）
-# 和 .env（本脚本据此找到目录）。目录可被 DEPLOY_DIR 环境变量覆盖。
+# 幂等：镜像没变化时直接退出，不重启容器，cron 反复跑无副作用。
+#
+# 前提：部署目录里有 docker-compose.yml（image: ghcr.io/amnssb/hamqsl:latest）。
+# 目录可被 DEPLOY_DIR 环境变量覆盖。
 
 set -euo pipefail
 
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/qsl}"
-cd "$DEPLOY_DIR"
+cd "$DEPLOY_DIR" || { echo "[x] 部署目录不存在: $DEPLOY_DIR"; exit 1; }
 
 COMPOSE="docker compose"
 if ! docker compose version >/dev/null 2>&1; then
@@ -19,17 +22,20 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 # --- 记住当前镜像：回退时就回到它 ---
-OLD_IMAGE="$($COMPOSE images -q qsl 2>/dev/null || true)"
-echo "[1/5] 当前镜像: ${OLD_IMAGE:-（无，首次部署）}"
+# 用镜像引用直接查本地 digest，不用 docker compose images ——
+# 后者依赖正在运行的容器，容器没跑时会返回空，导致每次都误判有更新而重启。
+IMAGE_REF="ghcr.io/amnssb/hamqsl:latest"
+OLD_IMAGE="$(docker image inspect "$IMAGE_REF" --format '{{.Id}}' 2>/dev/null || true)"
+echo "[1/5] 当前镜像: ${OLD_IMAGE:-（本地没有，将拉取）}"
 
 # --- 拉新镜像 ---
-echo "[2/5] 拉取 ghcr.io/amnssb/hamqsl:latest ..."
+echo "[2/5] 拉取 $IMAGE_REF ..."
 if ! $COMPOSE pull; then
   echo "[x] 拉取失败，保持旧版本继续运行。"
   exit 1
 fi
 
-NEW_IMAGE="$($COMPOSE images -q qsl 2>/dev/null || true)"
+NEW_IMAGE="$(docker image inspect "$IMAGE_REF" --format '{{.Id}}' 2>/dev/null || true)"
 if [ -n "$OLD_IMAGE" ] && [ "$NEW_IMAGE" = "$OLD_IMAGE" ]; then
   echo "[2/5] 镜像没有变化，无需更新。"
   exit 0

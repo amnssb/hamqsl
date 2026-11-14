@@ -268,30 +268,30 @@ docker compose down             # 停止（数据在 ./data，不会丢）
 
 ## 自动更新（推荐开启）
 
-整条链路全自动：**push main → Actions 构建 `latest` 镜像 → Actions SSH 到服务器执行 `scripts/update.sh`**（拉镜像 → 滚动重启 → 健康检查 90s → 不就绪自动回退旧镜像）。
+拉模式，**仓库不存任何服务器凭据**：push main → Actions 构建 `latest` 镜像（已有）；服务器上 cron 每 10 分钟自己检查 ghcr 有没有新镜像，有才滚动重启。服务器不需要对任何外部 IP 开放 SSH。
 
-一次性配置：
+链路：`push main → 镜像构建 → 服务器 cron → scripts/update.sh`（拉镜像 → 镜像变了才重启 → 健康检查 90s → 不就绪自动回退旧镜像）。
 
-1. **服务器**：按上文装好并跑通一次 `bash deploy.sh`，部署目录为 `/opt/qsl`（不同的话在 workflow 里改 `DEPLOY_DIR`）。然后把仓库里的 `scripts/update.sh` 放到服务器的 `/opt/qsl/scripts/update.sh`：
-   ```bash
-   # 在服务器上
-   mkdir -p /opt/qsl/scripts && curl -o /opt/qsl/scripts/update.sh <raw 地址> && chmod +x /opt/qsl/scripts/update.sh
-   ```
-2. **生成部署密钥**（本机执行，公钥追加到服务器）：
-   ```bash
-   ssh-keygen -t ed25519 -f qsl_deploy_key -N "" -C "hamqsl-actions"
-   ssh-copy-id -i qsl_deploy_key.pub user@服务器IP
-   ```
-3. **GitHub 仓库** Settings → Secrets and variables → Actions，添加三个 Secret：
-   | Secret | 值 |
-   |---|---|
-   | `DEPLOY_HOST` | 服务器 IP 或域名 |
-   | `DEPLOY_USER` | SSH 用户（需在 `docker` 组里：`sudo usermod -aG docker $USER`） |
-   | `DEPLOY_SSH_KEY` | `qsl_deploy_key` 私钥全文（`cat qsl_deploy_key`） |
+服务器上一次性配置（部署目录默认 `/opt/qsl`，不同先在 crontab 里改）：
 
-之后每次 push 到 main：镜像构建成功 → 自动部署；构建失败不会部署。手动更新随时可以在服务器跑 `bash scripts/update.sh`，行为和自动更新完全一致。
+```bash
+# 1. 更新脚本放到服务器（已在项目里，随仓库带上；或单独拷过去）
+install -m 755 scripts/update.sh /opt/qsl/scripts/update.sh
 
-> 安全说明：私钥只存在 GitHub Secrets；服务器上只有对应公钥。`update.sh` 幂等——重复跑、镜像没变时直接退出，不会无谓重启容器。
+# 2. crontab 加一行（每 10 分钟检查一次；脚本幂等，镜像没变直接退出）
+crontab -e
+#   */10 * * * * /bin/bash /opt/qsl/scripts/update.sh >> /opt/qsl/update.log 2>&1
+```
+
+之后每次 push 到 main，服务器最多 10 分钟内自动跟上。更新日志看 `/opt/qsl/update.log`；回退发生时日志里会写明原因。
+
+手动更新随时可跑，行为与 cron 完全一致：
+
+```bash
+bash /opt/qsl/scripts/update.sh
+```
+
+> 安全说明：服务器只出站拉 ghcr.io，不开新端口、不存 CI 凭据。`update.sh` 幂等——重复跑、镜像没变时直接退出，不会无谓重启容器。
 
 ## 环境变量
 
