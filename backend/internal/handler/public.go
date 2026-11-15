@@ -185,11 +185,12 @@ func (h *PublicHandler) ExchangeStatus(c *gin.Context) {
 
 // PublicStats 公开统计（仅聚合数量，不含任何个人信息）：首页实时数据面板。
 //
-// 三条 COUNT(*) 全表扫，而首页最容易被反复刷，所以走 60 秒内存快照
+// 通联、卡片、申请各算一遍，首页最容易被反复刷，所以走 60 秒内存快照
 // （见 stats_cache.go）。数字晚一分钟没人看得出来，但数据库少扫几百遍。
 func (h *PublicHandler) PublicStats(c *gin.Context) {
 	s := publicStats(h.db)
 	response.OK(c, gin.H{
+		"qso":              s.QSO,
 		"cards_sent":       s.CardsSent,
 		"cards_signed":     s.CardsSigned,
 		"pending_requests": s.PendingRequests,

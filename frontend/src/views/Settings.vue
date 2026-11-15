@@ -63,9 +63,40 @@
     </el-card>
 
     <el-card style="margin-bottom:20px;">
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span>LoTW 同步</span>
+          <div>
+            <el-button :loading="syncingLotw" :disabled="!lotwForm.lotw_username" @click="syncLotw">从 LoTW 同步</el-button>
+            <el-button type="primary" :loading="savingLotw" @click="saveLotw()">保存</el-button>
+          </div>
+        </div>
+      </template>
+      <el-alert type="info" :closable="false" style="margin-bottom:20px;">
+        只读拉取 ARRL LoTW 的 lotwreport.adi（已确认、未确认各一次），不会用 TQSL 签署或上传。
+        密码保存后不再回显，留空表示不修改，全库备份也不会带上它。
+        起始日期留空时从 1930-01-01 起全量同步；重复同步会跳过已有记录，并把新的确认写到原来的那条上。
+        填了日期则按 LoTW 收到该记录的时间过滤（已确认用 qso_qslsince，未确认用 qso_qsorxsince）。
+        账号密码错误或超时会直接提示。同步可能要一两分钟。
+      </el-alert>
+      <el-form label-width="120px" style="max-width:640px;">
+        <el-form-item label="用户名">
+          <el-input v-model="lotwForm.lotw_username" placeholder="通常是主呼号，但不总是" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="lotwForm.lotw_password" type="password" show-password autocomplete="new-password"
+            :placeholder="lotwForm.lotw_password_set ? '已保存，留空则不修改' : 'LoTW 网站密码'" />
+        </el-form-item>
+        <el-form-item label="起始日期">
+          <el-date-picker v-model="lotwForm.lotw_since" type="date" value-format="YYYY-MM-DD" placeholder="留空则全量同步" clearable style="width:100%" />
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card style="margin-bottom:20px;">
       <template #header><span>数据备份</span></template>
       <el-alert type="info" :closable="false" style="margin-bottom:16px;">
-        导出系统全部数据（台站、通联日志、卡片记录、地址簿、卡片局、线上换卡申请、收卡记录、系统设置等）为 JSON 文件；敏感配置（SMTP 密码）不包含在内。
+        导出系统全部数据（台站、通联日志、卡片记录、地址簿、卡片局、线上换卡申请、收卡记录、系统设置等）为 JSON 文件；敏感配置（SMTP 密码、LoTW 密码）不包含在内。
       </el-alert>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <el-button type="primary" :loading="exporting" @click="handleExport">导出全部数据（JSON）</el-button>
@@ -73,7 +104,7 @@
 
       <el-divider content-position="left">导入恢复</el-divider>
       <el-alert type="warning" :closable="false" style="margin-bottom:14px;">
-        导入会用备份文件<b>覆盖当前全部业务数据</b>（通联、卡片、申请、收卡、地址簿、设置等），此操作不可撤销；登录账号与 SMTP 密码保持当前值不变。建议先导出一份当前数据再操作。
+        导入会用备份文件<b>覆盖当前全部业务数据</b>（通联、卡片、申请、收卡、地址簿、设置等），此操作不可撤销；登录账号、SMTP 密码和 LoTW 密码保持当前值不变。建议先导出一份当前数据再操作。
       </el-alert>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <el-upload
@@ -259,7 +290,7 @@ async function handleImport() {
   if (!backupFile.value) { ElMessage.warning('请先选择备份文件'); return }
   try {
     await ElMessageBox.confirm(
-      '导入将覆盖当前全部业务数据（通联、卡片、申请、收卡、地址簿、设置等），此操作不可撤销；登录账号与 SMTP 密码保持不变。建议先导出一份当前备份。确定继续？',
+      '导入将覆盖当前全部业务数据（通联、卡片、申请、收卡、地址簿、设置等），此操作不可撤销；登录账号、SMTP 密码和 LoTW 密码保持不变。建议先导出一份当前备份。确定继续？',
       '危险操作：导入并覆盖数据',
       { type: 'warning', confirmButtonText: '仍然导入', cancelButtonText: '取消' }
     )
@@ -276,7 +307,7 @@ async function handleImport() {
     ElMessage.success('导入完成：' + (parts.length ? parts.join('，') : '备份为空表'))
     backupFile.value = null
     if (backupUploadRef.value) backupUploadRef.value.clearFiles()
-    loadSite(); loadSmtp()
+    loadSite(); loadSmtp(); loadLotw()
   } catch (e) { /* 拦截器已提示（含回滚说明） */ } finally { importing.value = false }
 }
 
@@ -292,6 +323,45 @@ watch(smtpEncryption, (val) => {
   else if (val === 'tls') smtpForm.smtp_port = '587'
   else smtpForm.smtp_port = '25'
 })
+const savingLotw = ref(false)
+const syncingLotw = ref(false)
+const lotwForm = reactive({ lotw_username: '', lotw_password: '', lotw_password_set: false, lotw_since: '' })
+async function loadLotw() {
+  try {
+    const res = await api.get('/settings/lotw')
+    lotwForm.lotw_username = res.lotw_username || ''
+    lotwForm.lotw_password = ''
+    lotwForm.lotw_password_set = !!res.lotw_password_set
+    lotwForm.lotw_since = res.lotw_since || ''
+  } catch {}
+}
+async function saveLotw(silent) {
+  savingLotw.value = true
+  try {
+    await api.post('/settings/lotw', {
+      lotw_username: lotwForm.lotw_username,
+      lotw_password: lotwForm.lotw_password,
+      lotw_since: lotwForm.lotw_since || '',
+    })
+    lotwForm.lotw_password = ''
+    await loadLotw()
+    if (!silent) ElMessage.success('LoTW 配置已保存')
+    return true
+  } catch (e) {
+    return false
+  } finally { savingLotw.value = false }
+}
+async function syncLotw() {
+  const ok = await saveLotw(true)
+  if (!ok) return
+  syncingLotw.value = true
+  try {
+    const res = await api.post('/settings/lotw/sync', null, { timeout: 200000 })
+    const n = (v) => v || 0
+    ElMessage.success(`同步完成：新增 ${n(res.imported)} 条，更新确认 ${n(res.updated)} 条，跳过 ${n(res.skipped)} 条，失败 ${n(res.failed)} 条`)
+  } catch (e) { /* 拦截器已提示 */ } finally { syncingLotw.value = false }
+}
+
 async function loadSmtp() {
   try { const res = await api.get('/settings/smtp'); Object.assign(smtpForm, res)
     smtpEncryption.value = smtpForm.smtp_use_ssl ? 'ssl' : (smtpForm.smtp_use_tls ? 'tls' : 'none')
@@ -522,7 +592,7 @@ async function revokeSessions() {
   } catch (e) { /* 拦截器已提示 */ }
 }
 
-onMounted(() => { loadSite(); loadSmtp(); loadSecurity() })
+onMounted(() => { loadSite(); loadSmtp(); loadLotw(); loadSecurity() })
 </script>
 
 <style scoped>

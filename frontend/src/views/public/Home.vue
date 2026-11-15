@@ -57,6 +57,10 @@
             <span class="live-pill">LIVE</span>
           </div>
           <div class="stats-grid">
+            <div class="stat-item stat-qso">
+              <b>{{ stats.qso }}</b>
+              <span>{{ t('home.statsQso') }}</span>
+            </div>
             <div class="stat-item">
               <b>{{ stats.cards_sent }}</b>
               <span>{{ t('home.statsSent') }}</span>
@@ -162,7 +166,7 @@ import { t } from '../../i18n'
 
 const siteName = ref('QSL / HUB')
 const siteNotice = ref('')
-const stats = reactive({ cards_sent: 0, cards_signed: 0, pending_requests: 0 })
+const stats = reactive({ qso: 0, cards_sent: 0, cards_signed: 0, pending_requests: 0 })
 const statsLoaded = ref(false)
 
 onMounted(async () => {
@@ -177,6 +181,7 @@ onMounted(async () => {
   }
   siteNotice.value = (info && info.site_notice) || ''
   if (s) {
+    stats.qso = s.qso ?? 0
     stats.cards_sent = s.cards_sent ?? 0
     stats.cards_signed = s.cards_signed ?? 0
     stats.pending_requests = s.pending_requests ?? 0
@@ -452,6 +457,16 @@ onMounted(async () => {
 }
 .stat-item + .stat-item {
   border-left: 1px solid var(--qsl-line);
+}
+.stat-qso {
+  grid-column: 1 / -1;
+  border-left: none;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--qsl-line);
+}
+.stat-qso + .stat-item {
+  border-left: none;
 }
 .stat-item b {
   display: block;

@@ -3,7 +3,7 @@
     <div class="page-heading">
       <div>
         <h1>通联日志</h1>
-        <p>记下每一次通联。已有日志可以整份 ADIF 导入，重复的会自动跳过。</p>
+        <p>记下每一次通联。标准 ADIF 和 LoTW 导出的 .adi 都可以整份导入；重复的会跳过，LoTW 已确认的会打上标记。</p>
       </div>
       <div class="page-actions">
         <el-button @click="importDialog = true">导入 ADIF</el-button>
@@ -20,6 +20,12 @@
           <el-select v-model="query.scene_type" placeholder="全部" clearable @change="loadData">
             <el-option label="QSO" value="QSO" />
             <el-option label="SWL" value="SWL" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="LoTW">
+          <el-select v-model="query.lotw_qsl" placeholder="全部" clearable @change="loadData">
+            <el-option label="已确认" value="yes" />
+            <el-option label="未确认" value="no" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -76,6 +82,15 @@
           </template>
         </el-table-column>
         <el-table-column prop="qth" label="对方QTH" min-width="120" show-overflow-tooltip />
+        <el-table-column label="LoTW" width="118" align="center">
+          <template #default="{ row }">
+            <template v-if="row.lotw_qsl_rcvd">
+              <el-tag type="success" size="small">已确认</el-tag>
+              <div v-if="row.lotw_qsl_date" class="mono-val lotw-date">{{ row.lotw_qsl_date }}</div>
+            </template>
+            <span v-else class="lotw-empty">—</span>
+          </template>
+        </el-table-column>
         <el-table-column label="建卡" width="70" align="center">
           <template #default="{ row }">
             <el-tag :type="row.has_card ? 'success' : 'info'" size="small">{{ row.has_card ? '是' : '否' }}</el-tag>
@@ -96,6 +111,10 @@
         <template #card-title="{ row }">
           <span class="mono-val">{{ row.record_code }}</span>
           <span class="callsign-badge" style="margin-left:8px;">{{ row.call_sign }}</span>
+        </template>
+        <template #card-lotw_qsl_rcvd="{ row }">
+          <el-tag v-if="row.lotw_qsl_rcvd" type="success" size="small">已确认{{ row.lotw_qsl_date ? ' ' + row.lotw_qsl_date : '' }}</el-tag>
+          <span v-else>—</span>
         </template>
         <template #card-has_card="{ row }">
           <el-tag :type="row.has_card ? 'success' : 'info'" size="small">{{ row.has_card ? '是' : '否' }}</el-tag>
@@ -176,14 +195,16 @@
     <!-- ADIF 导入对话框 -->
     <el-dialog v-model="importDialog" title="导入 ADIF 通联日志" width="480px" destroy-on-close>
       <el-alert type="info" :closable="false" style="margin-bottom:16px;">
-        支持标准 ADIF（.adi / .adif）文件，5MB 以内；按「呼号 + 日期 + 频率 + 模式」自动去重，重复记录将跳过。
+        支持标准 ADIF 和 LoTW 导出的 .adi / .adif，5MB 以内。按「呼号 + 日期 + 频率 + 模式」去重。
+        LoTW 文件的日期时间按 UTC 换算成 UTC+8；已在库里的记录若显示已确认，只更新确认状态。
       </el-alert>
       <el-upload drag accept=".adi,.adif,.txt" :show-file-list="false" :http-request="handleImport">
         <el-icon :size="40" style="color:var(--qsl-muted);"><UploadFilled /></el-icon>
         <div style="margin-top:8px;color:var(--qsl-muted);">点击或拖拽 ADIF 文件到此处</div>
       </el-upload>
       <p v-if="importResult" style="margin-top:12px;color:var(--qsl-muted);">
-        导入成功 <b>{{ importResult.imported }}</b> 条，跳过 <b>{{ importResult.skipped }}</b> 条（重复或缺少呼号/日期）
+        新增 <b>{{ importResult.imported || 0 }}</b> 条，更新 LoTW 确认 <b>{{ importResult.updated || 0 }}</b> 条，
+        跳过重复 <b>{{ importResult.skipped || 0 }}</b> 条，解析失败 <b>{{ importResult.failed || 0 }}</b> 条
       </p>
     </el-dialog>
   </div>
@@ -203,6 +224,7 @@ const qsoFields = [
   { prop: 'call_sign', label: '对方呼号' },
   { prop: 'freq', label: '频率' },
   { prop: 'mode', label: '模式' },
+  { prop: 'lotw_qsl_rcvd', label: 'LoTW' },
   { prop: 'has_card', label: '建卡' },
 ]
 
@@ -214,7 +236,7 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
 
-const query = reactive({ call_sign: '', scene_type: '', page: 1, size: 20 })
+const query = reactive({ call_sign: '', scene_type: '', lotw_qsl: '', page: 1, size: 20 })
 const defaultForm = {
   scene_type: 'QSO', date: '', time: '', timezone: 'UTC+8', freq: '', band: '', mode: '',
   my_rig: '', my_rig_mode: '', my_rig_ant: '', my_rig_pwr: '', my_qth: '', operator: '',
@@ -278,10 +300,22 @@ async function handleImport({ file }) {
   try {
     const res = await api.post('/qso-records/import', fd)
     importResult.value = res
-    ElMessage.success('导入完成：新增 ' + res.imported + ' 条，跳过 ' + res.skipped + ' 条')
+    const n = (v) => v || 0
+    ElMessage.success(`导入完成：新增 ${n(res.imported)} 条，更新确认 ${n(res.updated)} 条，跳过 ${n(res.skipped)} 条，失败 ${n(res.failed)} 条`)
     loadData()
   } catch (e) { /* 拦截器已提示 */ }
 }
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.lotw-date {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--qsl-muted);
+}
+.lotw-empty {
+  color: var(--qsl-muted);
+}
+</style>

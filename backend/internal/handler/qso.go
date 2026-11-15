@@ -29,6 +29,12 @@ func (h *QsoHandler) List(c *gin.Context) {
 	if v := c.Query("has_card"); v == "true" || v == "false" {
 		q = q.Where("has_card = ?", v == "true")
 	}
+	switch c.Query("lotw_qsl") {
+	case "yes", "true":
+		q = q.Where("lotw_qsl_rcvd = ?", true)
+	case "no", "false":
+		q = q.Where("lotw_qsl_rcvd = ?", false)
+	}
 
 	var total int64
 	q.Count(&total)
@@ -48,8 +54,12 @@ func (h *QsoHandler) Create(c *gin.Context) {
 	// has_card 由 flow.InitQSO 强制写成假，建卡成功后才由状态机回写。
 	req.ID = 0
 	flow.InitQSO(&req)
+	// 确认标记只来自 ADIF / LoTW 导入。手工新建带上这两个字段不能把自己标成已确认。
+	req.LotwQslRcvd = false
+	req.LotwQslDate = ""
 	req.RecordCode = nextQsoRecordCode(h.db)
 	h.db.Create(&req)
+	invalidatePublicStatsCache()
 	response.OK(c, req)
 }
 
@@ -97,5 +107,6 @@ func (h *QsoHandler) Delete(c *gin.Context) {
 		return
 	}
 	h.db.Delete(&item)
+	invalidatePublicStatsCache()
 	response.OKMsg(c, "删除成功")
 }

@@ -44,6 +44,21 @@
 
 > 已移除的界面：卡片局管理、本台设备、本台通信地址、快递100 API 配置（相关后端接口保留以兼容数据）。回寄地址在「我的地址」。
 
+### 从 LoTW 导入通联
+
+LoTW（ARRL Logbook of the World）导出的就是 ADIF。后台「通联日志 → 导入 ADIF」直接接受 `.adi` / `.adif`，和普通日志走同一套解析。
+
+1. 登录 [LoTW](https://lotw.arrl.org) ，在 Your QSOs / Your QSLs 下载 ADIF。
+2. 打开后台「通联日志」，点「导入 ADIF」，选这个文件。
+3. 文件头 `PROGRAMID` 含 LoTW，或记录里带有 `LOTW_*` / `APP_LoTW_*` 时，整份文件的 `QSO_DATE` / `TIME_ON` 按 UTC 换算成全站使用的 UTC+8 再入库。呼号、频率、频段、模式、RST 写入原有字段；对方网格写入对方 QTH。DXCC、卡块（CNTY）、IOTA、卫星、传播方式、奖状记分和本台呼号写在备注里。
+4. `LOTW_QSL_RCVD=Y` 表示已确认。LoTW 网站自己的下载文件不写这个字段，它用 `QSL_RCVD=Y` 表示同一件事，只有认成 LoTW 文件时才这么理解。确认日期来自 `LOTW_QSLRDATE` 或 `QSLRDATE`。
+5. 去重键与原来的 ADIF 导入相同：呼号 + 日期 + 频率 + 模式。频率会去掉小数尾部的 0，`14.074000` 和手填的 `14.074` 是同一条。已存在的记录若这次显示已确认，只更新确认状态；已经确认的不会被改回未确认。
+6. 导入结果分开计数：新增、更新了 LoTW 确认、跳过重复、解析失败。通联日志有「LoTW」列和筛选，已确认显示绿色徽标和确认日期。
+
+也可以在「设置 → LoTW 同步」里保存用户名和密码，点「从 LoTW 同步」。密码保存后接口不再回显，留空表示不修改，全库备份会把这一项清空（恢复时保留库里现有密码，和 SMTP 授权码同一套）。起始日期留空则从 1930-01-01 起全量拉取；填了日期就按 LoTW 收到记录的时间过滤（已确认用 `qso_qslsince`，未确认用 `qso_qsorxsince`）。同步只读 `lotwreport.adi`，不会用 TQSL 上传。账号密码错误、超时会返回明确提示。
+
+公开首页 `/api/public/stats` 的 `qso` 和对外展示的通联计数都是通联日志的行数。这两个接口不返回 LoTW 账号。
+
 ### 插件系统
 
 功能与主题皆以插件形式扩展，后台「插件」页一键启停，**即时生效无需重启**：
@@ -136,7 +151,7 @@ npm run dev
 | GET | /api/public/tracking?tracking_number=NUM | 快递追踪（未找到返回 404；配置快递100 后自动拉取轨迹） |
 | GET | /api/public/tracking/:tracking_number | 同上（路径参数形式） |
 | GET | /api/public/site-info | 站点名称 / 发件邮箱 / 站点公告（未配置返回默认值） |
-| GET | /api/public/stats | 首页实时数据面板（发卡数/签收数/待审核数，60 秒内存缓存） |
+| GET | /api/public/stats | 首页实时数据面板（通联条数/发卡数/签收数/待审核数，60 秒内存缓存）。`qso` 为通联日志行数 |
 | POST | /api/public/return-mail | 确认收件后登记回寄（需管理员已按卡开启回寄） |
 | GET | /api/public/plugins | 已启用的主题插件列表（公开页据此应用皮肤） |
 | GET | /api/public/theme.css | 当前主题的配色变量（`index.html` 用 `<link>` 预置，消除首帧闪烁） |
@@ -152,7 +167,7 @@ npm run dev
 | 认证 | POST /api/auth/login，GET /api/auth/me，POST /api/auth/refresh（刷新令牌续期），POST /api/auth/change-password |
 | 插件 | GET /api/plugins（列表），POST /api/plugins/:name/enable、:name/disable（即时生效）；功能插件路由挂 /api/ext/<name>/...；展示插件另有 GET /api/ext/showcase/embed（登录后取贴到 QRZ / 博客的 HTML） |
 | 总览 | GET /api/dashboard/summary |
-| 通联 | GET/POST /api/qso-records（列表可加 `has_card=true\|false`），GET/PUT/DELETE /api/qso-records/:id，POST /api/qso-records/import（ADIF 导入） |
+| 通联 | GET/POST /api/qso-records（列表可加 `has_card=true\|false`、`lotw_qsl=yes\|no`），GET/PUT/DELETE /api/qso-records/:id，POST /api/qso-records/import（ADIF / LoTW 导入，返回 imported / updated / skipped / failed） |
 | 卡片 | GET/POST /api/card-records，GET/PUT/DELETE /api/card-records/:id（PUT 只接受非流程字段，`flow_status` / `card_sent` 等必须走流程端点） |
 | 卡片流程 | POST /api/card-records/:id/issue, :id/sent, :id/received, :id/resend，POST /api/card-records/:id/return-toggle（按卡开启回寄）、:id/return-receive（确认收到回寄 → 自动生成收卡记录），POST /api/card-records/from-qso（通联换卡） |
 | 快递 | GET/POST /api/card-records/:id/tracking，POST /api/card-records/batch-tracking-update |
@@ -163,7 +178,7 @@ npm run dev
 | 收卡 | GET/POST /api/receive-records |
 | 地址 | GET/POST/PUT/DELETE /api/address/book，/api/address/bureaus |
 | 本台 | GET/POST/PUT /api/station/profile，GET/POST/PUT /api/station/cards，GET/POST /api/station/equipments |
-| 设置 | GET/POST /api/settings/smtp，POST /api/settings/smtp/test，GET/POST /api/settings/tracking，GET/POST /api/settings/site |
+| 设置 | GET/POST /api/settings/smtp，POST /api/settings/smtp/test，GET/POST /api/settings/tracking，GET/POST /api/settings/site，GET/POST /api/settings/lotw，POST /api/settings/lotw/sync（LoTW 密码不回显） |
 
 ## E2E 验证
 
@@ -206,7 +221,7 @@ CI（`.github/workflows/ci.yml`）在每次 push / PR 上跑完下面四项，�
 cd backend
 gofmt -l .              # 必须零输出
 go vet ./...
-CGO_ENABLED=1 go test ./...        # 76 个单元测试
+CGO_ENABLED=1 go test ./...        # 单元测试
 CGO_ENABLED=1 go build -o server ./cmd/server
 
 # 前端
@@ -222,7 +237,7 @@ npm run build
 |---|---|
 | `handler/patch_test.go` | PUT 字段白名单——流程字段（`flow_status`/`card_sent`）不能被直接改写 |
 | `handler/params_test.go` | 分页上界（`?size=1000000` 会被夹到 200）、呼号前缀匹配 |
-| `handler/qso_import_test.go` | ADIF 解析（长度越界、无长度标签、截断输入、日期/时间归一化）；导入去重、跨批写入、`has_card=false` 过滤 |
+| `handler/qso_import_test.go` | ADIF 解析（长度越界、无长度标签、截断输入、日期/时间归一化）；导入去重、跨批写入、`has_card=false` 过滤；LoTW 确认、UTC 换算、去重更新 |
 | `handler/export_test.go` | 备份分批恢复、冲突时整单回滚、空密码不覆盖现有 SMTP 密码 |
 | `handler/sequence_test.go` | 发号器并发不重号（30 协程 × 20 次取号）、单调递增、脏值恢复、一次领一段号之后单取接着数 |
 | `internal/plugin/toggle_test.go` | 插件启用即跑 Init；Init 失败开关自动回退并返回 500；API 层错误透传 |

@@ -273,6 +273,10 @@ func main() {
 	auth.POST("/settings/tracking", middleware.RequireMFA(db, cfg.RequireMFA), setH.SaveTracking)
 	auth.GET("/settings/site", setH.GetSite)
 	auth.POST("/settings/site", setH.SaveSite)
+	// LoTW 密码和 SMTP 一样：要二次验证（未强制时这个中间件直接放行），响应不回显密码。
+	auth.GET("/settings/lotw", middleware.RequireMFA(db, cfg.RequireMFA), setH.GetLotw)
+	auth.POST("/settings/lotw", middleware.RequireMFA(db, cfg.RequireMFA), setH.SaveLotw)
+	auth.POST("/settings/lotw/sync", middleware.RequireMFA(db, cfg.RequireMFA), setH.SyncLotw)
 
 	// 插件系统端点与功能插件路由：/api/plugins（列表/开关）、/api/ext/<name>/...
 	// 对外只读展示挂在 /api/public/ext/<name>，不要求登录。

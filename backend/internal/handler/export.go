@@ -36,7 +36,7 @@ type ExportHandler struct{ db *gorm.DB }
 func NewExportHandler(db *gorm.DB) *ExportHandler { return &ExportHandler{db: db} }
 
 // importSecretKeys 导出时被剔除的敏感配置：导入时从当前库保留，避免恢复备份后邮件功能失效。
-var importSecretKeys = []string{"smtp_password", "kuaidi100_key", "kuaidi100_secret"}
+var importSecretKeys = []string{"smtp_password", "kuaidi100_key", "kuaidi100_secret", "lotw_password"}
 
 func isSecretKey(key string) bool {
 	for _, k := range importSecretKeys {

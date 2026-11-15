@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -126,10 +127,12 @@ func TestImportRestoresAcrossBatches(t *testing.T) {
 func TestImportKeepsSecretWhenBackupBlanksIt(t *testing.T) {
 	db := newImportDB(t)
 	db.Create(&model.SystemSetting{Key: "smtp_password", Value: "s3cret"})
+	db.Create(&model.SystemSetting{Key: "lotw_password", Value: "lotw-secret"})
 	db.Create(&model.SystemSetting{Key: "site_name", Value: "OLD"})
 
 	payload := `{"exported_at":"t","tables":{"system_settings":[
 		{"key":"smtp_password","value":""},
+		{"key":"lotw_password","value":""},
 		{"key":"site_name","value":"NEW"}
 	]}}`
 	rec := postImport(t, db, payload)
@@ -137,13 +140,37 @@ func TestImportKeepsSecretWhenBackupBlanksIt(t *testing.T) {
 		t.Fatalf("导入应成功，实际 HTTP %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	var pass, name model.SystemSetting
+	var pass, lotw, name model.SystemSetting
 	db.Where("key = ?", "smtp_password").First(&pass)
+	db.Where("key = ?", "lotw_password").First(&lotw)
 	db.Where("key = ?", "site_name").First(&name)
 	if pass.Value != "s3cret" {
 		t.Errorf("备份里的空密码不应覆盖现有密码，实际 %q", pass.Value)
 	}
+	if lotw.Value != "lotw-secret" {
+		t.Errorf("备份里的空 LoTW 密码不应覆盖现有密码，实际 %q", lotw.Value)
+	}
 	if name.Value != "NEW" {
 		t.Errorf("非敏感配置应被备份覆盖，实际 %q", name.Value)
+	}
+}
+
+func TestExportStripsLotwPassword(t *testing.T) {
+	db := newImportDB(t)
+	db.Create(&model.SystemSetting{Key: "lotw_password", Value: "lotw-secret-value"})
+	db.Create(&model.SystemSetting{Key: "lotw_username", Value: "BA4SLT"})
+
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/admin/export", nil)
+	NewExportHandler(db).All(c)
+
+	body := rec.Body.String()
+	if strings.Contains(body, "lotw-secret-value") {
+		t.Fatal("备份里出现了 LoTW 密码")
+	}
+	if !strings.Contains(body, "BA4SLT") {
+		t.Fatal("LoTW 用户名应保留在备份里")
 	}
 }

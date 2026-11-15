@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -143,6 +144,9 @@ func TestParseADIFHeaderSkipped(t *testing.T) {
 	if got[0]["CALL"] != "AAA" {
 		t.Errorf("CALL = %q，期望 AAA", got[0]["CALL"])
 	}
+	if _, ok := got[0]["ADIF_VER"]; ok {
+		t.Errorf("文件头字段不应并进第一条通联: %v", got[0])
+	}
 }
 
 // —— 日期 / 时间归一化 ——
@@ -207,20 +211,20 @@ func TestImportADIFDedupAndSequence(t *testing.T) {
 		adifLine("NULLCS", "20261103", "", "") + // 对上库里的 NULL 频率/模式
 		"<CALL:6>NOCALL<EOR>" // 没有日期，跳过
 
-	imported, skipped, err := importADIF(db, []byte(raw))
+	got, err := importADIF(db, []byte(raw))
 	if err != nil {
 		t.Fatalf("导入失败: %v", err)
 	}
-	if imported != 2 || skipped != 4 {
-		t.Fatalf("期望新增 2 跳过 4，实际新增 %d 跳过 %d", imported, skipped)
+	if got.Imported != 2 || got.Skipped != 3 || got.Failed != 1 {
+		t.Fatalf("期望新增 2 跳过 3 失败 1，实际 %+v", got)
 	}
 
-	again, skippedAgain, err := importADIF(db, []byte(raw))
+	again, err := importADIF(db, []byte(raw))
 	if err != nil {
 		t.Fatalf("第二次导入失败: %v", err)
 	}
-	if again != 0 || skippedAgain != 6 {
-		t.Fatalf("重复导入应全部跳过（无日期的那条也算跳过），实际新增 %d 跳过 %d", again, skippedAgain)
+	if again.Imported != 0 || again.Skipped != 5 || again.Failed != 1 {
+		t.Fatalf("重复导入应跳过已有记录，缺日期的算解析失败，实际 %+v", again)
 	}
 
 	// 第一次领了 2 个号，第二次一个没领。下一个单取必须是 3。
@@ -239,12 +243,12 @@ func TestImportADIFCrossesBatchBoundary(t *testing.T) {
 		call := fmt.Sprintf("B%05d", i)
 		b = append(b, adifLine(call, "20261101", "7.074", "FT8")...)
 	}
-	imported, skipped, err := importADIF(db, b)
+	got, err := importADIF(db, b)
 	if err != nil {
 		t.Fatalf("导入失败: %v", err)
 	}
-	if imported != n || skipped != 0 {
-		t.Fatalf("期望新增 %d 跳过 0，实际新增 %d 跳过 %d", n, imported, skipped)
+	if got.Imported != n || got.Skipped != 0 || got.Failed != 0 {
+		t.Fatalf("期望新增 %d 跳过 0 失败 0，实际 %+v", n, got)
 	}
 
 	var count int64
@@ -283,5 +287,227 @@ func TestListQsoFiltersHasCard(t *testing.T) {
 	}
 	if body.Data.Total != 1 || len(body.Data.Items) != 1 || body.Data.Items[0].CallSign != "BBB" {
 		t.Fatalf("has_card=false 应只返回 BBB，实际 total=%d items=%+v", body.Data.Total, body.Data.Items)
+	}
+}
+
+func TestListQsoFiltersLotw(t *testing.T) {
+	db := newTestDB(t)
+	db.Create(&model.QsoRecord{RecordCode: "QSO-000001", CallSign: "AAA", Date: "2026-11-01", LotwQslRcvd: true, LotwQslDate: "2026-11-02"})
+	db.Create(&model.QsoRecord{RecordCode: "QSO-000002", CallSign: "BBB", Date: "2026-11-03"})
+
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/qso-records?lotw_qsl=yes", nil)
+	NewQsoHandler(db).List(c)
+
+	var body struct {
+		Data struct {
+			Items []model.QsoRecord `json:"items"`
+			Total int64             `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("解析响应失败: %v body=%s", err, rec.Body.String())
+	}
+	if body.Data.Total != 1 || len(body.Data.Items) != 1 || body.Data.Items[0].CallSign != "AAA" || !body.Data.Items[0].LotwQslRcvd {
+		t.Fatalf("lotw_qsl=yes 应只返回已确认的 AAA，实际 %+v", body.Data.Items)
+	}
+}
+
+func TestWallFromADIF(t *testing.T) {
+	date, clock, ok := wallFromADIF("20261101", "163000", true)
+	if !ok || date != "2026-11-02" || clock != "00:30" {
+		t.Fatalf("UTC 16:30 应落到次日 00:30，实际 %s %s ok=%v", date, clock, ok)
+	}
+	date, clock, ok = wallFromADIF("20261101", "2000", false)
+	if !ok || date != "2026-11-01" || clock != "20:00" {
+		t.Fatalf("普通 ADIF 应保持原文，实际 %s %s", date, clock)
+	}
+	date, clock, ok = wallFromADIF("20261101", "", true)
+	if !ok || date != "2026-11-01" || clock != "" {
+		t.Fatalf("没有时刻时日期保持 UTC 当天，实际 %s %q", date, clock)
+	}
+	if _, _, ok = wallFromADIF("20261301", "1200", true); ok {
+		t.Fatal("非法日期应失败")
+	}
+}
+
+func TestCanonicalFreqStripsLotwZeros(t *testing.T) {
+	cases := map[string]string{
+		"14.074000": "14.074",
+		"14.074":    "14.074",
+		"14.200":    "14.2",
+		"7.074000":  "7.074",
+		"0.136000":  "0.136",
+		"":          "",
+		"SAT":       "SAT",
+	}
+	for in, want := range cases {
+		if got := canonicalFreq(in); got != want {
+			t.Errorf("canonicalFreq(%q) = %q，期望 %q", in, got, want)
+		}
+	}
+}
+
+func TestImportLoTWConfirmsDedupsAndKeepsUTC8(t *testing.T) {
+	db := newTestDB(t)
+	// 手填记录已经是东八区。LoTW 里同一条是前一天的 UTC 16:30，频率多三位 0。
+	db.Create(&model.QsoRecord{
+		RecordCode: "SEED-1", CallSign: "JA1ABC", Date: "2026-11-02", Time: "00:30",
+		Freq: "14.074", Mode: "FT8", Band: "20m", SceneType: "QSO",
+	})
+	db.Create(&model.QsoRecord{
+		RecordCode: "SEED-2", CallSign: "K1XYZ", Date: "2026-11-03", Time: "09:00",
+		Freq: "7.074", Mode: "CW", Band: "40m", SceneType: "QSO",
+		LotwQslRcvd: true, LotwQslDate: "2026-11-04",
+	})
+	invalidatePublicStatsCache()
+	if n := publicStats(db).QSO; n != 2 {
+		t.Fatalf("导入前公开统计应为 2，实际 %d", n)
+	}
+
+	raw := "" +
+		"ARRL LoTW download\n<ADIF_VER:5>3.1.4<PROGRAMID:4>LoTW<APP_LoTW_NUMREC:1>4<EOH>\n" +
+		"<CALL:6>JA1ABC<BAND:3>20M<FREQ:9>14.074000<MODE:3>FT8<APP_LoTW_MODEGROUP:4>DATA" +
+		"<QSO_DATE:8:D>20261101<TIME_ON:6>163000<RST_SENT:3>-12<RST_RCVD:3>-10" +
+		"<QSL_RCVD:1>Y<QSLRDATE:8:D>20261102<GRIDSQUARE:4>PM95<DXCC:3>339<COUNTRY:5>Japan" +
+		"<IOTA:6>AS-007<CNTY:11>XX,NOWHERE<SAT_NAME:5>FO-29<PROP_MODE:3>SAT<CREDIT_GRANTED:4>DXCC" +
+		"<APP_LoTW_OWNCALL:6>BA4SLT<APP_LoTW_RXQSL:19>2026-11-02 01:02:03<EOR>" +
+		"<CALL:5>K1XYZ<BAND:3>40M<FREQ:8>7.074000<MODE:2>CW<QSO_DATE:8:D>20261103<TIME_ON:4>0100" +
+		"<QSL_RCVD:1>N<GRIDSQUARE:4>FN42<EOR>" +
+		"<CALL:5>N0NEW<BAND:3>15M<FREQ:9>21.074000<MODE:3>FT8<QSO_DATE:8:D>20261104<TIME_ON:6>030000" +
+		"<LOTW_QSL_RCVD:1>Y<LOTW_QSLRDATE:8>20261105<GRIDSQUARE:4>DM79" +
+		"<DXCC:3>291<APP_LoTW_OWNCALL:6>BA4SLT<EOR>" +
+		"<CALL:5>N0NEW<BAND:3>15M<FREQ:9>21.074000<MODE:3>FT8<QSO_DATE:8:D>20261104<TIME_ON:6>030000<QSL_RCVD:1>N<EOR>" +
+		"<CALL:5>N0OLD<BAND:3>10M<FREQ:8>28.074000<MODE:2>CW<QSO_DATE:8:D>20261105<TIME_ON:4>1200<QSL_RCVD:1>N<GRIDSQUARE:4>FN31<EOR>" +
+		"<CALL:4>BAD1<EOR>" +
+		"<APP_LoTW_EOF>"
+
+	got, err := importADIF(db, []byte(raw))
+	if err != nil {
+		t.Fatalf("导入失败: %v", err)
+	}
+	if got.Imported != 2 || got.Updated != 1 || got.Skipped != 2 || got.Failed != 1 {
+		t.Fatalf("期望新增 2、更新 1、跳过 2、失败 1，实际 %+v", got)
+	}
+
+	var ja model.QsoRecord
+	if err := db.Where("call_sign = ?", "JA1ABC").First(&ja).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !ja.LotwQslRcvd || ja.LotwQslDate != "2026-11-02" || ja.RecordCode != "SEED-1" || ja.QTH != "" {
+		t.Fatalf("已有记录应只补上确认，不改写成新行: %+v", ja)
+	}
+	var jaCount int64
+	db.Model(&model.QsoRecord{}).Where("call_sign = ?", "JA1ABC").Count(&jaCount)
+	if jaCount != 1 {
+		t.Fatalf("JA1ABC 应仍是 1 行，实际 %d", jaCount)
+	}
+
+	var k1 model.QsoRecord
+	db.Where("call_sign = ?", "K1XYZ").First(&k1)
+	if !k1.LotwQslRcvd || k1.LotwQslDate != "2026-11-04" {
+		t.Fatalf("未确认的副本不能把已确认打回去: %+v", k1)
+	}
+
+	var fresh model.QsoRecord
+	db.Where("call_sign = ?", "N0NEW").First(&fresh)
+	if !fresh.LotwQslRcvd || fresh.LotwQslDate != "2026-11-05" || fresh.Date != "2026-11-04" || fresh.Time != "11:00" ||
+		fresh.Freq != "21.074" || fresh.Band != "15m" || fresh.Mode != "FT8" || fresh.QTH != "DM79" || fresh.Timezone != "UTC+8" {
+		t.Fatalf("新确认记录字段不对: %+v", fresh)
+	}
+	if !strings.Contains(fresh.Remarks, "DXCC 291") || !strings.Contains(fresh.Remarks, "本台 BA4SLT") {
+		t.Fatalf("LoTW 附加字段应留在备注里: %q", fresh.Remarks)
+	}
+	var n0count int64
+	db.Model(&model.QsoRecord{}).Where("call_sign = ?", "N0NEW").Count(&n0count)
+	if n0count != 1 {
+		t.Fatalf("文件内重复的 N0NEW 应只留 1 行，实际 %d", n0count)
+	}
+
+	var old model.QsoRecord
+	db.Where("call_sign = ?", "N0OLD").First(&old)
+	if old.LotwQslRcvd || old.Date != "2026-11-05" || old.Time != "20:00" || old.Freq != "28.074" || old.QTH != "FN31" {
+		t.Fatalf("未确认的新记录不对: %+v", old)
+	}
+
+	if n := publicStats(db).QSO; n != 4 {
+		t.Fatalf("导入后公开统计应为 4，实际 %d", n)
+	}
+
+	again, err := importADIF(db, []byte(raw))
+	if err != nil {
+		t.Fatalf("第二次导入失败: %v", err)
+	}
+	if again.Imported != 0 || again.Updated != 0 || again.Failed != 1 || again.Skipped != 5 {
+		t.Fatalf("重复导入不应再改确认状态，实际 %+v", again)
+	}
+}
+
+func TestImportPaperQSLIsNotLotw(t *testing.T) {
+	db := newTestDB(t)
+	raw := "<PROGRAMID:6>WSJT-X<EOH>" +
+		"<CALL:4>W1AW<QSO_DATE:8>20261101<TIME_ON:4>2000<FREQ:6>14.200<MODE:3>SSB<QSL_RCVD:1>Y<QSLRDATE:8>20261102<EOR>"
+	got, err := importADIF(db, []byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Imported != 1 || got.Updated != 0 || got.Failed != 0 {
+		t.Fatalf("普通 ADIF 应新增 1 条，实际 %+v", got)
+	}
+	var row model.QsoRecord
+	db.Where("call_sign = ?", "W1AW").First(&row)
+	if row.LotwQslRcvd || row.Date != "2026-11-01" || row.Time != "20:00" || row.Freq != "14.2" {
+		t.Fatalf("纸质 QSL 不能标成 LoTW，时间也不应平移: %+v", row)
+	}
+}
+
+func TestImportLoggerLotwFieldShiftsClock(t *testing.T) {
+	db := newTestDB(t)
+	raw := "<PROGRAMID:6>WSJT-X<EOH>" +
+		"<CALL:4>W1AW<QSO_DATE:8>20261101<TIME_ON:4>2000<FREQ:6>14.200<MODE:3>FT8" +
+		"<LOTW_QSL_RCVD:1>Y<LOTW_QSLRDATE:8>20261102<GRIDSQUARE:4>FN32<EOR>"
+	got, err := importADIF(db, []byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Imported != 1 {
+		t.Fatalf("应新增 1 条，实际 %+v", got)
+	}
+	var row model.QsoRecord
+	db.Where("call_sign = ?", "W1AW").First(&row)
+	if !row.LotwQslRcvd || row.LotwQslDate != "2026-11-02" || row.Date != "2026-11-02" || row.Time != "04:00" || row.QTH != "FN32" {
+		t.Fatalf("带 LOTW_QSL_RCVD 的日志应按 UTC 换算并记下确认: %+v", row)
+	}
+}
+
+func TestPublicStatsExposesQsoCount(t *testing.T) {
+	db := newTestDB(t)
+	invalidatePublicStatsCache()
+	t.Cleanup(invalidatePublicStatsCache)
+	db.Create(&model.QsoRecord{RecordCode: "QSO-000001", CallSign: "BI1AAA", Date: "2026-11-01", SceneType: "QSO"})
+	db.Create(&model.QsoRecord{RecordCode: "QSO-000002", CallSign: "BI1BBB", Date: "2026-11-02", SceneType: "QSO"})
+
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/public/stats", nil)
+	NewPublicHandler(db).PublicStats(c)
+
+	body := rec.Body.String()
+	if strings.Contains(body, "password") || strings.Contains(body, "lotw_username") {
+		t.Fatalf("公开统计不应包含 LoTW 账号: %s", body)
+	}
+	var parsed struct {
+		Data struct {
+			QSO int64 `json:"qso"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Data.QSO != 2 {
+		t.Fatalf("qso = %d body=%s", parsed.Data.QSO, body)
 	}
 }
