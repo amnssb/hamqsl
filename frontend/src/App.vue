@@ -1,7 +1,11 @@
 <template>
   <el-config-provider :locale="elLocale">
-    <LangSwitch v-if="isPublicPage" />
-    <router-view />
+    <div class="app-root" :class="{ 'is-public': isPublicPage }">
+      <div v-if="isPublicPage" class="public-langbar">
+        <LangSwitch />
+      </div>
+      <router-view />
+    </div>
   </el-config-provider>
 </template>
 

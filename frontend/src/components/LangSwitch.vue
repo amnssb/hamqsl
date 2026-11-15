@@ -48,4 +48,21 @@ import { locale, setLocale } from '../i18n'
   color: var(--qsl-ink);
   background: var(--qsl-panel-2);
 }
+
+/* 窄屏改由顶栏承接，不再固定在右下角盖住输入框。 */
+@media (max-width: 720px) {
+  .lang-switch {
+    position: static;
+    right: auto;
+    bottom: auto;
+    transform: none;
+  }
+  .lang-switch:hover {
+    transform: none;
+  }
+  .lang-switch button {
+    min-height: 32px;
+    padding: 6px 12px;
+  }
+}
 </style>

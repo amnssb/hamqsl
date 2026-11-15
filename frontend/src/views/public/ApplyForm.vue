@@ -2,19 +2,7 @@
   <div class="public-page">
     <div class="public-container">
       <!-- Header -->
-      <header class="public-header">
-        <div class="logo-section">
-          <div class="logo-icon">QSL</div>
-          <div>
-            <h1>{{ t('apply.title') }}</h1>
-            <p class="subtitle">{{ t('apply.subtitle') }}</p>
-          </div>
-        </div>
-        <button class="home-back-link" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ t('common.backHome') }}</span>
-        </button>
-      </header>
+      <PublicHeader :title="t('apply.title')" :subtitle="t('apply.subtitle')" />
 
       <!-- Main Content -->
       <main class="public-main">
@@ -27,26 +15,28 @@
           <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="modern-form">
 
             <!-- 第一步：选择场景 -->
-            <el-divider content-position="left">{{ t('apply.stepScene') }}</el-divider>
+            <StepHeading :n="1" :title="t('apply.stepScene')" />
             <el-form-item prop="scene_type" class="form-item-full">
-              <el-radio-group v-model="form.scene_type" class="scene-radio-group">
-                <el-radio-button value="QSO">
-                  <el-icon><Connection /></el-icon>
-                  <span class="scene-label">{{ t('apply.sceneQso') }}</span>
-                </el-radio-button>
-                <el-radio-button value="SWL">
-                  <el-icon><Headset /></el-icon>
-                  <span class="scene-label">{{ t('apply.sceneSwl') }}</span>
-                </el-radio-button>
-                <el-radio-button value="EYEBALL">
-                  <el-icon><Location /></el-icon>
-                  <span class="scene-label">{{ t('apply.sceneEyeball') }}</span>
-                </el-radio-button>
-              </el-radio-group>
+              <div class="scene-picker" role="radiogroup" :aria-label="t('apply.stepScene')">
+                <button
+                  v-for="scene in scenes"
+                  :key="scene.value"
+                  type="button"
+                  class="scene-option"
+                  role="radio"
+                  :aria-checked="form.scene_type === scene.value"
+                  :class="{ 'is-selected': form.scene_type === scene.value }"
+                  @click="form.scene_type = scene.value"
+                >
+                  <el-icon><component :is="scene.icon" /></el-icon>
+                  <span class="scene-option-label">{{ t(scene.label) }}</span>
+                  <el-icon v-if="form.scene_type === scene.value" class="scene-option-check"><CircleCheck /></el-icon>
+                </button>
+              </div>
             </el-form-item>
 
             <!-- 第二步：场景证据（动态） -->
-            <el-divider content-position="left">{{ t('apply.stepEvidence') }}</el-divider>
+            <StepHeading :n="2" :title="t('apply.stepEvidence')" />
 
             <!-- QSO 场景 -->
             <div v-if="form.scene_type === 'QSO'" class="form-grid">
@@ -71,10 +61,10 @@
             <!-- EYEBALL 场景 -->
             <div v-if="form.scene_type === 'EYEBALL'" class="form-grid">
               <el-form-item :label="t('apply.eyeballType')" prop="eyeball_type" class="form-item-full">
-                <el-radio-group v-model="form.eyeball_type">
-                  <el-radio-button value="OFFLINE">{{ t('apply.eyeballOffline') }}</el-radio-button>
-                  <el-radio-button value="ONLINE">{{ t('apply.eyeballOnline') }}</el-radio-button>
-                </el-radio-group>
+                <div class="segmented" role="radiogroup" :aria-label="t('apply.eyeballType')">
+                  <button type="button" class="segmented-btn" role="radio" :aria-checked="form.eyeball_type === 'OFFLINE'" :class="{ 'is-selected': form.eyeball_type === 'OFFLINE' }" @click="form.eyeball_type = 'OFFLINE'">{{ t('apply.eyeballOffline') }}</button>
+                  <button type="button" class="segmented-btn" role="radio" :aria-checked="form.eyeball_type === 'ONLINE'" :class="{ 'is-selected': form.eyeball_type === 'ONLINE' }" @click="form.eyeball_type = 'ONLINE'">{{ t('apply.eyeballOnline') }}</button>
+                </div>
               </el-form-item>
               <el-form-item :label="t('apply.eyeballDate')" prop="eyeball_date">
                 <el-date-picker v-model="form.eyeball_date" type="date" value-format="YYYY-MM-DD" :placeholder="t('common.pickDate')" size="large" style="width:100%" :disabled-date="disableFuture" />
@@ -110,7 +100,7 @@
             </div>
 
             <!-- 第三步：换卡理由 -->
-            <el-divider content-position="left">{{ t('apply.stepReason') }}</el-divider>
+            <StepHeading :n="3" :title="t('apply.stepReason')" />
             <el-form-item class="form-item-full">
               <el-input
                 v-model="form.application_reason"
@@ -122,7 +112,7 @@
 
             <!-- 期望卡片版本（SWL 由对方先寄卡，无需选择版本） -->
             <template v-if="form.scene_type !== 'SWL'">
-            <el-divider content-position="left">{{ t('apply.stepVersion', { n: stepNo.version }) }}</el-divider>
+            <StepHeading :n="stepNo.version" :title="t('apply.stepVersion')" />
             <el-form-item prop="card_version" class="form-item-full">
               <div class="version-block">
                 <p class="version-label">{{ t('apply.versionLabel') }}</p>
@@ -147,22 +137,22 @@
             </template>
 
             <!-- 收卡方式 -->
-            <el-divider content-position="left">{{ t('apply.stepMail', { n: stepNo.mail }) }}</el-divider>
+            <StepHeading :n="stepNo.mail" :title="t('apply.stepMail')" />
             <p class="field-tip" style="margin-bottom:12px;">
               <template v-if="form.scene_type === 'SWL'">{{ t('apply.mailTipSwl') }}</template>
               <template v-else>{{ t('apply.mailTip') }}</template>
             </p>
             <el-form-item class="form-item-full">
-              <el-radio-group v-model="form.use_bureau" class="radio-group-modern">
-                <el-radio-button :value="false">
+              <div class="segmented" role="radiogroup" :aria-label="t('apply.stepMail')">
+                <button type="button" class="segmented-btn" role="radio" :aria-checked="form.use_bureau === false" :class="{ 'is-selected': form.use_bureau === false }" @click="form.use_bureau = false">
                   <el-icon><Postcard /></el-icon>
-                  {{ t('apply.directMail') }}
-                </el-radio-button>
-                <el-radio-button :value="true">
+                  <span>{{ t('apply.directMail') }}</span>
+                </button>
+                <button type="button" class="segmented-btn" role="radio" :aria-checked="form.use_bureau === true" :class="{ 'is-selected': form.use_bureau === true }" @click="form.use_bureau = true">
                   <el-icon><OfficeBuilding /></el-icon>
-                  {{ t('apply.viaBureau') }}
-                </el-radio-button>
-              </el-radio-group>
+                  <span>{{ t('apply.viaBureau') }}</span>
+                </button>
+              </div>
             </el-form-item>
             <el-form-item v-if="form.use_bureau" :label="t('apply.bureauName')" prop="bureau_name" class="form-item-full">
               <el-input v-model="form.bureau_name" :placeholder="t('apply.bureauNamePh')" size="large" />
@@ -170,7 +160,7 @@
             </el-form-item>
 
             <!-- 收件信息 -->
-            <el-divider content-position="left">{{ t('apply.stepInfo', { n: stepNo.info }) }}</el-divider>
+            <StepHeading :n="stepNo.info" :title="t('apply.stepInfo')" />
             <el-alert v-if="form.scene_type === 'SWL'" type="info" :closable="false" style="margin-bottom:16px;">
               <p style="margin:0 0 4px;">{{ t('apply.flowTitle') }}</p>
               <p style="margin:0 0 2px;">{{ t('apply.flow1a') }}<b>{{ t('apply.flow1b') }}</b>{{ t('apply.flow1c') }}</p>
@@ -277,6 +267,15 @@ import { useRoute } from 'vue-router'
 import api from '../../api'
 import { ElMessage } from 'element-plus'
 import { t } from '../../i18n'
+import { icons } from '../../plugins/icons'
+import PublicHeader from '../../components/PublicHeader.vue'
+import StepHeading from '../../components/StepHeading.vue'
+
+const scenes = [
+  { value: 'QSO', label: 'apply.sceneQso', icon: icons.Connection },
+  { value: 'SWL', label: 'apply.sceneSwl', icon: icons.Headset },
+  { value: 'EYEBALL', label: 'apply.sceneEyeball', icon: icons.Location },
+]
 
 const route = useRoute()
 const formRef = ref(null)
@@ -450,210 +449,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.public-page {
-  min-height: 100vh;
-  color: var(--qsl-ink);
-  background: var(--qsl-bg);
-  background-image: radial-gradient(at 10% 10%, color-mix(in srgb, var(--qsl-primary) 6%, transparent) 0px, transparent 50%),
-                    radial-gradient(at 90% 15%, color-mix(in srgb, var(--qsl-green) 5%, transparent) 0px, transparent 50%);
-  padding: 24px 20px;
-}
+.public-container { max-width: 800px; }
 
-.public-container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.public-header {
-  text-align: center;
-  padding: 36px 0 28px;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-}
-
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--qsl-primary);
-  color: var(--qsl-on-primary);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 850;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--qsl-primary) 30%, transparent);
-}
-
-.public-header h1 {
-  margin: 0;
-  color: var(--qsl-heading);
-  font-size: 26px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.subtitle {
-  margin: 6px 0 0;
-  color: var(--qsl-muted);
-  font-size: 14px;
-}
-
-.modern-card {
-  background: var(--qsl-card-bg);
-  border: 1px solid var(--qsl-line);
-  border-radius: 18px;
-  padding: 36px 32px;
-  box-shadow: var(--qsl-shadow-2);
-  margin-bottom: 24px;
-}
-
-.card-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--qsl-line);
-}
-
-.card-header h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--qsl-heading);
-}
-
-.card-header p {
-  margin: 0;
-  color: var(--qsl-muted);
-  font-size: 13.5px;
-}
-
-.modern-form :deep(.el-form-item__label) {
-  font-weight: 600;
-  font-size: 13.5px;
-  color: var(--qsl-heading);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.form-item-full {
-  grid-column: 1 / -1;
-}
-
-.scene-radio-group {
-  display: flex;
-  width: 100%;
-}
-
-.scene-radio-group :deep(.el-radio-button) {
-  flex: 1;
-}
-
-.scene-radio-group :deep(.el-radio-button__inner) {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 52px;
-}
-
-.scene-label {
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.radio-group-modern {
-  width: 100%;
-}
-
-.radio-group-modern :deep(.el-radio-button) {
-  flex: 1;
-}
-
-.radio-group-modern :deep(.el-radio-button__inner) {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.form-actions {
-  margin-top: 32px;
-  text-align: center;
-}
-
-.submit-btn {
-  width: 200px;
-  height: 48px;
-  font-size: 15.5px;
-  font-weight: 650;
-  border-radius: 10px;
-}
-
-.success-card {
-  text-align: center;
-}
-
-.success-content {
-  padding: 20px;
-}
-
-.success-icon {
-  margin-bottom: 20px;
-}
-
-.success-content h2 {
-  color: var(--qsl-green);
-  margin: 0 0 12px;
-}
-
-.success-content p {
-  color: var(--qsl-muted);
-  margin: 8px 0;
-}
-
-.success-note {
-  font-size: 14px;
-  color: var(--qsl-muted);
-}
-
-.share-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid var(--qsl-line);
-}
-
-.share-link {
-  max-width: 500px;
-  margin: 12px auto 0;
-}
-
-.public-footer {
-  text-align: center;
-  padding: 24px 0 36px;
-  color: var(--qsl-muted);
-  font-size: 13px;
-}
-
-@media (max-width: 640px) {
-  .public-page { padding: 16px 12px; }
-  .public-header { padding: 24px 0 20px; }
-  .public-header h1 { font-size: 22px; }
-  .modern-card { padding: 22px 18px; border-radius: 14px; }
-  .form-grid { grid-template-columns: 1fr; gap: 14px; }
-  .form-item-full { grid-column: auto; }
-  .scene-radio-group { flex-direction: column; }
-}
+.success-icon { margin-bottom: 20px; }
+.success-content h2 { margin: 0 0 12px; }
+.success-content p { color: var(--qsl-muted); margin: 8px 0; }
+.success-note { font-size: 14px; color: var(--qsl-muted); }
+.share-link { max-width: 500px; margin: 12px auto 0; }
 
 .mail-section {
   margin-top: 24px;

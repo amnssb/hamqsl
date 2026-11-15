@@ -481,12 +481,6 @@ body {
     width: 100% !important;
     flex: 1;
   }
-  .lang-switch {
-    transform: scale(0.88);
-    transform-origin: bottom right;
-    right: 12px;
-    bottom: max(12px, env(safe-area-inset-bottom));
-  }
 }
 
 @media (max-width: 380px) {

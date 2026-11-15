@@ -1,19 +1,7 @@
 <template>
   <div class="public-page">
     <div class="public-container">
-      <header class="public-header">
-        <div class="logo-section">
-          <div class="logo-icon">QSL</div>
-          <div>
-            <h1>{{ t('status.title') }}</h1>
-            <p class="subtitle" v-if="!info">{{ t('status.subtitle') }}</p>
-          </div>
-        </div>
-        <button class="home-back-link" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ t('common.backHome') }}</span>
-        </button>
-      </header>
+      <PublicHeader :title="t('status.title')" :subtitle="info ? '' : t('status.subtitle')" />
 
       <main class="public-main">
         <!-- 手动输入（URL 无编号时） -->
@@ -52,14 +40,14 @@
             <pre class="notice-text">{{ siteNotice }}</pre>
           </div>
 
-          <el-descriptions :column="2" border style="margin-bottom:28px;">
+          <el-descriptions :column="narrow ? 1 : 2" border class="status-desc">
             <el-descriptions-item :label="t('status.requestCode')"><span class="mono-val">{{ info.request_code }}</span></el-descriptions-item>
             <el-descriptions-item :label="t('status.callSign')"><span class="callsign-badge">{{ info.call_sign }}</span></el-descriptions-item>
             <el-descriptions-item :label="t('status.scene')">{{ sceneText(info.scene_type) }}</el-descriptions-item>
             <el-descriptions-item :label="t('status.requestTime')"><span class="mono-val">{{ fmtTime(info.created_at) }}</span></el-descriptions-item>
           </el-descriptions>
 
-          <el-steps :active="activeStep" align-center :process-status="rejected ? 'error' : 'process'" finish-status="success">
+          <el-steps :active="activeStep" :align-center="!narrow" :direction="narrow ? 'vertical' : 'horizontal'" :process-status="rejected ? 'error' : 'process'" finish-status="success">
             <el-step v-for="(s, idx) in stepsData" :key="idx" :title="s.title" :description="s.desc" />
           </el-steps>
 
@@ -143,6 +131,10 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { ElMessage } from 'element-plus'
 import { t } from '../../i18n'
+import { useMediaQuery } from '../../composables/useMediaQuery'
+import PublicHeader from '../../components/PublicHeader.vue'
+
+const narrow = useMediaQuery('(max-width: 640px)')
 
 const route = useRoute()
 const router = useRouter()
@@ -371,50 +363,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.public-page {
-  min-height: 100vh;
-  color: var(--qsl-ink);
-  background: var(--qsl-bg);
-  background-image: radial-gradient(at 10% 10%, color-mix(in srgb, var(--qsl-primary) 6%, transparent) 0px, transparent 50%),
-                    radial-gradient(at 90% 15%, color-mix(in srgb, var(--qsl-green) 5%, transparent) 0px, transparent 50%);
-  padding: 24px 20px;
-}
-.public-container { max-width: 720px; margin: 0 auto; }
-.public-header { text-align: center; padding: 36px 0 28px; }
-.logo-section { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--qsl-primary);
-  color: var(--qsl-on-primary);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 850;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--qsl-primary) 30%, transparent);
-}
-.public-header h1 {
-  margin: 0;
-  color: var(--qsl-heading);
-  font-size: 26px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-.subtitle { margin: 6px 0 0; color: var(--qsl-muted); font-size: 14px; }
-.modern-card {
-  background: var(--qsl-card-bg);
-  border: 1px solid var(--qsl-line);
-  border-radius: 18px;
-  padding: 36px 32px;
-  box-shadow: var(--qsl-shadow-2);
-  margin-bottom: 24px;
-}
-.form-actions { margin-top: 24px; text-align: center; }
-.submit-btn { width: 200px; height: 48px; font-size: 15.5px; font-weight: 650; border-radius: 10px; }
+.public-container { max-width: 720px; }
+.status-desc { margin-bottom: 28px; }
 .refresh-note { margin-top: 24px; text-align: center; color: var(--qsl-muted); font-size: 13px; }
-.public-footer { text-align: center; padding: 24px 0 36px; color: var(--qsl-muted); font-size: 13px; }
 
 .mail-block {
   margin-top: 28px;

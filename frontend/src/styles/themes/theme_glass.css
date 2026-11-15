@@ -76,7 +76,8 @@ html[data-theme="theme_glass"] .card-header {
 /* 5. 顶栏：通透白玻璃 */
 html[data-theme="theme_glass"] .layout-header,
 html[data-theme="theme_glass"] .portal-header,
-html[data-theme="theme_glass"] .public-header {
+html[data-theme="theme_glass"] .public-header,
+html[data-theme="theme_glass"] .public-langbar {
   background: rgba(255, 255, 255, 0.75) !important;
   backdrop-filter: blur(20px) saturate(160%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
@@ -197,14 +198,12 @@ html[data-theme="theme_glass"] .brand.collapsed::after {
   display: none;
 }
 
-/* 12. 移动端细节微调 */
-@media (max-width: 640px) {
+/* 12. 移动端细节微调
+   右上角鱼板切片在窄屏会被视口裁成半圆，透过磨砂卡片看起来像一颗被切掉的悬浮按钮。
+   窄屏去掉这层装饰，蓝粉光晕仍由 body::before 保留。 */
+@media (max-width: 720px) {
   html[data-theme="theme_glass"] body::after {
-    width: 220px;
-    height: 220px;
-    right: -25px;
-    top: -25px;
-    opacity: 0.75;
+    display: none;
   }
   html[data-theme="theme_glass"] .el-card,
   html[data-theme="theme_glass"] .stat-card,
