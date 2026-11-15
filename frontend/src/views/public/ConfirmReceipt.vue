@@ -1,19 +1,7 @@
 <template>
   <div class="public-page">
     <div class="public-container">
-      <header class="public-header">
-        <div class="logo-section">
-          <div class="logo-icon">QSL</div>
-          <div>
-            <h1>{{ t('confirm.title') }}</h1>
-            <p class="subtitle">{{ t('confirm.subtitle') }}</p>
-          </div>
-        </div>
-        <button class="home-back-link" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ t('common.backHome') }}</span>
-        </button>
-      </header>
+      <PublicHeader :title="t('confirm.title')" :subtitle="t('confirm.subtitle')" />
 
       <main class="public-main">
         <!-- 手动输入（URL 无编号时） -->
@@ -91,7 +79,7 @@
             {{ t('confirm.alreadySigned') }}
           </el-alert>
 
-          <el-divider>{{ t('confirm.dividerConfirm') }}</el-divider>
+          <StepHeading :title="t('confirm.dividerConfirm')" />
 
           <el-form :model="confirmForm" label-position="top">
             <el-form-item :label="t('confirm.receivedDateLabel')">
@@ -213,6 +201,8 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { ElMessage } from 'element-plus'
 import { t, locale } from '../../i18n'
+import PublicHeader from '../../components/PublicHeader.vue'
+import StepHeading from '../../components/StepHeading.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -358,57 +348,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.public-page {
-  min-height: 100vh;
-  color: var(--qsl-ink);
-  background: var(--qsl-bg);
-  background-image: radial-gradient(at 10% 10%, color-mix(in srgb, var(--qsl-primary) 6%, transparent) 0px, transparent 50%),
-                    radial-gradient(at 90% 15%, color-mix(in srgb, var(--qsl-green) 5%, transparent) 0px, transparent 50%);
-  padding: 24px 20px;
-}
-.public-container { max-width: 600px; margin: 0 auto; }
-.public-header { text-align: center; padding: 36px 0 28px; }
-.logo-section { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--qsl-primary);
-  color: var(--qsl-on-primary);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 850;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--qsl-primary) 30%, transparent);
-}
-.public-header h1 {
-  margin: 0;
-  color: var(--qsl-heading);
-  font-size: 26px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-.subtitle { margin: 6px 0 0; color: var(--qsl-muted); font-size: 14px; }
-.modern-card {
-  background: var(--qsl-card-bg);
-  border: 1px solid var(--qsl-line);
-  border-radius: 18px;
-  padding: 36px 32px;
-  box-shadow: var(--qsl-shadow-2);
-  margin-bottom: 24px;
-}
-.card-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--qsl-line);
-}
-.card-header h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--qsl-heading);
-}
+.public-container { max-width: 600px; }
 .card-details { margin-bottom: 24px; }
 .detail-row {
   display: flex;
@@ -420,12 +360,8 @@ onMounted(() => {
 .detail-row .label { color: var(--qsl-muted); font-size: 14px; }
 .detail-row .value { font-weight: 600; color: var(--qsl-ink); }
 .detail-row .value.highlight { color: var(--qsl-primary); font-size: 18px; font-weight: 700; }
-.form-actions { margin-top: 24px; text-align: center; }
-.submit-btn { width: 200px; height: 48px; font-size: 15.5px; font-weight: 650; border-radius: 10px; }
-.success-card { text-align: center; }
-.success-content { padding: 20px; }
 .success-icon { margin-bottom: 20px; }
-.success-content h2 { color: var(--qsl-green); margin: 0 0 12px; font-size: 26px; font-weight: 750; }
+.success-content h2 { margin: 0 0 12px; font-size: 26px; }
 .success-content p { color: var(--qsl-muted); margin: 8px 0; }
 .success-time { color: var(--qsl-muted); font-size: 14px; }
 .success-details {
@@ -441,12 +377,10 @@ onMounted(() => {
 .success-details .detail-item { text-align: center; }
 .success-details .detail-item span { display: block; color: var(--qsl-muted); font-size: 13px; margin-bottom: 4px; }
 .success-details .detail-item strong { color: var(--qsl-heading); font-size: 16px; font-weight: 700; }
-.public-footer { text-align: center; padding: 24px 0 36px; color: var(--qsl-muted); font-size: 13px; }
 @media (max-width: 640px) {
-  .public-page { padding: 16px 12px; }
-  .public-header { padding: 24px 0 20px; }
-  .public-header h1 { font-size: 22px; }
-  .modern-card { padding: 22px 18px; border-radius: 14px; }
+  .detail-row { align-items: flex-start; gap: 12px; }
+  .detail-row .label { flex: none; }
+  .detail-row .value { min-width: 0; text-align: right; overflow-wrap: anywhere; }
   .success-details { flex-direction: column; gap: 16px; }
 }
 /* 回寄引导 */

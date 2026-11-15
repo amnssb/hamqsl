@@ -1,19 +1,7 @@
 <template>
   <div class="public-page">
     <div class="public-container">
-      <header class="public-header">
-        <div class="logo-section">
-          <div class="logo-icon">QSL</div>
-          <div>
-            <h1>{{ t('track.title') }}</h1>
-            <p class="subtitle">{{ t('track.subtitle') }}</p>
-          </div>
-        </div>
-        <button class="home-back-link" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ t('common.backHome') }}</span>
-        </button>
-      </header>
+      <PublicHeader :title="t('track.title')" :subtitle="t('track.subtitle')" />
 
       <main class="public-main">
         <div class="card modern-card">
@@ -68,6 +56,7 @@ import { reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { t } from '../../i18n'
+import PublicHeader from '../../components/PublicHeader.vue'
 
 const route = useRoute()
 
@@ -95,79 +84,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.public-page {
-  min-height: 100vh;
-  color: var(--qsl-ink);
-  background: var(--qsl-bg);
-  background-image: radial-gradient(at 10% 10%, color-mix(in srgb, var(--qsl-primary) 6%, transparent) 0px, transparent 50%),
-                    radial-gradient(at 90% 15%, color-mix(in srgb, var(--qsl-green) 5%, transparent) 0px, transparent 50%);
-  padding: 24px 20px;
-}
-
-.public-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.public-header {
-  padding: 36px 0 28px;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.logo-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--qsl-primary);
-  color: var(--qsl-on-primary);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 850;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--qsl-primary) 30%, transparent);
-}
-
-.public-header h1 {
-  margin: 0;
-  color: var(--qsl-heading);
-  font-size: 26px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.subtitle {
-  margin: 6px 0 0;
-  color: var(--qsl-muted);
-  font-size: 14px;
-}
-
-.modern-card {
-  background: var(--qsl-card-bg);
-  border: 1px solid var(--qsl-line);
-  border-radius: 18px;
-  padding: 36px 32px;
-  box-shadow: var(--qsl-shadow-2);
-  margin-bottom: 24px;
-}
-
-.card-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--qsl-line);
-}
-
-.card-header h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--qsl-heading);
-}
+.public-container { max-width: 600px; }
 
 .carrier-tip {
   margin: 0;
@@ -176,27 +93,7 @@ onMounted(() => {
   line-height: 1.7;
 }
 
-.form-actions {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.submit-btn {
-  width: 200px;
-  height: 48px;
-  font-size: 15.5px;
-  font-weight: 650;
-  border-radius: 10px;
-}
-
 .tip-card b { color: var(--qsl-heading); font-size: 14px; }
 .tip-card p { margin: 8px 0 10px; color: var(--qsl-muted); font-size: 13px; line-height: 1.7; }
-
-.public-footer {
-  text-align: center;
-  padding: 24px 0 36px;
-  color: var(--qsl-muted);
-  font-size: 13px;
-}
 
 </style>

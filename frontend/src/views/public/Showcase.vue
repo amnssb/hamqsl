@@ -1,19 +1,7 @@
 <template>
   <div class="public-page">
     <div class="public-container">
-      <header class="public-header">
-        <div class="logo-section">
-          <div class="logo-icon">QSL</div>
-          <div>
-            <h1>{{ heading }}</h1>
-            <p class="subtitle">{{ subheading }}</p>
-          </div>
-        </div>
-        <button class="home-back-link" @click="$router.push('/')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>{{ t('common.backHome') }}</span>
-        </button>
-      </header>
+      <PublicHeader :title="heading" :subtitle="subheading" />
 
       <main class="public-main">
         <div v-if="state === 'off'" class="modern-card">
@@ -63,14 +51,13 @@
         </template>
       </main>
     </div>
-    <LangSwitch />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import LangSwitch from '../../components/LangSwitch.vue'
 import { t } from '../../i18n'
+import PublicHeader from '../../components/PublicHeader.vue'
 
 const state = ref('loading')
 const station = ref({ call_sign: '', name: '', name_en: '' })

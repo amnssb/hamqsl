@@ -204,7 +204,7 @@ onMounted(async () => {
 
 .portal-header {
   position: sticky;
-  top: 0;
+  top: var(--public-langbar-offset, 0px);
   z-index: 10;
   height: 72px;
   display: flex;
@@ -223,6 +223,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .brand-mark {
   display: grid;
@@ -236,21 +237,31 @@ onMounted(async () => {
   font-weight: 850;
   box-shadow: 0 4px 10px color-mix(in srgb, var(--qsl-ink) 20%, transparent);
 }
+.brand-info {
+  min-width: 0;
+}
 .brand-info strong {
   display: block;
+  overflow: hidden;
   color: var(--qsl-navy);
   font-size: 15px;
   font-weight: 750;
   letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .brand-info small {
   display: block;
+  overflow: hidden;
   margin-top: 2px;
   color: var(--qsl-muted);
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-link {
+  flex-shrink: 0;
   color: var(--qsl-navy);
   font-size: 13px;
   font-weight: 600;
@@ -259,6 +270,7 @@ onMounted(async () => {
   background: var(--qsl-panel);
   border: 1px solid var(--qsl-line);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
   transition: all 0.2s ease;
 }
 .admin-link:hover {
@@ -616,7 +628,7 @@ onMounted(async () => {
   max-width: 1120px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--qsl-line);
 }
 .footer-inner {
@@ -641,8 +653,14 @@ onMounted(async () => {
   .footer-inner { flex-direction: column; gap: 6px; text-align: center; }
 }
 @media (max-width: 720px) {
-  .portal-main { padding-top: 24px; }
+  .portal-header { height: auto; min-height: 64px; padding: 10px 12px; }
+  .portal-main { padding: 24px 12px 32px; }
   .services { grid-template-columns: 1fr; }
   .workflow-grid { grid-template-columns: 1fr; }
+  .service-card { min-height: 64px; }
+}
+@media (max-width: 420px) {
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions :deep(.el-button) { width: 100%; margin-left: 0; }
 }
 </style>

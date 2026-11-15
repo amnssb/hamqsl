@@ -134,7 +134,8 @@ html[data-theme="theme_ba"] .card-header {
 /* 7. 顶栏与侧栏：清爽晨光蓝白 */
 html[data-theme="theme_ba"] .layout-header,
 html[data-theme="theme_ba"] .portal-header,
-html[data-theme="theme_ba"] .public-header {
+html[data-theme="theme_ba"] .public-header,
+html[data-theme="theme_ba"] .public-langbar {
   background: rgba(255, 255, 255, 0.92) !important;
   border-bottom: 1px solid rgba(69, 175, 255, 0.20) !important;
   backdrop-filter: blur(12px) !important;
@@ -205,6 +206,13 @@ html[data-theme="theme_ba"] .el-table {
 }
 html[data-theme="theme_ba"] .el-table th.el-table__cell {
   color: #006EB0 !important;
+}
+
+/* 窄屏右上角光环会被裁成半圆，压在公开表单右侧。装饰让位给内容。 */
+@media (max-width: 720px) {
+  html[data-theme="theme_ba"] body::after {
+    display: none;
+  }
 }
 
 html[data-theme="theme_ba"] .el-dialog,
