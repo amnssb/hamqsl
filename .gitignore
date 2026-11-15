@@ -1,10 +1,17 @@
-# Go 后端
-backend/data/
-backend/uploads/
+# Go 后端产物
 backend/server
 backend/server.exe
 *.exe
 *.exe~
+
+# 运行时数据（SQLite、WAL/SHM、.jwt_secret、.mfa_key，以及该目录下的任何文件）。
+# 只忽略 data/.jwt_secret 时，在仓库根执行 git stash -u 会把 qsl.db 等装进 stash
+# 并从磁盘上移走，容器重启后就是空库。整个 data/ 都必须留在工作区外。
+data/
+
+# 上传的卡片图。实体文件不进仓库（仓库根 ./uploads 与 backend/uploads 都算）。
+# 目录由进程或数据卷创建，不把占位文件提交进来。
+uploads/
 
 # 前端
 frontend/node_modules/
@@ -12,7 +19,6 @@ frontend/dist/
 
 # 密钥与环境
 .env
-data/.jwt_secret
 
 # 内部文档（不含入开源仓库）
 HANDOFF.md
