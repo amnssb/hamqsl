@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"qsl-management/internal/flow"
 )
 
 // sendMail 通过后台配置的 SMTP 发送邮件；未配置 host 时返回错误（调用方自行决定是否容错）
@@ -107,7 +109,7 @@ func sendMail(db *gorm.DB, to, subject, body string) error {
 var cstZone = time.FixedZone("UTC+8", 8*3600)
 
 // cstNow 当前东八区时间
-func cstNow() time.Time { return time.Now().In(cstZone) }
+func cstNow() time.Time { return flow.Now() }
 
 // cstLayout 入库时间字符串的统一格式（东八区墙钟，不含时区信息）。
 const cstLayout = "2006-01-02 15:04:05"

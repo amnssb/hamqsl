@@ -91,18 +91,19 @@ func applyPatch(c *gin.Context, db *gorm.DB, item interface{}, id string, allowe
 //
 // 刻意不含：
 //   - card_code / card_date / card_time —— 建单时定下的身份与时间戳
+//   - qso_record_id —— 和 has_card 一起由建卡/删卡状态机维护，改外键而不改缓存会对不上
 //   - flow_status / card_issued / card_sent / card_received / receipt_confirmed
-//     —— 由 issue/sent/received/resend/公共确认收件这些流程端点推进
-//   - return_mailed_at / return_received_at / return_record_code —— 由回寄登记与收卡确认写入
+//     以及对应的时间戳、envelope_printed —— 只由 internal/flow 推进
+//   - return_mail_enabled / return_mail_type / return_tracking
+//     return_mailed_at / return_received_at / return_record_code —— 回寄开关、登记和收卡确认
 //   - tracking_status / tracking_detail / tracking_updated_at —— 由快递查询写入
 //   - created_mail_status / sent_mail_status / received_mail_status —— 由发信结果写入
 //   - received_record_code / received_at —— 由收卡登记写入
 var cardEditableFields = fieldSet(
 	"call_sign", "owner_name", "card_type", "scene_type", "card_version",
-	"qso_record_id", "offline_activity_id", "address_entry_id", "bureau_id",
+	"offline_activity_id", "address_entry_id", "bureau_id",
 	"business_remarks", "card_remarks", "sent_remarks", "received_remarks",
 	"mail_type", "tracking_number", "tracking_carrier", "mail_target_email",
-	"return_mail_enabled", "return_mail_type", "return_tracking",
 )
 
 // qsoEditableFields 通联记录允许通过 PUT 修改的字段。

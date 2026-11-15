@@ -4,13 +4,16 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"log"
-	"qsl-management/internal/model"
-	"qsl-management/pkg/response"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"qsl-management/internal/flow"
+	"qsl-management/internal/model"
+	"qsl-management/pkg/response"
 )
 
 type CardHandler struct{ db *gorm.DB }
@@ -34,24 +37,6 @@ func randomCode(db *gorm.DB, table, column, prefix string) string {
 		if cnt == 0 {
 			return code
 		}
-	}
-}
-
-func refreshStatus(c *model.CardRecord) {
-	if c.CardType != "" && len(c.CardType) > 6 && c.CardType[len(c.CardType)-6:] == "(ERROR)" {
-		c.FlowStatus = "ERROR"
-	} else if c.ReceiptConfirmed {
-		c.FlowStatus = "SIGNED"
-	} else if c.CardReceived {
-		c.FlowStatus = "RECEIVED"
-	} else if c.CardSent {
-		c.FlowStatus = "SENT"
-	} else if c.EnvelopePrinted {
-		c.FlowStatus = "PACKED"
-	} else if c.CardIssued {
-		c.FlowStatus = "ISSUED"
-	} else {
-		c.FlowStatus = "PENDING_ISSUE"
 	}
 }
 
@@ -110,36 +95,19 @@ func (h *CardHandler) Create(c *gin.Context) {
 		response.Fail(c, 400, "参数错误")
 		return
 	}
-	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 	now := cstNow()
-	cardCode := randomCode(h.db, "card_records", "card_code", "C")
 	card := model.CardRecord{
-		CardCode: cardCode, CallSign: req.CallSign,
+		CardCode: randomCode(h.db, "card_records", "card_code", "C"), CallSign: req.CallSign,
 		OwnerName: req.OwnerName,
 		CardType:  req.CardType, SceneType: req.SceneType, CardVersion: req.CardVersion,
 		QsoRecordID: req.QsoRecordID, MailType: req.MailType, MailTargetEmail: req.MailTargetEmail,
 		BusinessRemarks: req.BusinessRemarks, CardRemarks: req.CardRemarks,
-		CardDate: now.Format("2006-01-02"), CardTime: now.Format("15:04"),
+		CardDate: flow.Day(now), CardTime: now.Format("15:04"),
 	}
-	refreshStatus(&card)
-	h.db.Create(&card)
-
-	if req.QsoRecordID != nil {
-		h.db.Model(&model.QsoRecord{}).Where("id = ?", *req.QsoRecordID).Update("has_card", true)
-	}
-
-	// 卡片记录页手动建卡：自动关联同呼号、同场景、已通过且未建卡的换卡申请，
-	// 回写 card_created/created_card_id。否则该申请在线上换卡仍显示「创建卡片」
-	// 按钮，再次点击会重复建卡并发送重复的建卡邮件（卡"回到"线上换卡的现象）
-	if req.CallSign != "" && req.SceneType != "" {
-		var ex model.ExchangeRequest
-		if err := h.db.Where("call_sign = ? AND scene_type = ? AND review_status = ? AND card_created = ?",
-			req.CallSign, req.SceneType, "APPROVED", false).Order("id DESC").First(&ex).Error; err == nil {
-			ex.CardCreated = true
-			ex.CardCreatedAt = now.Format("2006-01-02 15:04:05")
-			ex.CreatedCardID = &card.ID
-			h.db.Save(&ex)
-		}
+	// 建卡、回写 has_card、绑上已通过的换卡申请，都在 flow 的同一事务里。
+	if err := flow.CreateManual(h.db, &card, flow.Stamp(now)); err != nil {
+		response.Error(c, "创建卡片失败，请稍后重试")
+		return
 	}
 	invalidatePublicStatsCache()
 	response.OK(c, card)
@@ -171,12 +139,12 @@ func (h *CardHandler) Update(c *gin.Context) {
 		response.Fail(c, 400, "没有可更新的字段")
 		return
 	}
-	// 白名单里不含状态字段，但各布尔位（已发/已收/已签）可能被历史数据打乱，
-	// 重算一次派生状态，保证 flow_status 与各布尔字段始终对得上。
-	before := item.FlowStatus
-	refreshStatus(&item)
-	if item.FlowStatus != before {
-		h.db.Model(&item).Update("flow_status", item.FlowStatus)
+	// 白名单改不了进度。这里按 flow_status 把布尔位对齐，避免历史脏数据继续分歧。
+	if flow.Align(&item) {
+		if err := h.db.Save(&item).Error; err != nil {
+			response.Fail(c, 500, "保存失败："+err.Error())
+			return
+		}
 	}
 	response.OK(c, item)
 }
@@ -187,38 +155,8 @@ func (h *CardHandler) Delete(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	// 事务：清掉指向该卡片的收卡记录，解开换卡申请和通联上的「已建卡」标记，再删卡片。
-	// 不解开的话，申请会永远停在「已创建卡片」，通联也不能再选、不能删。
-	err := h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("outbound_card_id = ?", item.ID).Delete(&model.ReceiveRecord{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Model(&model.ExchangeRequest{}).Where("created_card_id = ?", item.ID).
-			Updates(map[string]any{
-				"card_created":    false,
-				"card_created_at": "",
-				"created_card_id": nil,
-			}).Error; err != nil {
-			return err
-		}
-		if err := tx.Delete(&model.CardRecord{}, item.ID).Error; err != nil {
-			return err
-		}
-		if item.QsoRecordID != nil {
-			var left int64
-			if err := tx.Model(&model.CardRecord{}).Where("qso_record_id = ?", *item.QsoRecordID).Count(&left).Error; err != nil {
-				return err
-			}
-			if left == 0 {
-				if err := tx.Model(&model.QsoRecord{}).Where("id = ?", *item.QsoRecordID).
-					Update("has_card", false).Error; err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
+	// 删卡、解开换卡申请、恢复通联 has_card 在同一事务里，由状态机完成。
+	if err := flow.DeleteCard(h.db, item.ID); err != nil {
 		response.Error(c, "删除失败")
 		return
 	}
@@ -232,10 +170,17 @@ func (h *CardHandler) Issue(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	item.CardIssued = true
-	item.CardIssuedAt = cstNow().Format("2006-01-02 15:04:05")
-	refreshStatus(&item)
-	h.db.Save(&item)
+	if err := flow.Issue(&item, flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "制卡失败")
+		return
+	}
+	if err := h.db.Save(&item).Error; err != nil {
+		response.Error(c, "制卡失败")
+		return
+	}
 	response.OK(c, item)
 }
 
@@ -252,19 +197,19 @@ func (h *CardHandler) ConfirmSent(c *gin.Context) {
 		TrackingCarrier string `json:"tracking_carrier"`
 	}
 	c.ShouldBindJSON(&req)
-	item.CardSent = true
-	item.SentAt = cstNow().Format("2006-01-02 15:04:05")
-	item.SentRemarks = req.SentRemarks
-	if req.MailType != "" {
-		item.MailType = req.MailType
+	if err := flow.Send(&item, flow.SendInput{
+		At:              flow.Stamp(cstNow()),
+		Remarks:         req.SentRemarks,
+		MailType:        req.MailType,
+		TrackingNumber:  req.TrackingNumber,
+		TrackingCarrier: req.TrackingCarrier,
+	}); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "发信失败")
+		return
 	}
-	if req.TrackingNumber != "" {
-		item.TrackingNumber = req.TrackingNumber
-	}
-	if req.TrackingCarrier != "" {
-		item.TrackingCarrier = req.TrackingCarrier
-	}
-	refreshStatus(&item)
 
 	// 发卡后自动邮件提醒收卡人（配置了邮箱或关联换卡申请时）
 	email, ex := h.resolveCardNotify(&item)
@@ -298,11 +243,21 @@ func (h *CardHandler) ConfirmReceived(c *gin.Context) {
 		ReceivedRemarks string `json:"received_remarks"`
 	}
 	c.ShouldBindJSON(&req)
-	item.CardReceived = true
-	item.ReceivedAt = req.ReceivedDate
-	item.ReceivedRemarks = req.ReceivedRemarks
-	refreshStatus(&item)
-	h.db.Save(&item)
+	if err := flow.Receive(&item, flow.ReceiveInput{
+		At:            req.ReceivedDate,
+		Remarks:       req.ReceivedRemarks,
+		UpdateRemarks: true,
+	}); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "收卡登记失败")
+		return
+	}
+	if err := h.db.Save(&item).Error; err != nil {
+		response.Error(c, "收卡登记失败")
+		return
+	}
 	invalidatePublicStatsCache()
 	response.OK(c, item)
 }
@@ -313,30 +268,18 @@ func (h *CardHandler) Resend(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	resetForResend(&item)
-	h.db.Save(&item)
+	if err := flow.Resend(&item); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "重发失败")
+		return
+	}
+	if err := h.db.Save(&item).Error; err != nil {
+		response.Error(c, "重发失败")
+		return
+	}
 	response.OK(c, item)
-}
-
-// resetForResend 把卡片打回待制卡。
-// 已签收的布尔位也要清掉，否则 refreshStatus 会立刻把状态算回 SIGNED，重发等于没发生。
-func resetForResend(item *model.CardRecord) {
-	item.CardIssued = false
-	item.CardIssuedAt = ""
-	item.EnvelopePrinted = false
-	item.CardSent = false
-	item.SentAt = ""
-	item.TrackingNumber = ""
-	item.TrackingStatus = ""
-	item.TrackingDetail = ""
-	item.TrackingUpdatedAt = ""
-	item.CreatedMailStatus = ""
-	item.SentMailStatus = ""
-	item.CardReceived = false
-	item.ReceivedAt = ""
-	item.ReceiptConfirmed = false
-	item.ReceivedMailStatus = ""
-	refreshStatus(item)
 }
 
 func (h *CardHandler) GetTracking(c *gin.Context) {
@@ -483,37 +426,28 @@ func (h *CardHandler) FromQso(c *gin.Context) {
 		response.NotFound(c, "通联记录不存在")
 		return
 	}
-	if qso.HasCard {
-		response.Fail(c, 422, "该通联记录已建卡")
-		return
-	}
 	if req.MailType != "ORDINARY" {
 		req.MailType = "REGISTERED"
 	}
-	// 统一走东八区：这里是唯一一处用 time.Now() 写 card_date/card_time 的地方，
-	// 服务器 TZ 不是东八区时（比如裸机 UTC 部署）会和其它记录混进不同日期。
 	now := cstNow()
 	card := model.CardRecord{
 		CardCode:        randomCode(h.db, "card_records", "card_code", "C"),
-		CallSign:        qso.CallSign,
 		OwnerName:       qso.Operator,
-		CardType:        "QSO",
-		SceneType:       "QSO",
 		CardVersion:     req.CardVersion,
-		QsoRecordID:     &qso.ID,
-		CardDate:        now.Format("2006-01-02"),
+		CardDate:        flow.Day(now),
 		CardTime:        now.Format("15:04"),
 		CardRemarks:     req.CardRemarks,
 		MailType:        req.MailType,
 		MailTargetEmail: req.MailTargetEmail,
-		FlowStatus:      "PENDING_ISSUE",
 	}
-	if err := h.db.Create(&card).Error; err != nil {
+	// 场景校验、has_card 的条件更新和卡片插入在同一事务里。
+	if err := flow.CreateFromQSO(h.db, &qso, &card); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
 		response.Error(c, "创建卡片失败，请稍后重试")
 		return
 	}
-	qso.HasCard = true
-	h.db.Save(&qso)
 	response.OK(c, card)
 }
 
@@ -570,7 +504,7 @@ func (h *CardHandler) ToggleReturnMail(c *gin.Context) {
 		response.Fail(c, 400, "enabled 必填（true/false）")
 		return
 	}
-	item.ReturnMailEnabled = *req.Enabled
+	flow.SetReturnEnabled(&item, *req.Enabled)
 	if err := h.db.Save(&item).Error; err != nil {
 		response.Fail(c, 500, "保存失败")
 		return
@@ -586,16 +520,16 @@ func (h *CardHandler) ReceiveReturnMail(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	if card.ReturnMailedAt == "" {
-		response.Fail(c, 422, "对方尚未登记回寄，无法确认收卡")
-		return
-	}
-	if card.ReturnReceivedAt != "" {
-		response.Fail(c, 422, "该卡回寄已确认过收卡（记录 "+card.ReturnRecordCode+"）")
+	if err := flow.PrepareCardReturn(&card); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "确认回寄失败")
 		return
 	}
 
-	receivedDate := cstNow().Format("2006-01-02")
+	now := cstNow()
+	receivedDate := flow.Day(now)
 	code := nextReceiveCode(h.db, receivedDate)
 	businessType := card.SceneType
 	if businessType == "" {
@@ -612,20 +546,17 @@ func (h *CardHandler) ReceiveReturnMail(c *gin.Context) {
 		CardType:       card.CardType,
 		BusinessType:   businessType,
 		ReceivedDate:   receivedDate,
-		ReceivedAt:     cstNow().Format("2006-01-02 15:04:05"),
+		ReceivedAt:     flow.Stamp(now),
 		OutboundCardID: &outboundID,
 		MatchStatus:    "MATCHED",
 		MatchReason:    "回寄收卡：对方确认收件并回寄（卡片 " + card.CardCode + "）",
 		Remarks:        "对方回寄登记" + returnKind + " " + card.ReturnMailedAt,
 	}
-	if err := h.db.Create(&record).Error; err != nil {
+	if err := flow.CommitCardReturn(h.db, &card, &record, flow.Stamp(now)); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
 		response.Fail(c, 500, "写入收卡记录失败："+err.Error())
-		return
-	}
-	card.ReturnReceivedAt = cstNow().Format("2006-01-02 15:04:05")
-	card.ReturnRecordCode = code
-	if err := h.db.Save(&card).Error; err != nil {
-		response.Fail(c, 500, "更新卡片回寄状态失败："+err.Error())
 		return
 	}
 	response.OK(c, gin.H{"receive_code": code, "return_received_at": card.ReturnReceivedAt})

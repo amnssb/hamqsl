@@ -95,6 +95,8 @@ func TestCardEditableFieldsExcludesFlowColumns(t *testing.T) {
 	mustNotContain := []string{
 		"card_code", "card_date", "card_time", "flow_status",
 		"card_issued", "card_sent", "card_received", "receipt_confirmed",
+		"card_issued_at", "sent_at", "envelope_printed", "qso_record_id",
+		"return_mail_enabled", "return_mail_type", "return_tracking",
 		"return_mailed_at", "return_received_at", "return_record_code",
 		"tracking_status", "tracking_detail", "tracking_updated_at",
 		"received_at", "received_record_code",
