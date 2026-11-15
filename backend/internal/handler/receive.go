@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"qsl-management/internal/flow"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
 )
@@ -34,6 +38,7 @@ func (h *ReceiveHandler) Create(c *gin.Context) {
 		Remarks        string `json:"remarks"`
 	}
 	c.ShouldBindJSON(&req)
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 
 	code := nextReceiveCode(h.db, req.ReceivedDate)
 
@@ -42,17 +47,32 @@ func (h *ReceiveHandler) Create(c *gin.Context) {
 		BusinessType: req.BusinessType, ReceivedDate: req.ReceivedDate,
 		OutboundCardID: req.OutboundCardID, Remarks: req.Remarks, MatchStatus: "UNMATCHED",
 	}
-	if req.OutboundCardID != nil {
-		var card model.CardRecord
-		if err := h.db.First(&card, *req.OutboundCardID).Error; err == nil {
-			card.CardReceived = true
-			card.ReceivedAt = req.ReceivedDate
-			card.ReceivedRecordCode = code
-			h.db.Save(&card)
-			record.MatchStatus = "MATCHED"
+	// 关联了发出的卡片时，必须走「已寄出 → 对方已收」。未寄出的卡不能在这里被标成已收。
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if req.OutboundCardID != nil {
+			var card model.CardRecord
+			if err := tx.First(&card, *req.OutboundCardID).Error; err == nil {
+				if err := flow.Receive(&card, flow.ReceiveInput{
+					At:         req.ReceivedDate,
+					RecordCode: code,
+				}); err != nil {
+					return err
+				}
+				if err := tx.Save(&card).Error; err != nil {
+					return err
+				}
+				record.MatchStatus = "MATCHED"
+			}
 		}
+		return tx.Create(&record).Error
+	})
+	if err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "收卡记录创建失败，请稍后重试")
+		return
 	}
-	h.db.Create(&record)
 	response.OK(c, record)
 }
 

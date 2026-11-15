@@ -2,12 +2,15 @@ package handler
 
 import (
 	"fmt"
+	"log"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"log"
+
+	"qsl-management/internal/flow"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
-	"strings"
 )
 
 type PublicHandler struct{ db *gorm.DB }
@@ -76,17 +79,13 @@ func (h *PublicHandler) ReturnMail(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	if !card.ReceiptConfirmed {
-		response.Fail(c, 422, "请先确认收件，再登记回寄")
+	if err := flow.RegisterCardReturn(&card, mailType, tracking, flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Fail(c, 500, "登记失败，请稍后重试")
 		return
 	}
-	if !card.ReturnMailEnabled {
-		response.Fail(c, 422, "本次寄件未开通回寄服务，请联系台站管理员")
-		return
-	}
-	card.ReturnMailType = mailType
-	card.ReturnTracking = tracking
-	card.ReturnMailedAt = cstNow().Format("2006-01-02 15:04:05")
 	if err := h.db.Save(&card).Error; err != nil {
 		response.Fail(c, 500, "登记失败，请稍后重试")
 		return
@@ -103,10 +102,10 @@ func (h *PublicHandler) ReturnMail(c *gin.Context) {
 			trackingLine = "<br>单号：<b>" + htmlEscape(tracking) + "</b>"
 		}
 		subject := "对方已回寄卡片：" + card.CallSign + "（" + card.CardCode + "）"
-		body := mailWrap("对方已回寄卡片",
-			"<p>卡片 <b>"+htmlEscape(card.CardCode)+"</b>（"+htmlEscape(card.CallSign)+"）的持有人已确认收件并登记回寄：</p>"+
-				"<p>邮寄方式：<b>"+typeName+"</b>"+trackingLine+"<br>登记时间："+card.ReturnMailedAt+"</p>"+
-				"<p>请留意查收回寄的卡片。</p>")
+		// sendMail 自己会套邮件外壳。这里再套一次，信里会嵌进一整份 HTML 文档。
+		body := "<p>卡片 <b>" + htmlEscape(card.CardCode) + "</b>（" + htmlEscape(card.CallSign) + "）的持有人已确认收件并登记回寄：</p>" +
+			"<p>邮寄方式：<b>" + typeName + "</b>" + trackingLine + "<br>登记时间：" + card.ReturnMailedAt + "</p>" +
+			"<p>请留意查收回寄的卡片。</p>"
 		if err := sendMail(h.db, notify, subject, body); err != nil {
 			log.Printf("[mail] 回寄提醒发送失败 notify=%s err=%v", notify, err)
 		}
@@ -340,8 +339,8 @@ func (h *PublicHandler) SubmitExchange(c *gin.Context) {
 		SwlFreq:           req.SwlFreq,
 		SwlBand:           req.SwlBand,
 		SwlMode:           req.SwlMode,
-		ReviewStatus:      "PENDING",
 	}
+	flow.InitExchange(&ex)
 	if err := h.db.Create(&ex).Error; err != nil {
 		response.Fail(c, 500, "申请提交失败，请稍后重试")
 		return
@@ -395,15 +394,18 @@ func (h *PublicHandler) ConfirmReceipt(c *gin.Context) {
 		response.Fail(c, 400, "呼号与卡片记录不匹配")
 		return
 	}
-
-	card.CardReceived = true
-	card.ReceiptConfirmed = true
-	card.ReceivedAt = req.ReceivedDate
-	card.ReceivedRemarks = req.Remarks
-	// 本函数与 refreshStatus 是同一套判定，但这里不能直接复查整个结构体里的
-	// CardIssued/CardSent（可能是历史脏数据），所以保留就地判决。
-	refreshStatus(&card)
-	h.db.Save(&card)
+	// 未寄出、已签收都不能再确认。判定只看 flow_status，布尔位由状态机一起改写。
+	if err := flow.ConfirmReceipt(&card, req.ReceivedDate, req.Remarks); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "确认失败")
+		return
+	}
+	if err := h.db.Save(&card).Error; err != nil {
+		response.Error(c, "确认失败")
+		return
+	}
 	invalidatePublicStatsCache()
 
 	// "我发出的卡"由对方签收确认：仅推进卡片状态（SIGNED），不再生成收卡记录——
@@ -449,9 +451,13 @@ func (h *PublicHandler) SubmitReturnMail(c *gin.Context) {
 		response.NotFound(c, "申请不存在")
 		return
 	}
-	ex.ReturnMailType = mailType
-	ex.ReturnTracking = tracking
-	ex.ReturnMailedAt = cstNow().Format("2006-01-02 15:04:05")
+	if err := flow.MarkCounterpartMailed(&ex, mailType, tracking, flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Fail(c, 500, "登记失败，请稍后重试")
+		return
+	}
 	if err := h.db.Save(&ex).Error; err != nil {
 		response.Fail(c, 500, "登记失败，请稍后重试")
 		return

@@ -107,7 +107,7 @@ const summary = ref({
 const statCards = computed(() => [
   { label: '通联日志', value: summary.value.total_qso, icon: icons.Document, tone: 'blue', note: '日志档案', path: '/admin/qso' },
   { label: '卡片总数', value: summary.value.total_cards, icon: icons.Postcard, tone: 'indigo', note: '卡片库存', path: '/admin/cards' },
-  { label: '已发卡片', value: summary.value.total_sent, icon: icons.Promotion, tone: 'amber', note: '已递送', path: '/admin/cards?flow_status=SENT' },
+  { label: '已发卡片', value: summary.value.total_sent, icon: icons.Promotion, tone: 'amber', note: '已递送', path: '/admin/cards?card_sent=true' },
   { label: '已收卡片', value: summary.value.total_received, icon: icons.Box, tone: 'emerald', note: '回卡已入库', path: '/admin/receive' },
 ])
 
@@ -115,7 +115,7 @@ const pendingItems = computed(() => [
   { label: '待制卡', hint: '通联已完成，等待制作卡片', value: summary.value.pending_issue, icon: icons.Postcard, tone: 'blue', path: '/admin/cards?flow_status=PENDING_ISSUE' },
   { label: '待发信', hint: '卡片已制作，等待封装寄出', value: summary.value.pending_sent, icon: icons.Promotion, tone: 'amber', path: '/admin/cards?flow_status=ISSUED' },
   { label: '待收卡', hint: '卡片已寄出，等待对方收件确认', value: summary.value.pending_receive, icon: icons.Box, tone: 'indigo', path: '/admin/cards?flow_status=SENT' },
-  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: icons.Bell, tone: 'emerald', path: '/admin/exchange/online' },
+  { label: '待审核换卡申请', hint: '公开门户提交的线上换卡请求', value: summary.value.pending_exchange_review, icon: icons.Bell, tone: 'emerald', path: '/admin/exchange/online?review_status=PENDING' },
 ])
 
 const pendingTotal = computed(() => pendingItems.value.reduce((sum, item) => sum + Number(item.value || 0), 0))

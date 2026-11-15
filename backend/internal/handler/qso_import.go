@@ -45,7 +45,14 @@ func parseADIF(data string) []adifRecord {
 		name, length := tag, 0
 		if p := strings.IndexByte(tag, ':'); p >= 0 {
 			name = tag[:p]
-			length, _ = strconv.Atoi(strings.TrimSpace(tag[p+1:]))
+			lenPart := tag[p+1:]
+			// ADIF 可以在长度后面再跟一个类型：<QSO_DATE:8:D>、<COMMENT:13:S>。
+			// Atoi("8:D") 得到 0，长度被丢掉后只能读到下一个 <。
+			// 备注里再出现 <，后面的字段就会被切碎。
+			if c := strings.IndexByte(lenPart, ':'); c >= 0 {
+				lenPart = lenPart[:c]
+			}
+			length, _ = strconv.Atoi(strings.TrimSpace(lenPart))
 		}
 		name = strings.ToUpper(strings.TrimSpace(name))
 		value := ""

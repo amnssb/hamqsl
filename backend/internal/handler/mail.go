@@ -5,12 +5,16 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"qsl-management/internal/flow"
 )
 
 // sendMail 通过后台配置的 SMTP 发送邮件；未配置 host 时返回错误（调用方自行决定是否容错）
@@ -32,12 +36,21 @@ func sendMail(db *gorm.DB, to, subject, body string) error {
 	if from == "" {
 		return fmt.Errorf("SMTP 发件人未配置")
 	}
+	// 收件人来自公开申请。地址里夹进 \r\n 就能在 SMTP 会话里多塞一条 RCPT，
+	// 或者在信头里注入 Bcc。先解析成纯地址，解析失败就不要发。
+	toAddr, err := sanitizeMailAddr(to)
+	if err != nil {
+		return err
+	}
+	fromAddr, err := sanitizeMailAddr(from)
+	if err != nil {
+		return fmt.Errorf("SMTP 发件人无效")
+	}
 	fromName := getSettingValue(db, "smtp_from_name")
 	useSSL := getSettingValue(db, "smtp_use_ssl") != "false"
 
 	addr := host + ":" + port
 	var conn net.Conn
-	var err error
 	if useSSL {
 		conn, err = tls.Dial("tcp", addr, &tls.Config{ServerName: host})
 	} else {
@@ -66,23 +79,23 @@ func sendMail(db *gorm.DB, to, subject, body string) error {
 			}
 		}
 	}
-	if err = cl.Mail(from); err != nil {
+	if err = cl.Mail(fromAddr); err != nil {
 		return fmt.Errorf("SMTP MAIL 失败: %v", err)
 	}
-	if err = cl.Rcpt(to); err != nil {
+	if err = cl.Rcpt(toAddr); err != nil {
 		return fmt.Errorf("SMTP RCPT 失败: %v", err)
 	}
 	w, err := cl.Data()
 	if err != nil {
 		return fmt.Errorf("SMTP DATA 失败: %v", err)
 	}
-	fromHeader := from
+	fromHeader := fromAddr
 	if fromName != "" {
-		fromHeader = fmt.Sprintf("=?UTF-8?B?%s?= <%s>", base64.StdEncoding.EncodeToString([]byte(fromName)), from)
+		fromHeader = fmt.Sprintf("=?UTF-8?B?%s?= <%s>", base64.StdEncoding.EncodeToString([]byte(fromName)), fromAddr)
 	}
 	subj := fmt.Sprintf("=?UTF-8?B?%s?=", base64.StdEncoding.EncodeToString([]byte(subject)))
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s",
-		fromHeader, to, subj, mailWrap(subject, body))
+		fromHeader, toAddr, subj, mailWrap(subject, body))
 	if _, err = w.Write([]byte(msg)); err != nil {
 		return fmt.Errorf("写入邮件失败: %v", err)
 	}
@@ -96,7 +109,7 @@ func sendMail(db *gorm.DB, to, subject, body string) error {
 var cstZone = time.FixedZone("UTC+8", 8*3600)
 
 // cstNow 当前东八区时间
-func cstNow() time.Time { return time.Now().In(cstZone) }
+func cstNow() time.Time { return flow.Now() }
 
 // cstLayout 入库时间字符串的统一格式（东八区墙钟，不含时区信息）。
 const cstLayout = "2006-01-02 15:04:05"
@@ -113,7 +126,25 @@ func parseCST(s string) (time.Time, error) {
 
 // htmlEscape 转义插入 HTML 的动态文本
 func htmlEscape(s string) string {
-	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&#34;").Replace(s)
+	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&#34;", "'", "&#39;").Replace(s)
+}
+
+// sanitizeMailAddr 把用户输入收成一个不含换行的纯邮箱地址。
+// 带显示名的写法（Name <a@b.c>）只保留地址部分，避免显示名进到 SMTP 命令里。
+func sanitizeMailAddr(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, "\r\n") {
+		return "", fmt.Errorf("邮件地址无效")
+	}
+	parsed, err := mail.ParseAddress(raw)
+	if err != nil {
+		return "", fmt.Errorf("邮件地址无效")
+	}
+	addr := parsed.Address
+	if addr == "" || strings.ContainsAny(addr, "\r\n<>") {
+		return "", fmt.Errorf("邮件地址无效")
+	}
+	return addr, nil
 }
 
 // mailWrap 统一的 HTML 邮件外壳：标题头 + 正文卡片 + 页脚
@@ -128,9 +159,12 @@ func mailWrap(title, bodyHTML string) string {
 </body></html>`, htmlEscape(title), bodyHTML)
 }
 
-// siteURL 优先使用设置中的站点地址，否则退回请求 Host（用于邮件中的进度链接）
+// siteURL 优先使用设置中的站点地址，否则退回请求 Host（用于邮件中的进度链接）。
+//
+// 站点地址只接受 http/https。X-Forwarded-Proto 以前是原样拼进链接的，
+// 请求头里写什么，邮件按钮就指向什么。
 func siteURL(db *gorm.DB, c *gin.Context) string {
-	if u := strings.TrimRight(getSettingValue(db, "site_url"), "/"); u != "" {
+	if u := configuredSiteURL(getSettingValue(db, "site_url")); u != "" {
 		return u
 	}
 	if c == nil || c.Request == nil {
@@ -140,8 +174,41 @@ func siteURL(db *gorm.DB, c *gin.Context) string {
 	if c.Request.TLS != nil {
 		scheme = "https"
 	}
-	if fp := c.GetHeader("X-Forwarded-Proto"); fp != "" {
+	if fp := forwardedProto(c.GetHeader("X-Forwarded-Proto")); fp != "" {
 		scheme = fp
 	}
-	return scheme + "://" + c.Request.Host
+	host := c.Request.Host
+	if host == "" || strings.ContainsAny(host, "\r\n/\\ ") {
+		return ""
+	}
+	return scheme + "://" + host
+}
+
+func forwardedProto(v string) string {
+	if i := strings.IndexByte(v, ','); i >= 0 {
+		v = v[:i]
+	}
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "https":
+		return "https"
+	case "http":
+		return "http"
+	default:
+		return ""
+	}
+}
+
+func configuredSiteURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, "\r\n") {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil {
+		return ""
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host + strings.TrimRight(u.EscapedPath(), "/")
 }

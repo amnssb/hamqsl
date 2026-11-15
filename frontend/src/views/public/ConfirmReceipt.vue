@@ -226,8 +226,18 @@ const manualCode = ref('')
 // 已确认视图：本次确认成功，或卡片本就处于已签收状态（二次扫码也能登记回寄）
 const viewConfirmed = computed(() => confirmed.value || !!(cardInfo.value && cardInfo.value.receipt_confirmed))
 
+// toISOString() 是 UTC。东八区 0 点到 8 点会落到前一天，和全站 UTC+8 对不上。
+function cstToday() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
 const confirmForm = reactive({
-  received_date: new Date().toISOString().split('T')[0],
+  received_date: cstToday(),
   remarks: ''
 })
 

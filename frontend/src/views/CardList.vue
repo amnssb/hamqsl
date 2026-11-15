@@ -22,7 +22,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="query.flow_status" placeholder="全部" clearable style="width:120px" @change="loadData">
+          <el-select v-model="query.flow_status" placeholder="全部" clearable style="width:120px" @change="onStatusFilter">
             <el-option label="待制卡" value="PENDING_ISSUE" /><el-option label="已制卡" value="ISSUED" />
             <el-option label="已打包" value="PACKED" /><el-option label="已发卡" value="SENT" />
             <el-option label="对方已收卡" value="RECEIVED" /><el-option label="已签收" value="SIGNED" />
@@ -42,6 +42,10 @@
         </el-form-item>
         <el-form-item><el-button type="primary" @click="loadData">查询</el-button></el-form-item>
       </el-form>
+      <p v-if="query.card_sent === 'true'" class="filter-hint">
+        当前只显示已寄出的卡片（含之后签收的）。
+        <el-button link type="primary" @click="clearCardSent">显示全部</el-button>
+      </p>
 
       <ResponsiveTable :data="list" row-key="id" :fields="cardFields" v-loading="loading">
         <template #default>
@@ -412,19 +416,51 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import QRCode from 'qrcode'
 import ResponsiveTable from '../components/ResponsiveTable.vue'
 import CardRowOps from '../components/CardRowOps.vue'
 
+const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
 const list = ref([])
 const total = ref(0)
 const versions = ref([])
-const query = reactive({ call_sign: '', scene_type: '', flow_status: '', mail_type: '', return_status: '', page: 1, size: 20 })
+const query = reactive({ call_sign: '', scene_type: '', flow_status: '', mail_type: '', return_status: '', card_sent: '', page: 1, size: 20 })
+const queryKeys = ['call_sign', 'scene_type', 'flow_status', 'mail_type', 'return_status', 'card_sent']
+
+// 总览卡片链到 /admin/cards?flow_status=... 。不读 query 的话，点进去和「全部」是同一个列表。
+function applyRouteQuery() {
+  for (const k of queryKeys) {
+    const raw = route.query[k]
+    query[k] = typeof raw === 'string' ? raw : ''
+  }
+}
+
+function queryWithoutCardSent() {
+  const next = {}
+  for (const k of queryKeys) {
+    if (k !== 'card_sent' && query[k]) next[k] = query[k]
+  }
+  return next
+}
+
+function clearCardSent() {
+  router.replace({ path: route.path, query: queryWithoutCardSent() })
+}
+
+function onStatusFilter() {
+  if (!query.card_sent) {
+    loadData()
+    return
+  }
+  router.replace({ path: route.path, query: queryWithoutCardSent() })
+}
 
 // 手机端卡片流字段（第一个字段作为卡片标题）
 const cardFields = [
@@ -736,16 +772,24 @@ function copyConfirmLink() {
   ElMessage.success('确认链接已复制')
 }
 
+function htmlText(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]))
+}
+
 function printQR() {
   if (!qrCardInfo.value) return
   const url = window.location.origin + '/confirm/' + qrCardInfo.value.card_code
+  const code = htmlText(qrCardInfo.value.card_code)
+  const call = htmlText(qrCardInfo.value.call_sign)
   QRCode.toDataURL(url, { width: 200, margin: 2 }).then(dataUrl => {
     const win = window.open('', '', 'width=400,height=520')
-    win.document.write('<html><head><title>QSL \u6536\u5361\u786e\u8ba4 - ' + qrCardInfo.value.card_code + '</title></head>' +
+    win.document.write('<html><head><title>QSL \u6536\u5361\u786e\u8ba4 - ' + code + '</title></head>' +
       '<body style="text-align:center;font-family:sans-serif;padding:30px;">' +
       '<h2>QSL \u5361\u7247\u6536\u5361\u786e\u8ba4</h2>' +
-      '<p>\u5361\u7247\u7f16\u53f7: ' + qrCardInfo.value.card_code + '</p>' +
-      '<p>\u5bf9\u65b9\u547c\u53f7: ' + qrCardInfo.value.call_sign + '</p>' +
+      '<p>\u5361\u7247\u7f16\u53f7: ' + code + '</p>' +
+      '<p>\u5bf9\u65b9\u547c\u53f7: ' + call + '</p>' +
       '<img src="' + dataUrl + '" style="width:200px;height:200px;" />' +
       '<p style="margin-top:16px;color:#666;">\u8bf7\u626b\u63cf\u4e0a\u65b9\u4e8c\u7ef4\u7801\u786e\u8ba4\u6536\u5361</p>' +
       '</body></html>')
@@ -804,10 +848,18 @@ async function handleSendMail(row, scene) {
   } catch {}
 }
 
-onMounted(() => { loadData(); loadVersions() })
+watch(() => route.fullPath, () => {
+  if (route.name !== 'CardList') return
+  applyRouteQuery()
+  query.page = 1
+  loadData()
+})
+
+onMounted(() => { applyRouteQuery(); loadData(); loadVersions() })
 </script>
 
 <style scoped>
+.filter-hint { margin: 0 0 12px; color: var(--qsl-muted); font-size: 13px; }
 .return-admin { margin-top: 16px; padding: 12px 14px; background: var(--qsl-panel-2); border: 1px dashed var(--qsl-line); border-radius: var(--qsl-radius); }
 .return-admin-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .return-admin-row + .return-admin-row { margin-top: 10px; }

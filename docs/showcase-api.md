@@ -6,8 +6,8 @@
 
 ## 环境要求（对接前先确认两项）
 
-1. 后台「插件 → 对外展示」已启用 —— 未启用时所有端点 404
-2. CORS 已放行：`Access-Control-Allow-Origin: *`（仅这两个公开端点）
+1. 后台「插件 → 对外展示」已启用 —— 未启用时 JSON 和徽章都是 404，响应体 `code` 为 `QSL-PLUGIN-OFF`。这个 404 **带** `Access-Control-Allow-Origin: *` 和 `Cache-Control: no-store`，跨域 `fetch` 能读到状态码，也不会被缓存成「一直未启用」
+2. CORS 已放行：`Access-Control-Allow-Origin: *`（仅这两个公开端点，以及它们的 `OPTIONS` 预检）。响应里不会同时出现 `Access-Control-Allow-Credentials`。另外带 `Cross-Origin-Resource-Policy: cross-origin`，`<img>` 可以嵌到别人的页面上
 
 ## 端点 1：JSON 数据源
 
@@ -61,20 +61,23 @@ GET https://你的域名/api/public/ext/showcase?limit=8
 | 字段 | 必有 | 说明 |
 |---|---|---|
 | `code` | 是 | `QSL-0000` = 成功 |
-| `station.*` | 是 | 都可能为空串，别直接当标题用，做回退 |
-| `counts.*` | 是 | int64，快照口径见下 |
-| `recent[]` | 是 | 数组可能为空；`date` `YYYY-MM-DD`、`time` `HH:mm`，均为 UTC+8 墙钟；`rst_*` 可空 |
-| `cards[]` | 是 | 可为空；`image_path` **可能为空串**（未传图的卡片版本），且只会是 `/uploads/...` 形式，拼到站点域名后引用；不含 `..`，已过白名单 |
+| `station.*` | 是 | 都可能为空串，别直接当标题用，做回退。`call_sign` 已转成大写，和控制字符、双向文字覆盖符一起清掉 |
+| `counts.*` | 是 | int64。`qso` = 通联行数；`cards_sent` = `card_sent` 为真；`cards_signed` = `receipt_confirmed` 为真（与首页公开统计同一口径）；`cards_received` = 收卡记录行数。最后一项**不是** `card_received`（那个表示对方已收到我们寄出的卡） |
+| `recent[]` | 是 | 数组可能为空；按日历日、补零后的 `HH:mm`、再按 id 倒序（`8:05` 不会排到 `12:30` 前面）。`date` `YYYY-MM-DD`、`time` `HH:mm`。库存的是 UTC+8 墙钟（和通联列表同一串），这里只把认得出的紧凑日期、带秒的时刻收成这个格式；`rst_*` 可空；对方呼号同样转成大写 |
+| `cards[]` | 是 | 可为空；`image_path` **可能为空串**（没传图，或路径不是本站上传文件）。有值时只会是 `/uploads/<文件名>`，拼到站点域名后引用。绝对地址会先收成这个路径；带 `..`、子目录、盘符的值变成空串 |
 | `data.recent` 长度 | — | ≤ 快照里的 20 条上限，受 `limit` 截断 |
 
 **必须处理的非 200**：
 
 | 状态 | body.code | 含义 | 建议处理 |
 |---|---|---|---|
-| 404 | `QSL-PLUGIN-OFF` | 插件被禁用 | 显示「未开启」占位，**不要重试** |
+| 404 | `QSL-PLUGIN-OFF` | 插件被禁用 | 显示「未开启」占位，**不要重试**。跨域也能读到这个状态码 |
+| 503 | `QSL-503` | 数据库暂时读失败，且没有上一份可用快照 | 显示失败占位，可退避重试。徽章此时也是这段 JSON，**不是**一张数字全 0 的 SVG |
 | 5xx | 其他 | 服务端故障 | 显示失败占位，可退避重试 |
 
-**缓存与频率**：响应头 `Cache-Control: public, max-age=60`；服务端数据本身 60 秒快照。客户端轮询间隔 ≥ 60s，再快也只是拿到同一份数据。
+数据库抖动但内存里还有上一份快照时，仍返回 200 和那一份，避免徽章在故障瞬间变成 0。
+
+**缓存与频率**：成功响应头仍是 `Cache-Control: public, max-age=60`。服务端快照默认也留 60 秒，但通联、卡片、收卡、本台资料一写入就会作废，所以绕过浏览器缓存的请求能马上看到新数字。已经贴在 QRZ / 博客上的 `<img>` 仍可能沿用浏览器里那一份，最多再旧 60 秒。客户端轮询间隔 ≥ 60s 即可。`OPTIONS` 预检为 204，`Access-Control-Allow-Methods: GET, OPTIONS`。
 
 ## 端点 2：SVG 徽章
 
@@ -83,9 +86,9 @@ GET https://你的域名/api/public/ext/showcase/badge.svg
 ```
 
 - 响应 `Content-Type: image/svg+xml; charset=utf-8`，固定 480×132
-- 直接 `<img src>` 引用，无需 CORS 考虑（`<img>` 不受跨域读限制）
-- 缓存同上 `max-age=60`
-- 文字内容只有呼号与数字（已 XML 转义），颜色写死不随主题
+- 直接 `<img src>` 引用。响应带 `Cross-Origin-Resource-Policy: cross-origin`，嵌到别人的页面上不会被浏览器拦住
+- 缓存同上 `max-age=60`；没有可用快照时是 503 JSON，不是全 0 的图
+- 文字内容只有呼号与数字（已 XML 转义，控制字符已去掉），颜色写死不随主题
 
 ## 端点 3：现成嵌入代码（仅站长用，要登录）
 
