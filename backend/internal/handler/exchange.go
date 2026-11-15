@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"qsl-management/internal/flow"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
 )
@@ -60,16 +62,9 @@ func (h *ExchangeHandler) ListRequests(c *gin.Context) {
 func (h *ExchangeHandler) CreateRequest(c *gin.Context) {
 	var req model.ExchangeRequest
 	c.ShouldBindJSON(&req)
-	// 直接绑整张表时，请求体可以带上 review_status=APPROVED。新建申请一律从待审核开始。
-	req.ID = 0
-	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
-	req.ReviewStatus = "PENDING"
-	req.ReviewReason = ""
-	req.ReviewedBy = ""
-	req.ReviewedAt = ""
-	req.CardCreated = false
-	req.CardCreatedAt = ""
-	req.CreatedCardID = nil
+	// 直接绑整张表时，请求体可以带上 review_status=APPROVED、card_created=true。
+	// 新建申请的审核和建卡进度只由状态机初始化。
+	flow.InitExchange(&req)
 	var count int64
 	h.db.Model(&model.ExchangeRequest{}).Where("call_sign = ? AND review_status = 'PENDING'", req.CallSign).Count(&count)
 	if count > 0 {
@@ -145,28 +140,32 @@ func (h *ExchangeHandler) Approve(c *gin.Context) {
 		response.NotFound(c, "申请不存在")
 		return
 	}
-	if item.ReviewStatus != "PENDING" {
-		response.Fail(c, 422, "该申请已处理")
+	now := cstNow()
+	if err := flow.Approve(&item, c.GetString("username"), flow.Stamp(now)); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "审批失败")
 		return
 	}
-	item.ReviewStatus = "APPROVED"
-	item.ReviewedBy = c.GetString("username")
-	item.ReviewedAt = cstNow().Format("2006-01-02 15:04:05")
 
 	link := siteURL(h.db, c) + "/status/" + item.RequestCode
 
 	// SWL 场景：对方先寄卡给我。审批通过即自动附上「我的地址」里的一条
-	//（选中的优先，否则第一条）并合并进审批邮件。
-	swl := strings.ToUpper(item.SceneType) == "SWL"
+	//（选中的优先，否则第一条）并合并进审批邮件。地址写入走状态机，非 SWL 会被拒绝。
+	swl := flow.NormScene(item.SceneType) == flow.SceneSWL
 	addrAuto := ""
 	if swl && item.ReturnAddressText == "" {
 		if text, ok := h.defaultAddressText(); ok {
-			addrAuto = text
-			item.ReturnAddressText = text
-			item.AddressSentAt = cstNow().Format("2006-01-02 15:04:05")
+			if err := flow.SendAddress(&item, text, flow.Stamp(now)); err == nil {
+				addrAuto = item.ReturnAddressText
+			}
 		}
 	}
-	h.db.Save(&item)
+	if err := h.db.Save(&item).Error; err != nil {
+		response.Error(c, "审批失败")
+		return
+	}
 
 	if swl && item.Email != "" {
 		subject := "您的换卡申请已通过"
@@ -206,14 +205,17 @@ func (h *ExchangeHandler) Reject(c *gin.Context) {
 		ReviewReason string `json:"review_reason"`
 	}
 	c.ShouldBindJSON(&req)
-	if item.ReviewStatus == "REJECTED" {
-		response.Fail(c, 422, "该申请已是拒绝状态")
+	if err := flow.Reject(&item, req.ReviewReason, flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "拒绝失败")
 		return
 	}
-	item.ReviewStatus = "REJECTED"
-	item.ReviewReason = req.ReviewReason
-	item.ReviewedAt = cstNow().Format("2006-01-02 15:04:05")
-	h.db.Save(&item)
+	if err := h.db.Save(&item).Error; err != nil {
+		response.Error(c, "拒绝失败")
+		return
+	}
 	// 拒绝后邮件通知对方（附原因与重新申请引导）
 	if item.Email != "" {
 		reason := strings.TrimSpace(item.ReviewReason)
@@ -275,7 +277,6 @@ func (h *ExchangeHandler) buildCardForExchange(ex *model.ExchangeRequest) model.
 		BusinessRemarks: businessRemarks,
 		MailType:        "REGISTERED",
 		MailTargetEmail: ex.Email,
-		FlowStatus:      "PENDING_ISSUE",
 	}
 
 	// QSO 场景：只记下通联 ID。has_card 要等卡片真正写入成功后再置真，
@@ -295,31 +296,11 @@ func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 		response.NotFound(c, "申请不存在")
 		return
 	}
-	if ex.ReviewStatus != "APPROVED" {
-		response.Fail(c, 422, "只有已通过的申请才能创建卡片")
-		return
-	}
-	if ex.CardCreated {
-		response.Fail(c, 422, "该申请已创建卡片")
-		return
-	}
-
 	card := h.buildCardForExchange(&ex)
-	err := h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&card).Error; err != nil {
-			return err
+	if err := flow.CreateFromExchange(h.db, &ex, &card, flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
 		}
-		if card.QsoRecordID != nil {
-			if err := tx.Model(&model.QsoRecord{}).Where("id = ?", *card.QsoRecordID).Update("has_card", true).Error; err != nil {
-				return err
-			}
-		}
-		ex.CardCreated = true
-		ex.CardCreatedAt = cstNow().Format("2006-01-02 15:04:05")
-		ex.CreatedCardID = &card.ID
-		return tx.Save(&ex).Error
-	})
-	if err != nil {
 		response.Fail(c, 500, "创建卡片失败，请稍后重试")
 		return
 	}
@@ -390,12 +371,11 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 		response.NotFound(c, "申请不存在")
 		return
 	}
-	if ex.ReturnMailType == "" {
-		response.Fail(c, 422, "对方尚未登记寄出信息")
-		return
-	}
-	if ex.ReturnReceivedAt != "" {
-		response.Fail(c, 422, "该申请已登记过收卡")
+	if err := flow.PrepareSWLReceive(&ex); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "收卡登记失败")
 		return
 	}
 	var req struct {
@@ -405,44 +385,29 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 
 	// 收卡记录编号：与收卡记录页共用同一序列（统一发号器，进程内互斥）
 	now := cstNow()
-	code := nextReceiveCode(h.db, now.Format("2006-01-02"))
+	code := nextReceiveCode(h.db, flow.Day(now))
 
 	record := model.ReceiveRecord{
 		ReceiveCode:  code,
 		CallSign:     ex.CallSign,
 		CardType:     "SWL",
 		BusinessType: "SWL",
-		ReceivedDate: now.Format("2006-01-02"),
+		ReceivedDate: flow.Day(now),
 		MatchStatus:  "UNMATCHED",
 		Remarks:      strings.TrimSpace("SWL 反寄收卡 " + ex.RequestCode + "；" + req.Remarks),
 	}
-	if err := h.db.Create(&record).Error; err != nil {
+
+	// 确认收件后自动创建回寄卡片记录：卡片直接进入卡片记录列表（待发卡）。
+	// 收卡记录、收到时间、建卡和 card_created 在同一事务里，失败则全部回滚。
+	card := h.buildCardForExchange(&ex)
+	wrote, err := flow.ReceiveSWLReturn(h.db, &ex, &record, &card, flow.Stamp(now))
+	if err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
 		response.Error(c, "收卡记录创建失败，请稍后重试")
 		return
 	}
-
-	ex.ReturnReceivedAt = now.Format("2006-01-02 15:04:05")
-
-	// 确认收件后自动创建回寄卡片记录：卡片直接进入卡片记录列表（待发卡），
-	// 管理员在卡片记录里写卡/发卡即可，收件人与换卡申请邮箱一致
-	card := h.buildCardForExchange(&ex)
-	cardErr := h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&card).Error; err != nil {
-			return err
-		}
-		if card.QsoRecordID != nil {
-			return tx.Model(&model.QsoRecord{}).Where("id = ?", *card.QsoRecordID).Update("has_card", true).Error
-		}
-		return nil
-	})
-	if cardErr == nil {
-		ex.CardCreated = true
-		ex.CardCreatedAt = now.Format("2006-01-02 15:04:05")
-		ex.CreatedCardID = &card.ID
-	} else {
-		log.Printf("SWL 收卡自动建卡失败(%s): %v", ex.RequestCode, cardErr)
-	}
-	h.db.Save(&ex)
 
 	mailErr := ""
 	if ex.Email != "" {
@@ -453,7 +418,7 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 			tracking = "（您的单号：" + htmlEscape(ex.ReturnTracking) + "）"
 		}
 		cardLine := ""
-		if cardErr == nil {
+		if wrote {
 			cardLine = "，回寄卡片已完成建单（卡片编号 <b>" + card.CardCode + "</b>）"
 		}
 		body := fmt.Sprintf(
@@ -470,7 +435,7 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 		}
 	}
 	resp := gin.H{"receive_code": code, "return_received_at": ex.ReturnReceivedAt, "mail_error": mailErr}
-	if cardErr == nil {
+	if wrote {
 		resp["card_code"] = card.CardCode
 	}
 	response.OK(c, resp)
@@ -500,9 +465,17 @@ func (h *ExchangeHandler) SendAddress(c *gin.Context) {
 	for i, e := range entries {
 		sb.WriteString(fmt.Sprintf("地址 %d：\n%s 收\n%s %s\n%s\n\n", i+1, e.Name, e.PostalCode, e.DestinationCountry, e.Address))
 	}
-	ex.ReturnAddressText = strings.TrimSpace(sb.String())
-	ex.AddressSentAt = cstNow().Format("2006-01-02 15:04:05")
-	h.db.Save(&ex)
+	if err := flow.SendAddress(&ex, sb.String(), flow.Stamp(cstNow())); err != nil {
+		if writeFlowErr(c, err) {
+			return
+		}
+		response.Error(c, "发送地址失败")
+		return
+	}
+	if err := h.db.Save(&ex).Error; err != nil {
+		response.Error(c, "发送地址失败")
+		return
+	}
 
 	// 邮件复用统一发送逻辑（审批通过时已自动发送过一次，此处用于重发/改发）
 	mailErr := h.sendReturnAddressMail(c, &ex)

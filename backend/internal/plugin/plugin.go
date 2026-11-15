@@ -280,7 +280,18 @@ func (m *Manager) MountOpen(pub *gin.RouterGroup) {
 
 func (m *Manager) enabledGuard(name string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 预检没有正文。禁用时如果把它挡成没有 CORS 头的 404，浏览器会当成网络失败，
+		// 调用方的 `if (res.status === 404)` 永远走不到。先放行，由路由回 204。
+		if c.Request.Method == http.MethodOptions && strings.HasPrefix(c.Request.URL.Path, "/api/public/") {
+			c.Next()
+			return
+		}
 		if !m.IsEnabled(name) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api/public/") {
+				// 不缓存：启用之后 CDN 不能继续把「插件未启用」发给 QRZ。
+				middleware.AllowPublicEmbed(c)
+				c.Header("Cache-Control", "no-store")
+			}
 			c.AbortWithStatusJSON(404, gin.H{"code": "QSL-PLUGIN-OFF", "message": "插件未启用"})
 			return
 		}

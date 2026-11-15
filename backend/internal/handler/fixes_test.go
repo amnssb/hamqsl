@@ -53,17 +53,78 @@ func TestConfiguredSiteURLRejectsNonHTTP(t *testing.T) {
 	}
 }
 
-func TestResetForResendClearsSignedState(t *testing.T) {
-	item := model.CardRecord{
+func TestResendHandlerClearsSignedState(t *testing.T) {
+	db := newTestDB(t)
+	card := model.CardRecord{
+		CardCode: "C1", CallSign: "BI1ABC", FlowStatus: "SIGNED",
 		CardIssued: true, CardSent: true, CardReceived: true, ReceiptConfirmed: true,
-		FlowStatus: "SIGNED", TrackingNumber: "EA123",
+		TrackingNumber: "EA123",
 	}
-	resetForResend(&item)
-	if item.FlowStatus != "PENDING_ISSUE" {
-		t.Fatalf("重发后应为待制卡，实际 %s", item.FlowStatus)
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
 	}
-	if item.ReceiptConfirmed || item.CardReceived || item.CardSent || item.TrackingNumber != "" {
-		t.Fatalf("签收和寄出标记应被清掉: %+v", item)
+	c, w := jsonContext(http.MethodPost, "", gin.Params{{Key: "id", Value: fmt.Sprint(card.ID)}})
+	NewCardHandler(db).Resend(c)
+	if w.Code != 200 {
+		t.Fatalf("重发失败 %d %s", w.Code, w.Body.String())
+	}
+	var got model.CardRecord
+	if err := db.First(&got, card.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.FlowStatus != "PENDING_ISSUE" {
+		t.Fatalf("重发后应为待制卡，实际 %s", got.FlowStatus)
+	}
+	if got.ReceiptConfirmed || got.CardReceived || got.CardSent || got.CardIssued || got.TrackingNumber != "" {
+		t.Fatalf("签收和寄出标记应被清掉: %+v", got)
+	}
+}
+
+func TestSendRejectsCardThatIsNotIssued(t *testing.T) {
+	db := newTestDB(t)
+	card := model.CardRecord{CardCode: "C1", CallSign: "BI1ABC", FlowStatus: "PENDING_ISSUE"}
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	c, w := jsonContext(http.MethodPost, `{"tracking_number":"EA1"}`, gin.Params{{Key: "id", Value: fmt.Sprint(card.ID)}})
+	NewCardHandler(db).ConfirmSent(c)
+	if w.Code != 422 {
+		t.Fatalf("未制卡不能发信，实际 %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"code":"QSL-422-CARD-NOT-ISSUED"`) {
+		t.Fatalf("应返回稳定错误码，实际 %s", w.Body.String())
+	}
+	var got model.CardRecord
+	db.First(&got, card.ID)
+	if got.FlowStatus != "PENDING_ISSUE" || got.CardSent {
+		t.Fatalf("拒绝之后卡片不应被改写: %+v", got)
+	}
+}
+
+func TestUpdateAlignsBooleansToFlowStatus(t *testing.T) {
+	db := newTestDB(t)
+	card := model.CardRecord{
+		CardCode: "C1", CallSign: "BI1ABC", FlowStatus: "PENDING_ISSUE",
+		CardSent: true, ReceiptConfirmed: true, TrackingNumber: "KEEP",
+	}
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	c, w := jsonContext(http.MethodPut, `{"card_remarks":"备注"}`, gin.Params{{Key: "id", Value: fmt.Sprint(card.ID)}})
+	NewCardHandler(db).Update(c)
+	if w.Code != 200 {
+		t.Fatalf("保存失败 %d %s", w.Code, w.Body.String())
+	}
+	var got model.CardRecord
+	db.First(&got, card.ID)
+	if got.CardRemarks != "备注" {
+		t.Fatalf("备注应写入，实际 %q", got.CardRemarks)
+	}
+	if got.FlowStatus != "PENDING_ISSUE" || got.CardSent || got.ReceiptConfirmed {
+		t.Fatalf("布尔位应按 flow_status 对齐: %+v", got)
+	}
+	if got.TrackingNumber != "KEEP" {
+		t.Fatalf("对齐不应清掉预先填写的单号，实际 %q", got.TrackingNumber)
 	}
 }
 
@@ -199,6 +260,30 @@ func TestReceiveCreateRefreshesFlowStatus(t *testing.T) {
 	}
 	if rec.CallSign != "BI1ABC" || rec.MatchStatus != "MATCHED" {
 		t.Fatalf("收卡记录 = %+v", rec)
+	}
+}
+
+func TestReceiveCreateRejectsUnsentCard(t *testing.T) {
+	db := newTestDB(t)
+	card := model.CardRecord{CardCode: "C1", CallSign: "BI1ABC", FlowStatus: "PENDING_ISSUE"}
+	if err := db.Create(&card).Error; err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf(`{"call_sign":"BI1ABC","received_date":"2026-11-15","outbound_card_id":%d}`, card.ID)
+	c, w := jsonContext(http.MethodPost, body, nil)
+	NewReceiveHandler(db).Create(c)
+	if w.Code != 422 {
+		t.Fatalf("未寄出的卡不能被收卡记录标成已收，实际 %d %s", w.Code, w.Body.String())
+	}
+	var got model.CardRecord
+	db.First(&got, card.ID)
+	if got.FlowStatus != "PENDING_ISSUE" || got.CardReceived {
+		t.Fatalf("卡片被改写了: %+v", got)
+	}
+	var n int64
+	db.Model(&model.ReceiveRecord{}).Count(&n)
+	if n != 0 {
+		t.Fatal("非法迁移不应留下收卡记录")
 	}
 }
 
