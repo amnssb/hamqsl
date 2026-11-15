@@ -116,48 +116,13 @@ func main() {
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.SecurityHeadersMiddleware())
 
-	// 图片上传目录与静态访问。
-	//
-	// 文件名是随机 hex + 原扩展名（见 handler.UploadImage），内容永不变更，
-	// 所以可以给一年强缓存——卡片版本图与缩略图在列表页里会反复出现，
-	// 不给缓存头等于每次翻页都重新下载。
+	// 图片上传目录与静态访问。文件名是随机 hex（见 handler.UploadImage），
+	// 命中才给一年强缓存；缺失必须 404，不能回退成前端入口。详见 serveUploads。
 	os.MkdirAll("uploads", 0755)
 	r.MaxMultipartMemory = 8 << 20
-	r.Group("/uploads", func(c *gin.Context) {
-		c.Header("Cache-Control", "public, max-age=31536000, immutable")
-		c.Next()
-	}).Static("", "./uploads")
-
 	// 生产模式托管前端：存在 ./web/dist 时由后端直接提供页面（单容器/单二进制部署无需 Nginx）
 	webDir := "./web/dist"
-	serveWeb := false
-	if _, err := os.Stat(webDir); err == nil {
-		serveWeb = true
-		r.NoRoute(func(c *gin.Context) {
-			// 命中的真实文件直接返回；/api 未注册路由保持 JSON 404；其余回退 index.html（history 路由）
-			reqPath := c.Request.URL.Path
-			p := filepath.Join(webDir, filepath.Clean("/"+reqPath))
-			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
-				// /assets/ 下的文件名带内容 hash → 内容不可变，可以长缓存；
-				// 其余静态文件（favicon 等）给一天。
-				if strings.HasPrefix(reqPath, "/assets/") {
-					c.Header("Cache-Control", "public, max-age=31536000, immutable")
-				} else {
-					c.Header("Cache-Control", "public, max-age=86400")
-				}
-				c.File(p)
-				return
-			}
-			if len(reqPath) >= 5 && reqPath[:5] == "/api/" {
-				c.JSON(404, gin.H{"code": "QSL-404", "message": "接口不存在"})
-				return
-			}
-			// index.html 绝不能被缓存，否则发版后用户一直拿到旧入口
-			c.Header("Cache-Control", "no-cache")
-			c.File(filepath.Join(webDir, "index.html"))
-		})
-		log.Printf("前端静态目录: %s（单进程托管）", webDir)
-	}
+	serveWeb := mountSite(r, "uploads", webDir)
 
 	r.GET("/", func(c *gin.Context) {
 		if serveWeb {
