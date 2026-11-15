@@ -112,29 +112,33 @@ type QsoRecord struct {
 	SceneType  string `gorm:"size:20;default:QSO" json:"scene_type"`
 	// 列表默认按日期+时间倒序；呼号前缀过滤和 ADIF 去重（呼号+日期）走另一组。
 	// 复合索引的第一列仍能单独服务「只按呼号」或「只按日期」的查询。
-	Date      string    `gorm:"size:10;not null;index:idx_qso_call_date,priority:2;index:idx_qso_date_time,priority:1" json:"date"`
-	Time      string    `gorm:"size:10;index:idx_qso_date_time,priority:2" json:"time"`
-	Timezone  string    `gorm:"size:10;default:UTC+8" json:"timezone"`
-	Freq      string    `gorm:"size:30" json:"freq"`
-	Band      string    `gorm:"size:20" json:"band"`
-	Mode      string    `gorm:"size:20" json:"mode"`
-	MyRig     string    `gorm:"size:100" json:"my_rig"`
-	MyRigMode string    `gorm:"size:20" json:"my_rig_mode"`
-	MyRigAnt  string    `gorm:"size:100" json:"my_rig_ant"`
-	MyRigPwr  string    `gorm:"size:20" json:"my_rig_pwr"`
-	MyQTH     string    `gorm:"size:200" json:"my_qth"`
-	Operator  string    `gorm:"size:50" json:"operator"`
-	CallSign  string    `gorm:"size:20;not null;index:idx_qso_call_date,priority:1" json:"call_sign"`
-	Rig       string    `gorm:"size:100" json:"rig"`
-	Ant       string    `gorm:"size:100" json:"ant"`
-	Pwr       string    `gorm:"size:20" json:"pwr"`
-	QTH       string    `gorm:"size:200" json:"qth"`
-	RstSent   string    `gorm:"size:10" json:"rst_sent"`
-	RstRcvd   string    `gorm:"size:10" json:"rst_rcvd"`
-	Remarks   string    `gorm:"type:text" json:"remarks"`
-	HasCard   bool      `gorm:"default:false" json:"has_card"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Date      string `gorm:"size:10;not null;index:idx_qso_call_date,priority:2;index:idx_qso_date_time,priority:1" json:"date"`
+	Time      string `gorm:"size:10;index:idx_qso_date_time,priority:2" json:"time"`
+	Timezone  string `gorm:"size:10;default:UTC+8" json:"timezone"`
+	Freq      string `gorm:"size:30" json:"freq"`
+	Band      string `gorm:"size:20" json:"band"`
+	Mode      string `gorm:"size:20" json:"mode"`
+	MyRig     string `gorm:"size:100" json:"my_rig"`
+	MyRigMode string `gorm:"size:20" json:"my_rig_mode"`
+	MyRigAnt  string `gorm:"size:100" json:"my_rig_ant"`
+	MyRigPwr  string `gorm:"size:20" json:"my_rig_pwr"`
+	MyQTH     string `gorm:"size:200" json:"my_qth"`
+	Operator  string `gorm:"size:50" json:"operator"`
+	CallSign  string `gorm:"size:20;not null;index:idx_qso_call_date,priority:1" json:"call_sign"`
+	Rig       string `gorm:"size:100" json:"rig"`
+	Ant       string `gorm:"size:100" json:"ant"`
+	Pwr       string `gorm:"size:20" json:"pwr"`
+	QTH       string `gorm:"size:200" json:"qth"`
+	RstSent   string `gorm:"size:10" json:"rst_sent"`
+	RstRcvd   string `gorm:"size:10" json:"rst_rcvd"`
+	Remarks   string `gorm:"type:text" json:"remarks"`
+	HasCard   bool   `gorm:"default:false" json:"has_card"`
+	// LoTW 确认。导入时 LOTW_QSL_RCVD=Y，或 LoTW 自己导出的文件里 QSL_RCVD=Y，写成真。
+	// 已确认的记录再次导入未确认的副本时保持真，确认日期只在原来为空时补上。
+	LotwQslRcvd bool      `gorm:"default:false;index" json:"lotw_qsl_rcvd"`
+	LotwQslDate string    `gorm:"size:10" json:"lotw_qsl_date"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type CardRecord struct {

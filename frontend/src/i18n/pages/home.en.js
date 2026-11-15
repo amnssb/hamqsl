@@ -9,6 +9,7 @@ export default {
   'home.btnApply': 'Request a Card',
   'home.btnStatus': 'Track Application',
   'home.statsTitle': 'Live Statistics',
+  'home.statsQso': 'QSOs Logged',
   'home.statsSent': 'Cards Sent',
   'home.statsSigned': 'Confirmed Received',
   'home.statsPending': 'Pending Requests',

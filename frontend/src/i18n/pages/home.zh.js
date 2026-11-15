@@ -9,6 +9,7 @@ export default {
   'home.btnApply': '申请换卡',
   'home.btnStatus': '查询申请进度',
   'home.statsTitle': '系统实时数据',
+  'home.statsQso': '通联记录',
   'home.statsSent': '已寄出卡片',
   'home.statsSigned': '完成签收',
   'home.statsPending': '待处理申请',

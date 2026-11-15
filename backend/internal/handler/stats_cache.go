@@ -11,8 +11,8 @@ import (
 /*
 公开统计的内存缓存。
 
-GET /api/public/stats 是首页那一块「LIVE 数据面板」，三条 COUNT(*) 全是全表扫：
-card_records 两次、exchange_requests 一次。首页是最容易被反复刷的页面，
+GET /api/public/stats 是首页那一块「LIVE 数据面板」。通联日志一次 COUNT，
+卡片两次 COUNT 合成一条聚合，换卡申请再 COUNT 一次。首页是最容易被反复刷的页面，
 而这几个数字本来就不需要秒级新鲜度——晚 60 秒没人看得出来。
 
 和 settings_cache.go 同一个思路：5 秒 / 60 秒 TTL 的快照 + 写路径主动失效。
@@ -21,6 +21,7 @@ card_records 两次、exchange_requests 一次。首页是最容易被反复刷�
 const publicStatsTTL = 60 * time.Second
 
 type publicStatsData struct {
+	QSO             int64
 	CardsSent       int64
 	CardsSigned     int64
 	PendingRequests int64
@@ -78,6 +79,13 @@ func publicStats(db *gorm.DB) publicStatsData {
 		}
 		return v
 	}
+	// 通联条数就是日志行数。showcase 读的是同一张表；这里让首页 /api/public/stats 也读到。
+	if err := db.Model(&model.QsoRecord{}).Count(&v.QSO).Error; err != nil {
+		if statsCache.ok {
+			return statsCache.val
+		}
+		return v
+	}
 
 	statsCache.val = v
 	statsCache.at = time.Now()
@@ -87,7 +95,7 @@ func publicStats(db *gorm.DB) publicStatsData {
 
 // invalidatePublicStatsCache 让下一次读取重新聚合。
 //
-// 在会改变这几个数字的写路径上调用（建卡/发信/签收/收卡/提交换卡申请）。
+// 在会改变这几个数字的写路径上调用（建卡/发信/签收/收卡/提交换卡申请，以及通联的新增、删除、导入）。
 // 不调也不会错，只是数字最多晚 60 秒；调了则后台一操作，首页立刻对得上。
 func invalidatePublicStatsCache() {
 	statsCache.mu.Lock()

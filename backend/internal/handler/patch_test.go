@@ -122,6 +122,9 @@ func TestQsoEditableFieldsExcludesGenerated(t *testing.T) {
 	if qsoEditableFields["has_card"] {
 		t.Error("has_card 由建卡流程回写，不能通过 PUT 改写")
 	}
+	if qsoEditableFields["lotw_qsl_rcvd"] || qsoEditableFields["lotw_qsl_date"] {
+		t.Error("LoTW 确认状态只由导入更新，不能通过 PUT 改回未确认")
+	}
 	if !qsoEditableFields["call_sign"] {
 		t.Error("call_sign 应当可编辑")
 	}

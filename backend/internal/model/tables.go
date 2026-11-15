@@ -26,7 +26,7 @@ type Table struct {
 //   - users / passkeys：导出可以，导入不覆盖。users 的口令哈希本来就不进备份，
 //     恢复了也登不进去；passkeys 的 user_id 在导入后可能悬空。宁可保留现状，
 //     由管理员重新绑定，也不要把自己锁在门外。
-//   - system_settings：导入时要逐条跳过被剔除的敏感键（SMTP 密码等），
+//   - system_settings：导入时要逐条跳过被剔除的敏感键（SMTP 密码、LoTW 密码等），
 //     由 export.go 单独处理，所以它在通用循环里会被跳过。
 var Tables = []Table{
 	{Key: "users", Model: &User{}, Backup: true},
