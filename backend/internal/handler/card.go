@@ -71,6 +71,11 @@ func (h *CardHandler) List(c *gin.Context) {
 	if v := c.Query("mail_type"); v != "" {
 		q = q.Where("mail_type = ?", v)
 	}
+	// 总览「已发卡片」是累计寄出数（含之后签收的），不能用 flow_status=SENT，
+	// 那个状态只剩「已寄出但还没签收」。
+	if v := c.Query("card_sent"); v == "true" || v == "false" {
+		q = q.Where("card_sent = ?", v == "true")
+	}
 	// 回寄状态筛选：enabled=已开启待对方寄回 / mailed=对方已寄出待我签收 / received=回寄已收
 	switch c.Query("return_status") {
 	case "enabled":
@@ -105,6 +110,7 @@ func (h *CardHandler) Create(c *gin.Context) {
 		response.Fail(c, 400, "参数错误")
 		return
 	}
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 	now := cstNow()
 	cardCode := randomCode(h.db, "card_records", "card_code", "C")
 	card := model.CardRecord{
@@ -181,12 +187,36 @@ func (h *CardHandler) Delete(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
-	// 事务：清理指向该卡片的收卡记录（回寄确认自动生成的那条），再删卡片本身
+	// 事务：清掉指向该卡片的收卡记录，解开换卡申请和通联上的「已建卡」标记，再删卡片。
+	// 不解开的话，申请会永远停在「已创建卡片」，通联也不能再选、不能删。
 	err := h.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("outbound_card_id = ?", item.ID).Delete(&model.ReceiveRecord{}).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&model.CardRecord{}, item.ID).Error
+		if err := tx.Model(&model.ExchangeRequest{}).Where("created_card_id = ?", item.ID).
+			Updates(map[string]any{
+				"card_created":    false,
+				"card_created_at": "",
+				"created_card_id": nil,
+			}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&model.CardRecord{}, item.ID).Error; err != nil {
+			return err
+		}
+		if item.QsoRecordID != nil {
+			var left int64
+			if err := tx.Model(&model.CardRecord{}).Where("qso_record_id = ?", *item.QsoRecordID).Count(&left).Error; err != nil {
+				return err
+			}
+			if left == 0 {
+				if err := tx.Model(&model.QsoRecord{}).Where("id = ?", *item.QsoRecordID).
+					Update("has_card", false).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		response.Error(c, "删除失败")
@@ -283,6 +313,14 @@ func (h *CardHandler) Resend(c *gin.Context) {
 		response.NotFound(c, "卡片不存在")
 		return
 	}
+	resetForResend(&item)
+	h.db.Save(&item)
+	response.OK(c, item)
+}
+
+// resetForResend 把卡片打回待制卡。
+// 已签收的布尔位也要清掉，否则 refreshStatus 会立刻把状态算回 SIGNED，重发等于没发生。
+func resetForResend(item *model.CardRecord) {
 	item.CardIssued = false
 	item.CardIssuedAt = ""
 	item.EnvelopePrinted = false
@@ -294,9 +332,11 @@ func (h *CardHandler) Resend(c *gin.Context) {
 	item.TrackingUpdatedAt = ""
 	item.CreatedMailStatus = ""
 	item.SentMailStatus = ""
-	refreshStatus(&item)
-	h.db.Save(&item)
-	response.OK(c, item)
+	item.CardReceived = false
+	item.ReceivedAt = ""
+	item.ReceiptConfirmed = false
+	item.ReceivedMailStatus = ""
+	refreshStatus(item)
 }
 
 func (h *CardHandler) GetTracking(c *gin.Context) {
@@ -337,8 +377,9 @@ func cardLinkBlock(link string) string {
 	if link == "" {
 		return ""
 	}
-	return "<p style=\"text-align:center;margin:24px 0;\"><a href=\"" + link + "\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>" +
-		"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：" + link + "</p>"
+	safe := htmlEscape(link)
+	return "<p style=\"text-align:center;margin:24px 0;\"><a href=\"" + safe + "\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>" +
+		"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：" + safe + "</p>"
 }
 
 // cardMailContent 按场景生成卡片通知的标题与 HTML 正文

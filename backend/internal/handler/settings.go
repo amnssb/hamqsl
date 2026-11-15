@@ -39,10 +39,27 @@ func (h *SettingsHandler) GetSmtp(c *gin.Context) {
 	})
 }
 
+var smtpSettingKeys = map[string]bool{
+	"smtp_host": true, "smtp_port": true, "smtp_user": true, "smtp_password": true,
+	"smtp_from": true, "smtp_from_name": true, "smtp_use_tls": true, "smtp_use_ssl": true,
+}
+
+var trackingSettingKeys = map[string]bool{
+	"kuaidi100_customer": true, "kuaidi100_key": true, "kuaidi100_secret": true,
+}
+
+var siteSettingKeys = map[string]bool{
+	"site_name": true, "site_url": true, "notify_email": true,
+	"site_notice": true, "return_address_id": true,
+}
+
 func (h *SettingsHandler) SaveSmtp(c *gin.Context) {
 	var req map[string]interface{}
 	c.ShouldBindJSON(&req)
 	for k, v := range req {
+		if !smtpSettingKeys[k] {
+			continue
+		}
 		// 密码留空（或旧版掩码）表示不修改，避免误存空值覆盖真实密码
 		if k == "smtp_password" {
 			if sv, ok := v.(string); ok && sv != "" && sv != "***" {
@@ -96,6 +113,9 @@ func (h *SettingsHandler) SaveTracking(c *gin.Context) {
 	var req map[string]interface{}
 	c.ShouldBindJSON(&req)
 	for k, v := range req {
+		if !trackingSettingKeys[k] {
+			continue
+		}
 		if sv, ok := v.(string); ok && sv != "***" {
 			h.setSetting(k, sv)
 		}
@@ -111,6 +131,9 @@ func (h *SettingsHandler) SaveSite(c *gin.Context) {
 	var req map[string]interface{}
 	c.ShouldBindJSON(&req)
 	for k, v := range req {
+		if !siteSettingKeys[k] {
+			continue
+		}
 		if sv, ok := v.(string); ok {
 			h.setSetting(k, sv)
 		}

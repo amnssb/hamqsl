@@ -103,10 +103,10 @@ func (h *PublicHandler) ReturnMail(c *gin.Context) {
 			trackingLine = "<br>单号：<b>" + htmlEscape(tracking) + "</b>"
 		}
 		subject := "对方已回寄卡片：" + card.CallSign + "（" + card.CardCode + "）"
-		body := mailWrap("对方已回寄卡片",
-			"<p>卡片 <b>"+htmlEscape(card.CardCode)+"</b>（"+htmlEscape(card.CallSign)+"）的持有人已确认收件并登记回寄：</p>"+
-				"<p>邮寄方式：<b>"+typeName+"</b>"+trackingLine+"<br>登记时间："+card.ReturnMailedAt+"</p>"+
-				"<p>请留意查收回寄的卡片。</p>")
+		// sendMail 自己会套邮件外壳。这里再套一次，信里会嵌进一整份 HTML 文档。
+		body := "<p>卡片 <b>" + htmlEscape(card.CardCode) + "</b>（" + htmlEscape(card.CallSign) + "）的持有人已确认收件并登记回寄：</p>" +
+			"<p>邮寄方式：<b>" + typeName + "</b>" + trackingLine + "<br>登记时间：" + card.ReturnMailedAt + "</p>" +
+			"<p>请留意查收回寄的卡片。</p>"
 		if err := sendMail(h.db, notify, subject, body); err != nil {
 			log.Printf("[mail] 回寄提醒发送失败 notify=%s err=%v", notify, err)
 		}
@@ -395,6 +395,15 @@ func (h *PublicHandler) ConfirmReceipt(c *gin.Context) {
 		response.Fail(c, 400, "呼号与卡片记录不匹配")
 		return
 	}
+	// 页面上未寄出、已签收都不能再点确认，接口以前不拦，知道编号就能把状态改掉。
+	if !card.CardSent {
+		response.Fail(c, 422, "卡片尚未寄出，暂不能确认收件")
+		return
+	}
+	if card.ReceiptConfirmed {
+		response.Fail(c, 422, "该卡片已确认收件")
+		return
+	}
 
 	card.CardReceived = true
 	card.ReceiptConfirmed = true
@@ -447,6 +456,14 @@ func (h *PublicHandler) SubmitReturnMail(c *gin.Context) {
 	var ex model.ExchangeRequest
 	if err := h.db.Where("request_code = ?", req.RequestCode).First(&ex).Error; err != nil {
 		response.NotFound(c, "申请不存在")
+		return
+	}
+	if strings.ToUpper(ex.SceneType) != "SWL" {
+		response.Fail(c, 422, "仅 SWL 申请需要登记寄出")
+		return
+	}
+	if ex.ReviewStatus != "APPROVED" {
+		response.Fail(c, 422, "申请尚未通过，暂不能登记寄出")
 		return
 	}
 	ex.ReturnMailType = mailType

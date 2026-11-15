@@ -70,6 +70,16 @@ func TestBindPatchInvalidJSONReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestBindPatchUppercasesCallSign(t *testing.T) {
+	c := newJSONContext(t, `{"call_sign":" bi1kbu "}`)
+
+	got := bindPatch(c, fieldSet("call_sign", "remarks"))
+
+	if got["call_sign"] != "BI1KBU" {
+		t.Errorf("呼号应去掉空白并转成大写，实际 %v", got["call_sign"])
+	}
+}
+
 func TestBindPatchEmptyBodyReturnsEmpty(t *testing.T) {
 	c := newJSONContext(t, `{}`)
 

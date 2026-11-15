@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
@@ -42,6 +44,10 @@ func (h *QsoHandler) Create(c *gin.Context) {
 		response.Fail(c, 400, "参数错误")
 		return
 	}
+	// 请求体可以带上 has_card=true、自定义编号。编号只由发号器生成，新建记录还没有卡。
+	req.ID = 0
+	req.HasCard = false
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 	req.RecordCode = nextQsoRecordCode(h.db)
 	h.db.Create(&req)
 	response.OK(c, req)

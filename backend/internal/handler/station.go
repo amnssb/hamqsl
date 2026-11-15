@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
@@ -24,6 +26,8 @@ func (h *StationHandler) GetProfile(c *gin.Context) {
 func (h *StationHandler) CreateProfile(c *gin.Context) {
 	var req model.StationProfile
 	c.ShouldBindJSON(&req)
+	req.ID = 0
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 	var count int64
 	h.db.Model(&model.StationProfile{}).Count(&count)
 	if count > 0 {

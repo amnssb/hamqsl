@@ -44,6 +44,10 @@ func bindPatch(c *gin.Context, allowed map[string]bool) map[string]interface{} {
 		if v == nil || !allowed[k] {
 			continue
 		}
+		// 呼号在公开申请里是大写，编辑时如果原样留下小写，两边就对不上。
+		if s, ok := v.(string); ok && k == "call_sign" {
+			v = strings.ToUpper(strings.TrimSpace(s))
+		}
 		out[k] = v
 	}
 	return out

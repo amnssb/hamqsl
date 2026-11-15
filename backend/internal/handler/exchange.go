@@ -60,7 +60,16 @@ func (h *ExchangeHandler) ListRequests(c *gin.Context) {
 func (h *ExchangeHandler) CreateRequest(c *gin.Context) {
 	var req model.ExchangeRequest
 	c.ShouldBindJSON(&req)
-	req.CallSign = strings.ToUpper(req.CallSign)
+	// 直接绑整张表时，请求体可以带上 review_status=APPROVED。新建申请一律从待审核开始。
+	req.ID = 0
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
+	req.ReviewStatus = "PENDING"
+	req.ReviewReason = ""
+	req.ReviewedBy = ""
+	req.ReviewedAt = ""
+	req.CardCreated = false
+	req.CardCreatedAt = ""
+	req.CreatedCardID = nil
 	var count int64
 	h.db.Model(&model.ExchangeRequest{}).Where("call_sign = ? AND review_status = 'PENDING'", req.CallSign).Count(&count)
 	if count > 0 {
@@ -122,7 +131,7 @@ func (h *ExchangeHandler) sendReturnAddressMail(c *gin.Context, ex *model.Exchan
 			"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">登记寄出信息</a></p>"+
 			"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
 			"<p style=\"margin-bottom:0;\">73！</p>",
-		htmlEscape(ex.Name), htmlEscape(ex.CallSign), htmlEscape(ex.ReturnAddressText), link, link)
+		htmlEscape(ex.Name), htmlEscape(ex.CallSign), htmlEscape(ex.ReturnAddressText), htmlEscape(link), htmlEscape(link))
 	if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 		log.Printf("发送回寄地址邮件失败(%s): %v", ex.Email, err)
 		return err.Error()
@@ -176,8 +185,9 @@ func (h *ExchangeHandler) Approve(c *gin.Context) {
 			sb.WriteString("<li>寄出后在进度页登记邮寄方式（挂号信/平信）与单号</li>")
 			sb.WriteString("</ol>")
 		}
-		sb.WriteString("<p style=\"text-align:center;margin:26px 0;\"><a href=\"" + link + "\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度 / 登记寄出</a></p>")
-		sb.WriteString("<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：" + link + "</p>")
+		safeLink := htmlEscape(link)
+		sb.WriteString("<p style=\"text-align:center;margin:26px 0;\"><a href=\"" + safeLink + "\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度 / 登记寄出</a></p>")
+		sb.WriteString("<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：" + safeLink + "</p>")
 		sb.WriteString("<p style=\"margin-bottom:0;\">73！</p>")
 		if err := sendMail(h.db, item.Email, subject, sb.String()); err != nil {
 			log.Printf("SWL 审批邮件发送失败(%s): %v", item.Email, err)
@@ -219,7 +229,7 @@ func (h *ExchangeHandler) Reject(c *gin.Context) {
 				"<p>欢迎核对信息后重新提交申请。</p>"+
 				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">重新申请</a></p>"+
 				"<p style=\"margin-bottom:0;\">73！</p>",
-			htmlEscape(item.Name), htmlEscape(item.CallSign), htmlEscape(reason), link)
+			htmlEscape(item.Name), htmlEscape(item.CallSign), htmlEscape(reason), htmlEscape(link))
 		if err := sendMail(h.db, item.Email, subject, body); err != nil {
 			log.Printf("拒绝通知邮件发送失败(%s): %v", item.Email, err)
 		}
@@ -268,13 +278,12 @@ func (h *ExchangeHandler) buildCardForExchange(ex *model.ExchangeRequest) model.
 		FlowStatus:      "PENDING_ISSUE",
 	}
 
-	// QSO 场景：尝试关联已有通联记录
+	// QSO 场景：只记下通联 ID。has_card 要等卡片真正写入成功后再置真，
+	// 否则创建失败会把这条通联永久标成已建卡，通联换卡里再也选不到。
 	if sceneType == "QSO" && ex.QsoDate != "" {
 		var qso model.QsoRecord
 		if err := h.db.Where("call_sign = ? AND date = ?", ex.CallSign, ex.QsoDate).First(&qso).Error; err == nil {
 			card.QsoRecordID = &qso.ID
-			qso.HasCard = true
-			h.db.Save(&qso)
 		}
 	}
 	return card
@@ -296,14 +305,24 @@ func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 	}
 
 	card := h.buildCardForExchange(&ex)
-	if err := h.db.Create(&card).Error; err != nil {
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&card).Error; err != nil {
+			return err
+		}
+		if card.QsoRecordID != nil {
+			if err := tx.Model(&model.QsoRecord{}).Where("id = ?", *card.QsoRecordID).Update("has_card", true).Error; err != nil {
+				return err
+			}
+		}
+		ex.CardCreated = true
+		ex.CardCreatedAt = cstNow().Format("2006-01-02 15:04:05")
+		ex.CreatedCardID = &card.ID
+		return tx.Save(&ex).Error
+	})
+	if err != nil {
 		response.Fail(c, 500, "创建卡片失败，请稍后重试")
 		return
 	}
-	ex.CardCreated = true
-	ex.CardCreatedAt = cstNow().Format("2006-01-02 15:04:05")
-	ex.CreatedCardID = &card.ID
-	h.db.Save(&ex)
 
 	// SWL 手动建卡兜底（新流程由确认收卡自动建卡）：建卡后邮件通知对方（附状态查询链接）
 	if strings.ToUpper(ex.SceneType) == "SWL" && ex.Email != "" {
@@ -316,7 +335,7 @@ func (h *ExchangeHandler) CreateCard(c *gin.Context) {
 				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>"+
 				"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
 				"<p style=\"margin-bottom:0;\">73！</p>",
-			htmlEscape(ex.Name), htmlEscape(ex.CallSign), card.CardCode, link, link)
+			htmlEscape(ex.Name), htmlEscape(ex.CallSign), htmlEscape(card.CardCode), htmlEscape(link), htmlEscape(link))
 		if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 			log.Printf("SWL 回寄卡建卡通知邮件发送失败(%s): %v", ex.Email, err)
 		}
@@ -407,7 +426,15 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 	// 确认收件后自动创建回寄卡片记录：卡片直接进入卡片记录列表（待发卡），
 	// 管理员在卡片记录里写卡/发卡即可，收件人与换卡申请邮箱一致
 	card := h.buildCardForExchange(&ex)
-	cardErr := h.db.Create(&card).Error
+	cardErr := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&card).Error; err != nil {
+			return err
+		}
+		if card.QsoRecordID != nil {
+			return tx.Model(&model.QsoRecord{}).Where("id = ?", *card.QsoRecordID).Update("has_card", true).Error
+		}
+		return nil
+	})
 	if cardErr == nil {
 		ex.CardCreated = true
 		ex.CardCreatedAt = now.Format("2006-01-02 15:04:05")
@@ -436,7 +463,7 @@ func (h *ExchangeHandler) ReceiveReturnCard(c *gin.Context) {
 				"<p style=\"text-align:center;margin:24px 0;\"><a href=\"%s\" style=\"display:inline-block;background:#f5a623;color:#1a2d3d;padding:11px 30px;border-radius:4px;text-decoration:none;font-weight:bold;\">查看申请进度</a></p>"+
 				"<p style=\"color:#999;font-size:12px;word-break:break-all;\">如按钮无法点击，请复制链接：%s</p>"+
 				"<p style=\"margin-bottom:0;\">73！</p>",
-			htmlEscape(ex.Name), htmlEscape(ex.CallSign), tracking, code, cardLine, link, link)
+			htmlEscape(ex.Name), htmlEscape(ex.CallSign), tracking, htmlEscape(code), cardLine, htmlEscape(link), htmlEscape(link))
 		if err := sendMail(h.db, ex.Email, subject, body); err != nil {
 			mailErr = err.Error()
 			log.Printf("SWL 收卡通知邮件发送失败(%s): %v", ex.Email, err)

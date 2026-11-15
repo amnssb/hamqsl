@@ -204,9 +204,11 @@
 
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const route = useRoute()
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
@@ -220,6 +222,22 @@ const detailDialog = ref(false)
 const detailRow = ref(null)
 
 watch(sceneTab, t => { query.scene_type = t; query.page = 1; loadData() })
+
+function applyRouteQuery() {
+  const raw = route.query.review_status
+  query.review_status = typeof raw === 'string' ? raw : ''
+  const scene = route.query.scene_type
+  if (scene === 'QSO' || scene === 'SWL' || scene === 'EYEBALL') {
+    sceneTab.value = scene
+    query.scene_type = scene
+  }
+}
+
+watch(() => route.fullPath, () => {
+  applyRouteQuery()
+  query.page = 1
+  loadData()
+})
 
 const sceneLabels = { QSO: 'QSL 通联', SWL: 'SWL 收听', EYEBALL: 'EYEBALL 见面' }
 const sceneColors = { QSO: 'primary', SWL: 'info', EYEBALL: 'warning' }
@@ -340,7 +358,7 @@ async function handleSendAddress() {
   } finally { addrSending.value = false }
 }
 
-onMounted(loadData)
+onMounted(() => { applyRouteQuery(); loadData() })
 </script>
 
 <style scoped>

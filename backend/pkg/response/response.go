@@ -28,6 +28,13 @@ func OKMsg(c *gin.Context, msg string) {
 }
 
 func Page(c *gin.Context, items interface{}, total int64, page, size int) {
+	// size 为 0 时下面的除法会 panic。列表接口应先走 pageParams，这里再兜一层。
+	if size < 1 {
+		size = 1
+	}
+	if page < 1 {
+		page = 1
+	}
 	pages := int(total) / size
 	if int(total)%size > 0 {
 		pages++
@@ -39,7 +46,7 @@ func Page(c *gin.Context, items interface{}, total int64, page, size int) {
 }
 
 // Fail 按 HTTP 状态返回错误。响应体里的 code 跟着状态走，
-// 这样 429/410/423 这些新状态在日志和前端里也能一眼认出来，不会都显示成 QSL-400-0001。
+// 这样 422/429/410/423 这些状态在日志和前端里也能一眼认出来，不会都显示成 QSL-400-0001。
 func Fail(c *gin.Context, code int, msg string) {
 	c.JSON(code, Response{Code: codeForStatus(code), Message: msg})
 }
@@ -54,6 +61,8 @@ func codeForStatus(status int) string {
 		return "QSL-404-0001"
 	case http.StatusConflict:
 		return "QSL-409-0001"
+	case http.StatusUnprocessableEntity:
+		return "QSL-422"
 	case http.StatusGone:
 		return "QSL-410"
 	case http.StatusLocked:

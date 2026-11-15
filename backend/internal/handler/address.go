@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"qsl-management/internal/model"
 	"qsl-management/pkg/response"
-	"strconv"
 )
 
 type AddressHandler struct{ db *gorm.DB }
@@ -13,11 +14,12 @@ type AddressHandler struct{ db *gorm.DB }
 func NewAddressHandler(db *gorm.DB) *AddressHandler { return &AddressHandler{db: db} }
 
 func (h *AddressHandler) ListBook(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	// 这里以前自己解析 page/size，不设上界。size=0 会在 response.Page 里除零；
+	// size=1000000 会把整本地址簿读进内存。
+	page, size := pageParams(c)
 	q := h.db.Model(&model.AddressBookEntry{})
 	if v := c.Query("call_sign"); v != "" {
-		q = q.Where("call_sign LIKE ?", "%"+v+"%")
+		q = q.Where("call_sign LIKE ?", containsPattern(v))
 	}
 	var total int64
 	q.Count(&total)
@@ -29,6 +31,8 @@ func (h *AddressHandler) ListBook(c *gin.Context) {
 func (h *AddressHandler) CreateBook(c *gin.Context) {
 	var req model.AddressBookEntry
 	c.ShouldBindJSON(&req)
+	req.ID = 0
+	req.CallSign = strings.ToUpper(strings.TrimSpace(req.CallSign))
 	h.db.Create(&req)
 	response.OK(c, req)
 }

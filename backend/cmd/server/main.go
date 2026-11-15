@@ -95,6 +95,8 @@ func main() {
 	// 以前每次启动都无条件跑这 4 条全表 UPDATE，库变大后每次重启都要写一遍 WAL。
 	// 现在先 LIMIT 1 探一下，没有待迁移的行就直接跳过；迁移完成后启动是只读的。
 	normalizeLegacySceneTypes(db)
+	// 呼号大小写不一致时，换卡申请和通联记录对不上，建卡关联会静默失败。
+	handler.NormalizeCallSigns(db)
 
 	bootstrapAdmin(cfg, db)
 	escapeHatch(cfg, db)
