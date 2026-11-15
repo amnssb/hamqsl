@@ -138,9 +138,9 @@ func (p *myPlugin) OpenRoutes(rg *gin.RouterGroup) {
 规则（`showcase.go` 是完整范例，外部对接的字段契约见 [showcase-api.md](showcase-api.md)）：
 
 - 只读。不做任何写操作；不输出地址、邮箱、备注这类隐私列——SELECT 里就不查它们。
-- 禁用时同样 404，守卫已挂好。
+- 禁用时同样 404，守卫已挂好。公开路径上的这个 404 会带 `Access-Control-Allow-Origin: *`，否则别人网页里的 fetch 读不到状态码。
 - 给别人网页 `<img>` / fetch 用的话，响应上加 `Access-Control-Allow-Origin: *`
-  （只加在这条响应上，别动全站 CORS，见 `showcase.go` 的 `allowPublicRead`）。
+  （只加在这条响应上，别把全站 CORS 改成 `*`。站外对 `/api/public/ext/` 的预检会交给插件自己回，见 `showcase.go` 的 `allowPublicRead`）。
 
 ## 启停与 Init 的时序
 

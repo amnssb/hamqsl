@@ -221,7 +221,22 @@ func RequireMFA(db *gorm.DB, force bool) gin.HandlerFunc {
 	}
 }
 
+// AllowPublicEmbed 标记这条响应可以被任意网页读取或用 <img> 引用。
+//
+// 开发端口的 CORS 会先写上带凭据的具体来源。这里改成 * 时必须拿掉凭据头，
+// 否则浏览器按规范直接丢掉响应，博客和 QRZ 就读不到。
+func AllowPublicEmbed(c *gin.Context) {
+	h := c.Writer.Header()
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Del("Access-Control-Allow-Credentials")
+	h.Set("Cross-Origin-Resource-Policy", "cross-origin")
+}
+
 // CORSMiddleware 仅允许本地开发端口跨域。生产同源部署用不到它。
+//
+// /api/public/ext/ 是给别人网页用的只读接口。那里的预检不能在这里直接 403，
+// 否则插件自己的 OPTIONS 没有机会把 Access-Control-Allow-Origin 写上，
+// 带了非简单头的 fetch 会在预检失败，调用方连 404 都看不到。
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
@@ -248,12 +263,21 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.Header("Access-Control-Max-Age", "86400")
 		}
 
-		if c.Request.Method == "OPTIONS" {
+		if c.Request.Method == http.MethodOptions {
 			if allowed {
-				c.AbortWithStatus(204)
-			} else {
-				c.AbortWithStatus(403)
+				c.AbortWithStatus(http.StatusNoContent)
+				return
 			}
+			if strings.HasPrefix(c.Request.URL.Path, "/api/public/ext/") {
+				c.Next()
+				// c.Status(204) 只记下状态码，Written() 仍是 false。
+				// 路由已经改过状态就不能再覆盖成 403，否则预检成功也会被打回去。
+				if !c.Writer.Written() && c.Writer.Status() == http.StatusOK {
+					c.AbortWithStatus(http.StatusForbidden)
+				}
+				return
+			}
+			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 		c.Next()

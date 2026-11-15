@@ -39,7 +39,7 @@
               <h2>{{ t('showcase.recent') }}</h2>
             </div>
             <p v-if="!recent.length" class="subtitle">{{ t('showcase.emptyQso') }}</p>
-            <div v-for="row in recent" :key="row.call_sign + row.date + row.time" class="qso-row">
+            <div v-for="(row, i) in recent" :key="i + ':' + row.call_sign + ':' + row.date + ':' + row.time + ':' + row.freq" class="qso-row">
               <b>{{ row.call_sign }}</b>
               <span>{{ row.date }} {{ row.time }}</span>
               <span>{{ row.band }} {{ row.mode }}</span>
@@ -55,7 +55,7 @@
             <p v-if="!cards.length" class="subtitle">{{ t('showcase.emptyCards') }}</p>
             <div v-else class="card-grid">
               <figure v-for="card in cards" :key="card.card_version">
-                <img v-if="card.image_path" :src="card.image_path" :alt="card.card_version">
+                <img v-if="card.image_path && !broken[card.card_version]" :src="card.image_path" :alt="card.card_version" @error="broken[card.card_version] = true">
                 <figcaption>{{ card.card_version }}</figcaption>
               </figure>
             </div>
@@ -77,34 +77,34 @@ const station = ref({ call_sign: '', name: '', name_en: '' })
 const counts = ref({ qso: 0, cards_sent: 0, cards_signed: 0, cards_received: 0 })
 const recent = ref([])
 const cards = ref([])
+const broken = ref({})
 
 const heading = computed(() => station.value.call_sign || t('showcase.title'))
 const subheading = computed(() => station.value.name || station.value.name_en || t('showcase.subtitle'))
 
 onMounted(async () => {
-  let res
   try {
-    res = await fetch('/api/public/ext/showcase?limit=8')
+    // 浏览器默认会按响应头把 JSON 缓存 60 秒。本站这一页要跟后台写入对齐，所以不走这层缓存。
+    const res = await fetch('/api/public/ext/showcase?limit=8', { cache: 'no-store' })
+    if (res.status === 404) {
+      state.value = 'off'
+      return
+    }
+    if (!res.ok) {
+      state.value = 'fail'
+      return
+    }
+    const body = await res.json()
+    const data = body.data || {}
+    station.value = data.station || station.value
+    counts.value = data.counts || counts.value
+    recent.value = data.recent || []
+    cards.value = data.cards || []
+    if (station.value.call_sign) document.title = station.value.call_sign
+    state.value = 'ready'
   } catch {
     state.value = 'fail'
-    return
   }
-  if (res.status === 404) {
-    state.value = 'off'
-    return
-  }
-  if (!res.ok) {
-    state.value = 'fail'
-    return
-  }
-  const body = await res.json()
-  const data = body.data || {}
-  station.value = data.station || station.value
-  counts.value = data.counts || counts.value
-  recent.value = data.recent || []
-  cards.value = data.cards || []
-  if (station.value.call_sign) document.title = station.value.call_sign
-  state.value = 'ready'
 })
 </script>
 
